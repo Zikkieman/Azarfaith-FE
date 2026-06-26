@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as RegisterOrgRouteImport } from './routes/register-org'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MyGivingRouteImport } from './routes/my-giving'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DiscoverRouteImport } from './routes/discover'
@@ -28,6 +30,16 @@ const SignupRoute = SignupRouteImport.update({
 const RegisterOrgRoute = RegisterOrgRouteImport.update({
   id: '/register-org',
   path: '/register-org',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyGivingRoute = MyGivingRouteImport.update({
+  id: '/my-giving',
+  path: '/my-giving',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -77,6 +89,8 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/my-giving': typeof MyGivingRoute
+  '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
@@ -89,6 +103,8 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/my-giving': typeof MyGivingRoute
+  '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
@@ -102,6 +118,8 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/my-giving': typeof MyGivingRoute
+  '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
@@ -116,6 +134,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/my-giving'
+    | '/profile'
     | '/register-org'
     | '/signup'
     | '/campaign/$id'
@@ -128,6 +148,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/my-giving'
+    | '/profile'
     | '/register-org'
     | '/signup'
     | '/campaign/$id'
@@ -140,6 +162,8 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/my-giving'
+    | '/profile'
     | '/register-org'
     | '/signup'
     | '/campaign/$id'
@@ -153,6 +177,8 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  MyGivingRoute: typeof MyGivingRoute
+  ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
   SignupRoute: typeof SignupRoute
   CampaignIdRoute: typeof CampaignIdRoute
@@ -174,6 +200,20 @@ declare module '@tanstack/react-router' {
       path: '/register-org'
       fullPath: '/register-org'
       preLoaderRoute: typeof RegisterOrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-giving': {
+      id: '/my-giving'
+      path: '/my-giving'
+      fullPath: '/my-giving'
+      preLoaderRoute: typeof MyGivingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -241,6 +281,8 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  MyGivingRoute: MyGivingRoute,
+  ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,
   SignupRoute: SignupRoute,
   CampaignIdRoute: CampaignIdRoute,
