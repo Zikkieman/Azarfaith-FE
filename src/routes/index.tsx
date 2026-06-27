@@ -232,7 +232,7 @@ function AzarFaithLanding() {
             See all <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-        <div className="grid md:grid-cols-2 gap-5">
+        <div className="grid md:grid-cols-2 gap-5 items-start">
           {ongoingCampaigns.map((c) => (
             <Link key={c.id} to="/campaign/$id" params={{ id: c.id }} className="group block">
               <article className="bg-card border border-border rounded-3xl overflow-hidden hover:border-amber-200 hover:shadow-md transition-all flex gap-0 md:gap-5 flex-col md:flex-row">
@@ -243,7 +243,7 @@ function AzarFaithLanding() {
                     className="w-full h-full object-cover group-hover:scale-[1.03] transition duration-500"
                   />
                 </div>
-                <div className="p-5 flex flex-col justify-between">
+                <div className="p-5 flex flex-col">
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
