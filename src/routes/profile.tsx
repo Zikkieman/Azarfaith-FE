@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
+import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useApp } from "@/lib/store";
@@ -9,7 +10,12 @@ export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
   const { recurringDonations } = useApp();
+  const authUser = useAppSelector((state) => state.auth.user);
   const activeCount = recurringDonations.filter((r) => r.active).length;
+  const displayName = authUser?.fullName ?? me.name;
+  const displayMeta = authUser
+    ? `${authUser.email} · ${authUser.phone}`
+    : `${me.location} · Giving since ${me.joined}`;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -18,10 +24,8 @@ function Profile() {
         <div className="flex items-center gap-4">
           <img src={me.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover" />
           <div>
-            <h1 className="font-display text-2xl tracking-tight">{me.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {me.location} · Giving since {me.joined}
-            </p>
+            <h1 className="font-display text-2xl tracking-tight">{displayName}</h1>
+            <p className="text-sm text-muted-foreground">{displayMeta}</p>
           </div>
         </div>
 

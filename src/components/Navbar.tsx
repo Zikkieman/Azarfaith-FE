@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { Flame, ArrowRight, Menu, X } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { useAppSelector } from "@/app/hooks";
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const authed = useApp((s) => s.authed);
+  const authed = useAppSelector((state) => Boolean(state.auth.accessToken));
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   const navLink = (to: string, label: string) => (

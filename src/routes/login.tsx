@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useApp } from "@/lib/store";
+import { clearAuthError, login } from "@/features/auth/authSlice";
 import { Flame } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -11,8 +13,10 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const nav = useNavigate();
-  const setAuthed = useApp((s) => s.setAuthed);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const { loading, error } = useAppSelector((state) => state.auth);
+  const [identifier, setIdentifier] = useState("tunde@azarfaith.com");
+  const [password, setPassword] = useState("demo1234");
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -36,20 +40,25 @@ function Login() {
               Enter your credentials to access your account.
             </p>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                setLoading(true);
-                setTimeout(() => {
-                  setAuthed(true);
+                dispatch(clearAuthError());
+                try {
+                  await dispatch(login({ identifier, password })).unwrap();
+                  toast.success("Login successful");
                   nav({ to: "/" });
-                }, 800);
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : "Login failed";
+                  toast.error(message);
+                }
               }}
               className="mt-8 space-y-5"
             >
               <div>
                 <label className="text-sm font-medium">Email or phone</label>
                 <input
-                  defaultValue="tunde@azarfaith.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                 />
               </div>
@@ -62,10 +71,12 @@ function Login() {
                 </label>
                 <input
                   type="password"
-                  defaultValue="demo1234"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                 />
               </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 disabled={loading}
                 className="w-full py-3.5 rounded-xl font-semibold disabled:opacity-60 transition bg-amber-500 text-white hover:bg-amber-600"
@@ -79,10 +90,7 @@ function Login() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setAuthed(true);
-                  nav({ to: "/" });
-                }}
+                onClick={() => toast.info("Google login is not wired yet")}
                 className="w-full py-3.5 rounded-xl bg-card border border-border font-medium flex items-center justify-center gap-2 hover:bg-muted transition"
               >
                 <GoogleIcon /> Continue with Google

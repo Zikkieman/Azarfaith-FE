@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterOrgRouteImport } from './routes/register-org'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MyGivingRouteImport } from './routes/my-giving'
@@ -25,6 +26,11 @@ import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterOrgRoute = RegisterOrgRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/my-giving'
     | '/profile'
     | '/register-org'
+    | '/reset-password'
     | '/signup'
     | '/campaign/$id'
     | '/donate/$id'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/my-giving'
     | '/profile'
     | '/register-org'
+    | '/reset-password'
     | '/signup'
     | '/campaign/$id'
     | '/donate/$id'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/my-giving'
     | '/profile'
     | '/register-org'
+    | '/reset-password'
     | '/signup'
     | '/campaign/$id'
     | '/donate/$id'
@@ -180,6 +192,7 @@ export interface RootRouteChildren {
   MyGivingRoute: typeof MyGivingRoute
   ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   CampaignIdRoute: typeof CampaignIdRoute
   DonateIdRoute: typeof DonateIdRoute
@@ -193,6 +206,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register-org': {
@@ -284,6 +304,7 @@ const rootRouteChildren: RootRouteChildren = {
   MyGivingRoute: MyGivingRoute,
   ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   CampaignIdRoute: CampaignIdRoute,
   DonateIdRoute: DonateIdRoute,

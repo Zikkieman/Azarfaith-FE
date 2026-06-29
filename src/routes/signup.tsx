@@ -1,34 +1,53 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useApp } from "@/lib/store";
+import { clearAuthError, signup, verifyOtp } from "@/features/auth/authSlice";
 import { Flame, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/signup")({ component: Signup });
 
 function Signup() {
   const nav = useNavigate();
-  const setAuthed = useApp((s) => s.setAuthed);
+  const dispatch = useAppDispatch();
+  const { loading, pendingVerificationEmail, error } = useAppSelector((state) => state.auth);
   const [step, setStep] = useState<"form" | "otp">("form");
-  const [loading, setLoading] = useState(false);
-  const [phone, setPhone] = useState("+234 ");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("+234");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState(["", "", "", ""]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    dispatch(clearAuthError());
+    try {
+      await dispatch(signup({ fullName, email, phone, password })).unwrap();
+      toast.success("Verification code sent to your email");
       setStep("otp");
-    }, 900);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Signup failed";
+      toast.error(message);
+    }
   };
-  const verify = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setAuthed(true);
+
+  const verify = async () => {
+    if (!pendingVerificationEmail) {
+      toast.error("No pending verification email found");
+      return;
+    }
+
+    dispatch(clearAuthError());
+    try {
+      await dispatch(verifyOtp({ email: pendingVerificationEmail, code: otp.join("") })).unwrap();
+      toast.success("Account verified");
       nav({ to: "/" });
-    }, 1000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Verification failed";
+      toast.error(message);
+    }
   };
 
   return (
@@ -58,17 +77,28 @@ function Signup() {
         <div className="flex-1 flex flex-col justify-center px-6 py-14 md:px-16">
           <div className="w-full max-w-md mx-auto">
             <h1 className="font-display text-3xl tracking-tight">
-              {step === "form" ? "Create your account" : "Verify your phone"}
+              {step === "form" ? "Create your account" : "Verify your email"}
             </h1>
             <p className="mt-2 text-muted-foreground">
               {step === "form"
                 ? "Join the community supporting faith-based causes."
-                : `We sent a 4-digit code to ${phone}`}
+                : `We sent a 4-digit code to ${pendingVerificationEmail ?? email}`}
             </p>
             {step === "form" ? (
               <form onSubmit={submit} className="mt-8 space-y-5">
-                <Field label="Full name" placeholder="e.g. Tunde Adebayo" />
-                <Field label="Email" placeholder="you@email.com" type="email" />
+                <Field
+                  label="Full name"
+                  placeholder="e.g. Tunde Adebayo"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+                <Field
+                  label="Email"
+                  placeholder="you@email.com"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
                 <div>
                   <label className="text-sm font-medium">Phone number</label>
                   <input
@@ -77,7 +107,14 @@ function Signup() {
                     className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   />
                 </div>
-                <Field label="Password" placeholder="At least 8 characters" type="password" />
+                <Field
+                  label="Password"
+                  placeholder="At least 8 characters"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {error && <p className="text-sm text-red-600">{error}</p>}
                 <p className="text-xs text-muted-foreground">
                   By continuing you agree to our Terms and Privacy Policy.
                 </p>
@@ -94,10 +131,7 @@ function Signup() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setAuthed(true);
-                    nav({ to: "/" });
-                  }}
+                  onClick={() => toast.info("Google signup is not wired yet")}
                   className="w-full py-3.5 rounded-xl bg-card border border-border font-medium flex items-center justify-center gap-2 hover:bg-muted transition"
                 >
                   <GoogleIcon /> Continue with Google
@@ -140,11 +174,12 @@ function Signup() {
                   onClick={() => setStep("form")}
                   className="mt-3 w-full py-3 text-sm text-muted-foreground"
                 >
-                  Wrong number? Edit
+                  Wrong email? Edit
                 </button>
                 <p className="text-center text-xs text-muted-foreground mt-2">
                   Didn't get it? Resend in 30s
                 </p>
+                {error && <p className="text-sm text-red-600 text-center mt-3">{error}</p>}
               </div>
             )}
           </div>
