@@ -1,5 +1,15 @@
 import { apiFetch } from "@/lib/api";
-import type { Campaign, DonationHistoryItem, Org, Profile, RecurringDonation } from "@/lib/catalog";
+import type {
+  Campaign,
+  DonationDetail,
+  DonationHistoryItem,
+  Org,
+  Profile,
+  RecurringDonation,
+  SavedPaymentMethod,
+} from "@/lib/catalog";
+
+const MAX_MEDIA_SIZE_BYTES = 5 * 1024 * 1024;
 
 export type CreateOrganizationPayload = {
   name: string;
@@ -42,6 +52,7 @@ export type CreateDonationPayload = {
   paymentMethod: "CARD" | "BANK";
   frequency?: "WEEKLY" | "MONTHLY" | "QUARTERLY";
   recurringMode?: "AUTO" | "PLEDGE";
+  autoChargeConsent?: boolean;
   donorName?: string;
   isAnonymous?: boolean;
   note?: string;
@@ -51,9 +62,22 @@ export type CreateDonationPayload = {
 
 export type UploadMediaPayload = {
   file: File;
-  folder: "organization-photo" | "campaign-cover" | "campaign-gallery";
+  folder: "user-avatar" | "organization-photo" | "campaign-cover" | "campaign-gallery";
   entityId?: string;
 };
+
+export type UpdateProfilePayload = {
+  fullName?: string;
+  phone?: string;
+  avatarUrl?: string;
+};
+
+export type UpdateOrganizationPayload = Partial<CreateOrganizationPayload>;
+
+export type UpdateCampaignPayload = Omit<
+  Partial<CreateCampaignPayload>,
+  "mode" | "type"
+>;
 
 const toQuery = (params: Record<string, string | undefined>) => {
   const query = new URLSearchParams();
@@ -78,6 +102,12 @@ export const createOrganization = (payload: CreateOrganizationPayload) =>
     body: JSON.stringify(payload),
   });
 
+export const updateOrganization = (id: string, payload: UpdateOrganizationPayload) =>
+  apiFetch<Org>(`/organizations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
 export const listCampaigns = (params?: {
   search?: string;
   mode?: string;
@@ -89,6 +119,27 @@ export const getCampaign = (id: string) => apiFetch<Campaign>(`/campaigns/${id}`
 
 export const createCampaign = (payload: CreateCampaignPayload) =>
   apiFetch<Campaign>("/campaigns", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateCampaign = (id: string, payload: UpdateCampaignPayload) =>
+  apiFetch<Campaign>(`/campaigns/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const createCampaignComment = (id: string, payload: { body: string }) =>
+  apiFetch<Campaign>(`/campaigns/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const createCampaignUpdate = (
+  id: string,
+  payload: { title: string; body: string },
+) =>
+  apiFetch<Campaign>(`/campaigns/${id}/updates`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -115,6 +166,10 @@ export const verifyDonation = (campaignId: string, reference: string) =>
   );
 
 export const uploadMedia = async ({ file, folder, entityId }: UploadMediaPayload) => {
+  if (file.size > MAX_MEDIA_SIZE_BYTES) {
+    throw new Error("Media uploads must be 5 MB or smaller.");
+  }
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("folder", folder);
@@ -136,13 +191,40 @@ export const uploadMedia = async ({ file, folder, entityId }: UploadMediaPayload
 
 export const getProfile = () => apiFetch<Profile>("/me/profile");
 
+export const updateProfile = (payload: UpdateProfilePayload) =>
+  apiFetch<Profile>("/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
 export const getRecurringGifts = () => apiFetch<RecurringDonation[]>("/me/recurring-gifts");
 
 export const getDonationHistory = () => apiFetch<DonationHistoryItem[]>("/me/donations");
 
+export const getDonationDetail = (id: string) =>
+  apiFetch<DonationDetail>(`/me/donations/${id}`);
+
+export const getPaymentMethods = () =>
+  apiFetch<SavedPaymentMethod[]>("/me/payment-methods");
+
 export const cancelRecurringGift = (id: string) =>
   apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/cancel`, {
     method: "PATCH",
+  });
+
+export const updateRecurringGiftPaymentMethod = (
+  id: string,
+  payload: { authorizationId: string; consentToAutoCharge: boolean },
+) =>
+  apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/payment-method`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const deactivatePaymentMethod = (id: string, payload?: { reason?: string }) =>
+  apiFetch<{ message: string }>(`/me/payment-methods/${id}/deactivate`, {
+    method: "PATCH",
+    body: JSON.stringify(payload ?? {}),
   });
 
 export const getCloudinaryStatus = () =>

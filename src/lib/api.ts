@@ -31,6 +31,8 @@ const getStoredAccessToken = () => {
   }
 };
 
+export const hasStoredAccessToken = () => Boolean(getStoredAccessToken());
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
   const token = getStoredAccessToken();

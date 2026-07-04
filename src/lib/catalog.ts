@@ -13,6 +13,7 @@ export type Donation = { id: string; donor: string; amount: number; date: string
 
 export type Org = {
   id: string;
+  ownerId: string;
   name: string;
   tagline: string;
   category: OrgCategory;
@@ -31,6 +32,7 @@ export type Org = {
 
 export type Campaign = {
   id: string;
+  ownerId: string;
   mode: CampaignMode;
   type: CampaignType;
   title: string;
@@ -69,8 +71,29 @@ export type RecurringDonation = {
   nextReminderDate?: string | null;
   missedCount: number;
   retryCount: number;
+  authorizationId?: string | null;
+  autoChargeConsentAt?: string | null;
   cancellationReason?: string | null;
   active: boolean;
+};
+
+export type SavedPaymentMethod = {
+  id: string;
+  email: string;
+  brand?: string | null;
+  channel: string;
+  bank?: string | null;
+  cardType?: string | null;
+  last4?: string | null;
+  expMonth?: string | null;
+  expYear?: string | null;
+  reusable: boolean;
+  active: boolean;
+  deactivatedAt?: string | null;
+  lastUsedAt?: string | null;
+  linkedRecurringGiftCount: number;
+  linkedRecurringGiftTitles: string[];
+  label: string;
 };
 
 export type DonationHistoryItem = {
@@ -93,14 +116,52 @@ export type DonationHistoryItem = {
   createdAt: string;
 };
 
+export type DonationDetail = {
+  id: string;
+  campaignId: string;
+  campaignTitle: string;
+  organizationName?: string | null;
+  amount: number;
+  platformFee: number;
+  tipAmount: number;
+  totalCharged: number;
+  status: string;
+  donorName: string;
+  donorDisplayName: string;
+  note?: string | null;
+  isAnonymous: boolean;
+  frequency?: CampaignFrequency | null;
+  recurringMode?: RecurringGiftMode | null;
+  reference: string;
+  paymentMethod: string;
+  failureMessage?: string | null;
+  paidAt?: string | null;
+  createdAt: string;
+  receipt: {
+    donorName: string;
+    amount: number;
+    campaignName: string;
+    organization?: string | null;
+    date: string;
+    transactionReference: string;
+    feeBreakdown: {
+      platformFee: number;
+      tipAmount: number;
+      totalCharged: number;
+    };
+  };
+};
+
 export type Profile = {
   id: string;
   fullName: string;
   email: string;
-  phone: string;
+  phone?: string | null;
   avatarUrl?: string | null;
   totalGiven: number;
   activeRecurringGiftCount: number;
+  ownedOrganizations: Array<{ id: string; name: string; verificationStatus: VerificationStatus }>;
+  ownedCampaigns: Array<{ id: string; title: string; verificationStatus: VerificationStatus }>;
   donationHistory: Array<{ id: string; amount: number; date: string; status: string }>;
   verifications: string[];
 };

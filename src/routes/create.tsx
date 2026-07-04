@@ -30,6 +30,7 @@ import {
   parseAmountInput,
   urgencyOptions,
 } from "@/lib/catalog";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export const Route = createFileRoute("/create")({
   component: AzarFaithCreate,
@@ -44,6 +45,7 @@ const campaignTypeIcons = {
 } as const;
 
 function AzarFaithCreate() {
+  const isAuthed = useRequireAuth();
   const nav = useNavigate();
   const queryClient = useQueryClient();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -218,6 +220,15 @@ function AzarFaithCreate() {
     if (!validate()) return;
     setStep((value) => value + 1);
   };
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <PageSpinner label="Redirecting to login..." />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

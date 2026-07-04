@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "react-redux";
+import { useEffect } from "react";
 import {
   Outlet,
   Link,
@@ -9,9 +10,12 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import appCss from "../styles.css?url";
 import { store } from "@/app/store";
 import { Toaster } from "@/components/ui/sonner";
+import { logout } from "@/features/auth/authSlice";
+import { getProfile } from "@/features/catalog/api";
 
 function NotFoundComponent() {
   return (
@@ -136,9 +140,41 @@ function RootComponent() {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <Outlet />
-        <Toaster position="top-center" richColors closeButton />
+        <AppRoot />
       </QueryClientProvider>
     </Provider>
+  );
+}
+
+function AppRoot() {
+  const dispatch = useAppDispatch();
+  const accessToken = useAppSelector((state) => state.auth.accessToken);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    let cancelled = false;
+
+    void getProfile().catch((error: Error) => {
+      if (cancelled) return;
+
+      if (
+        error.message === "Your session is no longer valid. Please log in again." ||
+        error.message === "Authentication required."
+      ) {
+        dispatch(logout());
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, dispatch]);
+
+  return (
+    <>
+      <Outlet />
+      <Toaster position="top-center" richColors closeButton />
+    </>
   );
 }

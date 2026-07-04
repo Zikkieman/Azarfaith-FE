@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 type AuthUser = {
   id: string;
   email: string;
-  phone: string;
+  phone: string | null;
   fullName: string;
   isVerified: boolean;
 };
@@ -109,6 +109,15 @@ export const verifyOtp = createAsyncThunk("auth/verifyOtp", async (payload: Veri
   }),
 );
 
+export const resendOtp = createAsyncThunk(
+  "auth/resendOtp",
+  async (payload: { email: string }) =>
+    apiFetch<SignupResponse>("/auth/resend-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+);
+
 export const login = createAsyncThunk("auth/login", async (payload: LoginPayload) =>
   apiFetch<AuthResponse>("/auth/login", {
     method: "POST",
@@ -120,6 +129,15 @@ export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (payload: ForgotPasswordPayload) =>
     apiFetch<MessageResponse>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+);
+
+export const googleAuth = createAsyncThunk(
+  "auth/googleAuth",
+  async (payload: { idToken: string }) =>
+    apiFetch<AuthResponse>("/auth/google", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -193,6 +211,18 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.error.message ?? "Verification failed";
       })
+      .addCase(resendOtp.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resendOtp.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingVerificationEmail = action.payload.email;
+      })
+      .addCase(resendOtp.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Resend failed";
+      })
       .addCase(login.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -209,6 +239,23 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message ?? "Login failed";
+      })
+      .addCase(googleAuth.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleAuth.fulfilled, (state, action) => {
+        state.loading = false;
+        state.accessToken = action.payload.accessToken;
+        state.user = action.payload.user;
+        persistAuth({
+          accessToken: action.payload.accessToken,
+          user: action.payload.user,
+        });
+      })
+      .addCase(googleAuth.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Google sign-in failed";
       })
       .addCase(forgotPassword.pending, (state) => {
         state.loading = true;

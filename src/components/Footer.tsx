@@ -1,7 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Flame, Globe } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { logout } from "@/features/auth/authSlice";
 
 export function Footer() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const authed = useAppSelector((state) => Boolean(state.auth.accessToken));
+
   return (
     <footer className="border-t border-border bg-card">
       <div className="mx-auto max-w-7xl px-5 md:px-8 py-14">
@@ -43,11 +49,35 @@ export function Footer() {
           />
           <FooterCol
             title="Account"
-            links={[
-              { label: "My giving", to: "/my-giving" },
-              { label: "Profile", to: "/profile" },
-              { label: "Log in", to: "/login" },
-            ]}
+            links={
+              authed
+                ? [
+                    { label: "My giving", to: "/my-giving" },
+                    { label: "Profile", to: "/profile" },
+                  ]
+                : []
+            }
+            action={
+              authed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch(logout());
+                    navigate({ to: "/login" });
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition"
+                >
+                  Log out
+                </button>
+              ) : (
+                <Link
+                  to="/login"
+                  className="text-sm text-muted-foreground hover:text-foreground transition"
+                >
+                  Log in
+                </Link>
+              )
+            }
           />
           <FooterCol
             title="Trust"
@@ -74,9 +104,11 @@ export function Footer() {
 function FooterCol({
   title,
   links,
+  action,
 }: {
   title: string;
   links: { label: string; to?: string; href?: string }[];
+  action?: React.ReactNode;
 }) {
   return (
     <div>
@@ -101,6 +133,7 @@ function FooterCol({
             )}
           </li>
         ))}
+        {action ? <li>{action}</li> : null}
       </ul>
     </div>
   );

@@ -7,6 +7,7 @@ import { Baby, Check, Church, Globe, GraduationCap, ImagePlus, Loader2, Users } 
 import { Navbar } from "@/components/Navbar";
 import { createOrganization, getCloudinaryStatus, uploadMedia } from "@/features/catalog/api";
 import { orgCategoryOptions } from "@/lib/catalog";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export const Route = createFileRoute("/register-org")({
   component: RegisterOrg,
@@ -21,6 +22,7 @@ const orgIcons = {
 } as const;
 
 function RegisterOrg() {
+  const isAuthed = useRequireAuth();
   const nav = useNavigate();
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -144,6 +146,17 @@ function RegisterOrg() {
     if (!validate()) return;
     setStep((value) => value + 1);
   };
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="mx-auto max-w-xl px-5 py-10">
+          <p className="text-sm text-muted-foreground">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

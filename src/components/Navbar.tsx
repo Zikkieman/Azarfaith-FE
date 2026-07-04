@@ -72,13 +72,29 @@ export function Navbar() {
             Discover
           </Link>
           {authed && (
-            <Link
-              to="/create"
-              onClick={() => setMenuOpen(false)}
-              className="block py-2 text-sm text-muted-foreground"
-            >
-              Start campaign
-            </Link>
+            <>
+              <Link
+                to="/create"
+                onClick={() => setMenuOpen(false)}
+                className="block py-2 text-sm text-muted-foreground"
+              >
+                Start campaign
+              </Link>
+              <Link
+                to="/my-giving"
+                onClick={() => setMenuOpen(false)}
+                className="block py-2 text-sm text-muted-foreground"
+              >
+                My giving
+              </Link>
+              <Link
+                to="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="block py-2 text-sm text-muted-foreground"
+              >
+                Profile
+              </Link>
+            </>
           )}
           {!authed && (
             <Link

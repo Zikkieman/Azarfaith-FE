@@ -45,6 +45,7 @@ function AzarFaithDonate() {
   const [note, setNote] = useState("");
   const [tip, setTip] = useState(0);
   const [customTip, setCustomTip] = useState("");
+  const [autoChargeConsent, setAutoChargeConsent] = useState(false);
   const [done, setDone] = useState(false);
   const [verificationAttempted, setVerificationAttempted] = useState(false);
 
@@ -63,6 +64,7 @@ function AzarFaithDonate() {
         paymentMethod: payMethod,
         frequency: isRecurring ? (freq.toUpperCase() as "WEEKLY" | "MONTHLY" | "QUARTERLY") : undefined,
         recurringMode: isRecurring ? recurringMode : undefined,
+        autoChargeConsent: isRecurring && recurringMode === "AUTO" ? autoChargeConsent : undefined,
         donorName: anonymous ? undefined : name || undefined,
         isAnonymous: anonymous,
         note: note || undefined,
@@ -111,6 +113,10 @@ function AzarFaithDonate() {
   const next = () => {
     if (step === 0 && finalAmount < 100) {
       toast.error("Minimum donation is ₦100");
+      return;
+    }
+    if (isRecurring && step === 1 && recurringMode === "AUTO" && !autoChargeConsent) {
+      toast.error("Please confirm the automatic charge consent before continuing.");
       return;
     }
     setStep((value) => value + 1);
@@ -198,7 +204,7 @@ function AzarFaithDonate() {
           <div className="space-y-4">
             <h2 className="font-display text-xl">How would you like to give?</h2>
             {[
-              { value: "AUTO", label: "Automatic (recommended)", desc: "Failure tracking and retry scheduling are active; stored charging authorization is still a later payment pass." },
+              { value: "AUTO", label: "Automatic", desc: "Your first donation goes through Paystack checkout. If Paystack returns a reusable authorization, later scheduled charges can run automatically until you cancel." },
               { value: "PLEDGE", label: "Reminder / pledge", desc: "Reminder emails and missed-pledge tracking are now active." },
             ].map((option) => (
               <button key={option.value} onClick={() => setRecurringMode(option.value as "AUTO" | "PLEDGE")} className={`w-full rounded-2xl border p-4 text-left transition ${recurringMode === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}>
@@ -206,6 +212,19 @@ function AzarFaithDonate() {
                 <div className="mt-0.5 text-xs text-muted-foreground">{option.desc}</div>
               </button>
             ))}
+            {recurringMode === "AUTO" ? (
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <input
+                  type="checkbox"
+                  checked={autoChargeConsent}
+                  onChange={(event) => setAutoChargeConsent(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-amber-500"
+                />
+                <span>
+                  I authorize AzarFaith to reuse a saved Paystack authorization for future scheduled charges on this recurring gift until I cancel it from My Giving.
+                </span>
+              </label>
+            ) : null}
           </div>
         )}
 
@@ -216,11 +235,31 @@ function AzarFaithDonate() {
               { value: "CARD", icon: CreditCard, label: "Debit / Credit card", desc: "Complete your donation securely through Paystack." },
               { value: "BANK", icon: Building2, label: "Bank transfer", desc: "Reserved for the manual transfer flow when that backend path is enabled." },
             ].map((method) => (
-              <button key={method.value} onClick={() => setPayMethod(method.value as "CARD" | "BANK")} className={`flex w-full items-center gap-3 rounded-2xl border p-4 transition ${payMethod === method.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}>
+              <button
+                key={method.value}
+                onClick={() => {
+                  if (isRecurring && recurringMode === "AUTO" && method.value === "BANK") {
+                    return;
+                  }
+                  setPayMethod(method.value as "CARD" | "BANK");
+                }}
+                disabled={isRecurring && recurringMode === "AUTO" && method.value === "BANK"}
+                className={`flex w-full items-center gap-3 rounded-2xl border p-4 transition ${
+                  payMethod === method.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"
+                } ${
+                  isRecurring && recurringMode === "AUTO" && method.value === "BANK"
+                    ? "cursor-not-allowed opacity-50 hover:border-border"
+                    : ""
+                }`}
+              >
                 <method.icon className={`h-5 w-5 ${payMethod === method.value ? "text-amber-600" : "text-muted-foreground"}`} />
                 <div className="flex-1 text-left">
                   <div className="text-sm font-medium">{method.label}</div>
-                  <div className="text-xs text-muted-foreground">{method.desc}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {isRecurring && recurringMode === "AUTO" && method.value === "BANK"
+                      ? "Automatic recurring gifts require a reusable card authorization, so bank transfer is not available here."
+                      : method.desc}
+                  </div>
                 </div>
                 {payMethod === method.value && <Check className="h-4 w-4 text-amber-500" />}
               </button>
@@ -294,12 +333,17 @@ function AzarFaithDonate() {
                 <>
                   <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Frequency</span><span>{frequencyLabel[freq as keyof typeof frequencyLabel]}</span></div>
                   <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Mode</span><span>{recurringMode === "AUTO" ? "Automatic" : "Reminder"}</span></div>
+                  {recurringMode === "AUTO" ? (
+                    <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Consent</span><span>{autoChargeConsent ? "Granted" : "Not granted"}</span></div>
+                  ) : null}
                 </>
               )}
             </div>
             {isRecurring && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                <Repeat2 className="mr-1.5 inline h-4 w-4" /> Pledge reminders, missed-pledge tracking, and recurring retry scheduling are active. Automatic charging authorization is still a later payment pass.
+                <Repeat2 className="mr-1.5 inline h-4 w-4" /> {recurringMode === "AUTO"
+                  ? "Your first payment is completed in Paystack. After that, AzarFaith can use the reusable authorization Paystack returns for future scheduled charges until you cancel."
+                  : "Pledge reminders, missed-pledge tracking, and recurring retry scheduling are active."}
               </div>
             )}
           </div>

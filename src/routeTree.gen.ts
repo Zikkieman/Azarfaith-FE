@@ -14,6 +14,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterOrgRouteImport } from './routes/register-org'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MyGivingRouteImport } from './routes/my-giving'
+import { Route as ManageRouteImport } from './routes/manage'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DiscoverRouteImport } from './routes/discover'
@@ -46,6 +47,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const MyGivingRoute = MyGivingRouteImport.update({
   id: '/my-giving',
   path: '/my-giving',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManageRoute = ManageRouteImport.update({
+  id: '/manage',
+  path: '/manage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/manage': typeof ManageRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/manage': typeof ManageRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/manage': typeof ManageRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/manage'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/manage'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/forgot-password'
     | '/login'
+    | '/manage'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ManageRoute: typeof ManageRoute
   MyGivingRoute: typeof MyGivingRoute
   ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/my-giving'
       fullPath: '/my-giving'
       preLoaderRoute: typeof MyGivingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manage': {
+      id: '/manage'
+      path: '/manage'
+      fullPath: '/manage'
+      preLoaderRoute: typeof ManageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ManageRoute: ManageRoute,
   MyGivingRoute: MyGivingRoute,
   ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,
