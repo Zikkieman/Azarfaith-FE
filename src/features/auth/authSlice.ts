@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { apiFetch } from "@/lib/api";
 
@@ -141,6 +141,15 @@ const authSlice = createSlice({
     clearAuthError(state) {
       state.error = null;
     },
+    setPendingVerificationEmail(state, action: PayloadAction<string>) {
+      state.pendingVerificationEmail = action.payload;
+      state.pendingVerificationPhone = null;
+      state.error = null;
+    },
+    clearPendingVerification(state) {
+      state.pendingVerificationEmail = null;
+      state.pendingVerificationPhone = null;
+    },
     logout(state) {
       state.accessToken = null;
       state.user = null;
@@ -228,5 +237,10 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearAuthError, logout } = authSlice.actions;
+export const {
+  clearAuthError,
+  setPendingVerificationEmail,
+  clearPendingVerification,
+  logout,
+} = authSlice.actions;
 export const authReducer = authSlice.reducer;

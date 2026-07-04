@@ -1,427 +1,559 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { useApp } from "@/lib/store";
-import { categories, type Campaign } from "@/lib/mock";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  Target,
-  Repeat2,
   Banknote,
-  Gift,
-  Users,
   Briefcase,
-  Siren,
   Check,
+  Gift,
   ImagePlus,
-  Flame,
+  Loader2,
+  Repeat2,
+  Siren,
+  Target,
+  Users,
 } from "lucide-react";
+
+import { Navbar } from "@/components/Navbar";
+import {
+  createCampaign,
+  getCloudinaryStatus,
+  listOrganizations,
+  uploadMedia,
+} from "@/features/catalog/api";
+import {
+  campaignTypeOptions,
+  faithCategoryOptions,
+  frequencyOptions,
+  formatAmountInput,
+  parseAmountInput,
+  urgencyOptions,
+} from "@/lib/catalog";
 
 export const Route = createFileRoute("/create")({
   component: AzarFaithCreate,
 });
 
-const campaignTypes = [
-  {
-    v: "money",
-    icon: Banknote,
-    label: "Raise funds",
-    desc: "Money for a specific need or ongoing ministry",
-  },
-  {
-    v: "item",
-    icon: Gift,
-    label: "Request items",
-    desc: "Beds, bibles, equipment, school materials…",
-  },
-  {
-    v: "volunteer",
-    icon: Users,
-    label: "Find volunteers",
-    desc: "Hands to help, teachers, builders, drivers…",
-  },
-  {
-    v: "professional",
-    icon: Briefcase,
-    label: "Professional help",
-    desc: "Lawyers, accountants, engineers, doctors…",
-  },
-  {
-    v: "emergency",
-    icon: Siren,
-    label: "Emergency",
-    desc: "Urgent crisis needing immediate response",
-  },
-] as const;
-
-const urgencyOptions = [
-  { v: "low", label: "Low", desc: "No rush — we'll get there" },
-  { v: "medium", label: "Medium", desc: "Active need, not critical" },
-  { v: "high", label: "High", desc: "We need this soon" },
-  { v: "critical", label: "Critical", desc: "Emergency — act now" },
-] as const;
-
-const frequencyOptions = [
-  { v: "weekly", label: "Weekly" },
-  { v: "monthly", label: "Monthly" },
-  { v: "quarterly", label: "Quarterly" },
-] as const;
+const campaignTypeIcons = {
+  MONEY: Banknote,
+  ITEM: Gift,
+  VOLUNTEER: Users,
+  PROFESSIONAL: Briefcase,
+  EMERGENCY: Siren,
+} as const;
 
 function AzarFaithCreate() {
   const nav = useNavigate();
-  const { draft, setDraft, resetDraft, addCampaign, orgs } = useApp();
+  const queryClient = useQueryClient();
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
+  const { data: orgs = [] } = useQuery({
+    queryKey: ["organizations", "create"],
+    queryFn: () => listOrganizations(),
+  });
+  const {
+    data: mediaStatus,
+    isLoading: mediaStatusLoading,
+    isError: mediaStatusError,
+  } = useQuery({
+    queryKey: ["media", "cloudinary-status"],
+    queryFn: getCloudinaryStatus,
+  });
+
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [publishing, setPublishing] = useState(false);
+  const [form, setForm] = useState({
+    mode: "" as "ONE_TIME" | "ONGOING" | "",
+    type: "" as "MONEY" | "ITEM" | "VOLUNTEER" | "PROFESSIONAL" | "EMERGENCY" | "",
+    title: "",
+    story: "",
+    faithCategory: "" as string,
+    organizationId: "",
+    location: "",
+    goalAmount: "",
+    urgency: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+    frequencies: [] as Array<"WEEKLY" | "MONTHLY" | "QUARTERLY">,
+    coverImageUrl: "",
+    galleryImageUrls: [] as string[],
+  });
 
-  const isOngoing = draft.mode === "ongoing";
+  const uploadCoverMutation = useMutation({
+    mutationFn: async (file: File) =>
+      uploadMedia({
+        file,
+        folder: "campaign-cover",
+        entityId: form.title.trim() || undefined,
+      }),
+    onSuccess: (upload) => {
+      setForm((current) => ({ ...current, coverImageUrl: upload.url }));
+      toast.success("Cover image uploaded.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const uploadGalleryMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const uploads = await Promise.all(
+        files.map((file) =>
+          uploadMedia({
+            file,
+            folder: "campaign-gallery",
+            entityId: form.title.trim() || undefined,
+          }),
+        ),
+      );
+
+      return uploads.map((upload) => upload.url);
+    },
+    onSuccess: (urls) => {
+      setForm((current) => ({
+        ...current,
+        galleryImageUrls: [...current.galleryImageUrls, ...urls],
+      }));
+      toast.success(`${urls.length} gallery image${urls.length > 1 ? "s" : ""} uploaded.`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const ensureMediaReady = () => {
+    if (mediaStatus?.enabled) return true;
+
+    if (mediaStatusLoading) {
+      toast.error("Checking media upload connection. Try again in a moment.");
+      return false;
+    }
+
+    if (mediaStatusError) {
+      toast.error("Could not confirm media upload setup. Refresh and try again.");
+      return false;
+    }
+
+    const missing = mediaStatus?.missing?.join(", ");
+    toast.error(
+      missing
+        ? `Media upload is not configured yet: ${missing}`
+        : "Media upload is not configured yet.",
+    );
+    return false;
+  };
+
+  const createCampaignMutation = useMutation({
+    mutationFn: () =>
+      createCampaign({
+        mode: form.mode || "ONE_TIME",
+        type: form.type || "MONEY",
+        title: form.title,
+        story: form.story,
+        faithCategory: form.faithCategory as
+          | "CHURCH_BUILDING"
+          | "MISSIONS_OUTREACH"
+          | "ORPHANAGE"
+          | "EDUCATION"
+          | "FOOD_RELIEF"
+          | "MEDICAL_MISSION"
+          | "EMERGENCY"
+          | "COMMUNITY_DEVELOPMENT",
+        organizationId: form.organizationId || undefined,
+        location: form.location,
+        goalAmount:
+          form.mode === "ONE_TIME" && form.type === "MONEY"
+            ? parseAmountInput(form.goalAmount) || undefined
+            : undefined,
+        urgency: form.urgency,
+        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
+        coverImageUrl: form.coverImageUrl || undefined,
+        galleryImageUrls:
+          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
+      }),
+    onSuccess: (campaign) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      toast.success("Campaign created successfully.");
+      nav({ to: "/campaign/$id", params: { id: campaign.id } });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const isOngoing = form.mode === "ONGOING";
   const stepLabels = isOngoing
     ? ["Mode", "Type", "Story", "Details", "Support", "Preview"]
     : ["Mode", "Type", "Story", "Details", "Preview"];
 
   const validate = () => {
-    const e: Record<string, string> = {};
-    if (step === 0 && !draft.mode) e.mode = "Choose a campaign mode";
-    if (step === 1 && !draft.type) e.type = "Choose a type";
+    const nextErrors: Record<string, string> = {};
+    if (step === 0 && !form.mode) nextErrors.mode = "Choose a campaign mode";
+    if (step === 1 && !form.type) nextErrors.type = "Choose a type";
     if (step === 2) {
-      if (!draft.title?.trim() || draft.title.length < 8)
-        e.title = "Title must be at least 8 characters";
-      if (!draft.story?.trim() || draft.story.length < 30)
-        e.story = "Story must be at least 30 characters";
+      if (form.title.trim().length < 8)
+        nextErrors.title = "Title must be at least 8 characters";
+      if (form.story.trim().length < 30)
+        nextErrors.story = "Story must be at least 30 characters";
     }
     if (step === 3) {
-      if (!draft.faithCategory) e.faithCategory = "Select a category";
-      if (!draft.location?.trim()) e.location = "Location is required";
-      if (!isOngoing && draft.type === "money" && (!draft.goal || draft.goal < 1000))
-        e.goal = "Goal must be at least ₦1,000";
+      if (!form.faithCategory) nextErrors.faithCategory = "Select a category";
+      if (!form.location.trim()) nextErrors.location = "Location is required";
+      if (
+        !isOngoing &&
+        form.type === "MONEY" &&
+        (!form.goalAmount || parseAmountInput(form.goalAmount) < 1000)
+      ) {
+        nextErrors.goalAmount = "Goal must be at least ₦1,000";
+      }
     }
-    if (step === 4 && isOngoing) {
-      if (!draft.frequencies?.length) e.frequencies = "Select at least one giving frequency";
+    if (step === 4 && isOngoing && form.frequencies.length === 0) {
+      nextErrors.frequencies = "Select at least one giving frequency";
     }
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const next = () => {
     if (!validate()) return;
-    setStep((s) => s + 1);
+    setStep((value) => value + 1);
   };
-
-  const publish = () => {
-    setPublishing(true);
-    setTimeout(() => {
-      const campaign: Campaign = {
-        id: `gfc${Math.random().toString(36).slice(2)}`,
-        mode: draft.mode!,
-        type: draft.type!,
-        title: draft.title!,
-        story: draft.story!,
-        faithCategory: draft.faithCategory!,
-        orgId: draft.orgId,
-        raiser: {
-          name: "Tunde Adebayo",
-          avatar:
-            "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=200&q=80",
-          location: draft.location!,
-          trustScore: 86,
-        },
-        cover:
-          draft.cover ??
-          "https://images.unsplash.com/photo-1532635241-17e820acc59f?auto=format&fit=crop&w=1200&q=80",
-        gallery: [],
-        goal: isOngoing ? undefined : draft.goal,
-        raised: 0,
-        donors: 0,
-        currency: "NGN",
-        location: draft.location!,
-        urgency: draft.urgency ?? "medium",
-        createdAt: new Date().toISOString().split("T")[0],
-        verificationStatus: "unverified",
-        updates: [],
-        comments: [],
-        donations: [],
-        needs: draft.needs,
-        frequencies: isOngoing ? (draft.frequencies ?? ["monthly"]) : undefined,
-      };
-      addCampaign(campaign);
-      resetDraft();
-      toast("Campaign is live on AzarFaith");
-      nav({ to: "/campaign/$id", params: { id: campaign.id } });
-    }, 900);
-  };
-
-  const totalSteps = stepLabels.length;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="mx-auto max-w-xl px-5 py-10">
-        {/* Steps */}
-        <div className="flex items-center gap-2 mb-8">
-          {stepLabels.map((label, i) => (
-            <div key={label} className="flex items-center gap-2 flex-1 last:flex-none">
+        <div className="mb-8 flex items-center gap-2">
+          {stepLabels.map((label, index) => (
+            <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
               <div
-                className={`w-7 h-7 rounded-full text-xs font-semibold grid place-items-center shrink-0 ${i < step ? "bg-amber-500 text-white" : i === step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
+                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${index <= step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
               >
-                {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
               </div>
               <span
-                className={`text-xs hidden sm:block ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}
+                className={`hidden text-xs sm:block ${index === step ? "font-medium text-foreground" : "text-muted-foreground"}`}
               >
                 {label}
               </span>
-              {i < totalSteps - 1 && (
-                <div className={`h-px flex-1 ${i < step ? "bg-amber-400" : "bg-border"}`} />
+              {index < stepLabels.length - 1 && (
+                <div className={`h-px flex-1 ${index < step ? "bg-amber-400" : "bg-border"}`} />
               )}
             </div>
           ))}
         </div>
 
-        {/* Step 0: Mode */}
         {step === 0 && (
           <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">What kind of campaign?</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Choose based on what your cause actually needs.
-              </p>
-            </div>
+            <h1 className="font-display text-2xl">What kind of campaign?</h1>
             <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={() => setDraft({ mode: "one-time" })}
-                className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition ${draft.mode === "one-time" ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5 ${draft.mode === "one-time" ? "bg-amber-200" : "bg-muted"}`}
+              {[
+                {
+                  value: "ONE_TIME",
+                  title: "One-time campaign",
+                  desc: "You have a specific target and need to close.",
+                  icon: Target,
+                },
+                {
+                  value: "ONGOING",
+                  title: "Ongoing support",
+                  desc: "Your ministry is continuous and needs faithful backing.",
+                  icon: Repeat2,
+                },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    setForm((current) => ({
+                      ...current,
+                      mode: option.value as "ONE_TIME" | "ONGOING",
+                    }))
+                  }
+                  className={`flex items-start gap-4 rounded-2xl border p-5 text-left transition ${form.mode === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
                 >
-                  <Target
-                    className={`w-5 h-5 ${draft.mode === "one-time" ? "text-amber-700" : "text-muted-foreground"}`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-sm flex items-center justify-between">
-                    One-time campaign
-                    {draft.mode === "one-time" && <Check className="w-4 h-4 text-amber-600" />}
+                  <div
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${form.mode === option.value ? "bg-amber-200" : "bg-muted"}`}
+                  >
+                    <option.icon
+                      className={`h-5 w-5 ${form.mode === option.value ? "text-amber-700" : "text-muted-foreground"}`}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    You have a specific target and a need to close. Building a hall, buying
-                    equipment, emergency relief, items needed.
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDraft({ mode: "ongoing" })}
-                className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition ${draft.mode === "ongoing" ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5 ${draft.mode === "ongoing" ? "bg-amber-200" : "bg-muted"}`}
-                >
-                  <Repeat2
-                    className={`w-5 h-5 ${draft.mode === "ongoing" ? "text-amber-700" : "text-muted-foreground"}`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-sm flex items-center justify-between">
-                    Ongoing support
-                    {draft.mode === "ongoing" && <Check className="w-4 h-4 text-amber-600" />}
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold">{option.title}</div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {option.desc}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    No specific target. Your ministry is continuous — you just need a faithful
-                    community giving weekly, monthly, or quarterly.
-                  </p>
-                </div>
-              </button>
+                </button>
+              ))}
             </div>
             {errors.mode && <p className="text-xs text-destructive">{errors.mode}</p>}
           </div>
         )}
 
-        {/* Step 1: Type */}
         {step === 1 && (
           <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">What are you asking for?</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Even ongoing ministries can request more than just money.
-              </p>
-            </div>
+            <h1 className="font-display text-2xl">What are you asking for?</h1>
             <div className="space-y-2">
-              {campaignTypes.map(({ v, icon: Icon, label, desc }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setDraft({ type: v })}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition ${draft.type === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${draft.type === v ? "bg-amber-100" : "bg-muted"}`}
+              {campaignTypeOptions.map((option) => {
+                const Icon = campaignTypeIcons[option.value];
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      setForm((current) => ({ ...current, type: option.value }))
+                    }
+                    className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition ${form.type === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
                   >
-                    <Icon
-                      className={`w-4.5 h-4.5 ${draft.type === v ? "text-amber-600" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{label}</div>
-                    <div className="text-xs text-muted-foreground">{desc}</div>
-                  </div>
-                  {draft.type === v && <Check className="w-4 h-4 text-amber-600" />}
-                </button>
-              ))}
+                    <div
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${form.type === option.value ? "bg-amber-100" : "bg-muted"}`}
+                    >
+                      <Icon
+                        className={`h-4.5 w-4.5 ${form.type === option.value ? "text-amber-600" : "text-muted-foreground"}`}
+                      />
+                    </div>
+                    <div className="flex-1 text-sm font-medium">{option.label}</div>
+                    {form.type === option.value && (
+                      <Check className="h-4 w-4 text-amber-600" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
             {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
           </div>
         )}
 
-        {/* Step 2: Story */}
         {step === 2 && (
           <div className="space-y-5">
+            <h1 className="font-display text-2xl">Tell your story</h1>
             <div>
-              <h1 className="font-display text-2xl">Tell your story</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Be specific. Real details build trust.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Campaign title</label>
+              <label className="mb-1.5 block text-sm font-medium">Campaign title</label>
               <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder={
-                  isOngoing
-                    ? "e.g. Support ECWA Missionaries in Borno"
-                    : "e.g. Build a church hall for ECWA Kano"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.title}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, title: event.target.value }))
                 }
-                value={draft.title ?? ""}
-                onChange={(e) => setDraft({ title: e.target.value })}
               />
-              {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
+              {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {isOngoing ? "Describe your ministry" : "What's the need?"}
-              </label>
+              <label className="mb-1.5 block text-sm font-medium">What's the need?</label>
               <textarea
                 rows={6}
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background resize-none"
-                placeholder={
-                  isOngoing
-                    ? "Tell donors about your ministry — who you serve, what you do, why it matters. Share real stories and impact."
-                    : "Explain the specific need. Include amounts, why they're needed, and how donations will be used."
+                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.story}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, story: event.target.value }))
                 }
-                value={draft.story ?? ""}
-                onChange={(e) => setDraft({ story: e.target.value })}
               />
-              <div className="flex items-center justify-between mt-1">
-                {errors.story ? (
-                  <p className="text-xs text-destructive">{errors.story}</p>
-                ) : (
-                  <span />
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {draft.story?.length ?? 0} chars
-                </span>
+              <div className="mt-1 flex items-center justify-between">
+                {errors.story ? <p className="text-xs text-destructive">{errors.story}</p> : <span />}
+                <span className="text-xs text-muted-foreground">{form.story.length} chars</span>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Cover image <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
+
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) uploadCoverMutation.mutate(file);
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) uploadGalleryMutation.mutate(files);
+                event.target.value = "";
+              }}
+            />
+
+            <div className="rounded-2xl border-2 border-dashed border-border py-8 text-center">
+              {form.coverImageUrl ? (
+                <img
+                  src={form.coverImageUrl}
+                  alt=""
+                  className="mx-auto mb-4 h-48 w-full max-w-md rounded-2xl object-cover"
+                />
+              ) : (
+                <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+              )}
+              <p className="text-sm font-medium">Upload campaign cover</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {mediaStatusLoading
+                  ? "Checking Cloudinary connection..."
+                  : mediaStatus?.enabled
+                    ? "The cover will be stored in Cloudinary under AzarFaith campaign folders."
+                    : mediaStatusError
+                      ? "Could not confirm Cloudinary status. You can retry after refresh."
+                      : `Uploads are unavailable until these credentials are set: ${(mediaStatus?.missing ?? []).join(", ") || "CLOUDINARY_*"}`}
+              </p>
               <button
                 type="button"
-                onClick={() => toast("Image upload coming soon")}
-                className="w-full border-2 border-dashed border-border rounded-2xl py-8 text-center hover:border-amber-300 transition"
+                onClick={() => {
+                  if (!ensureMediaReady()) return;
+                  coverInputRef.current?.click();
+                }}
+                disabled={uploadCoverMutation.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm font-medium">Add a cover photo</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  A real photo of your work makes a huge difference
-                </p>
+                {uploadCoverMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" />
+                )}
+                {uploadCoverMutation.isPending
+                  ? "Uploading..."
+                  : form.coverImageUrl
+                    ? "Replace cover"
+                    : "Choose cover"}
               </button>
             </div>
+
+            <div className="rounded-2xl border-2 border-dashed border-border py-8 text-center">
+              <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium">Upload campaign gallery</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Add more context photos for the campaign detail page.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!ensureMediaReady()) return;
+                  galleryInputRef.current?.click();
+                }}
+                disabled={uploadGalleryMutation.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploadGalleryMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" />
+                )}
+                {uploadGalleryMutation.isPending ? "Uploading..." : "Choose gallery images"}
+              </button>
+            </div>
+
+            {form.galleryImageUrls.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium">Gallery preview</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {form.galleryImageUrls.map((url) => (
+                    <img
+                      key={url}
+                      src={url}
+                      alt=""
+                      className="aspect-square w-full rounded-2xl object-cover"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Step 3: Details */}
         {step === 3 && (
           <div className="space-y-5">
+            <h1 className="font-display text-2xl">Campaign details</h1>
             <div>
-              <h1 className="font-display text-2xl">Campaign details</h1>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Faith category</label>
+              <label className="mb-2 block text-sm font-medium">Faith category</label>
               <div className="grid grid-cols-2 gap-2">
-                {categories.map(({ label, icon }) => (
+                {faithCategoryOptions.map((option) => (
                   <button
-                    key={label}
+                    key={option.value}
                     type="button"
-                    onClick={() => setDraft({ faithCategory: label })}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-sm transition ${draft.faithCategory === label ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border hover:border-amber-200"}`}
+                    onClick={() =>
+                      setForm((current) => ({ ...current, faithCategory: option.value }))
+                    }
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${form.faithCategory === option.value ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border hover:border-amber-200"}`}
                   >
-                    <span>{icon}</span> {label}
+                    <span>{option.icon}</span> {option.label}
                   </button>
                 ))}
               </div>
               {errors.faithCategory && (
-                <p className="text-xs text-destructive mt-1">{errors.faithCategory}</p>
+                <p className="mt-1 text-xs text-destructive">{errors.faithCategory}</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Location</label>
+              <label className="mb-1.5 block text-sm font-medium">Location</label>
               <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Kano, Nigeria"
-                value={draft.location ?? ""}
-                onChange={(e) => setDraft({ location: e.target.value })}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.location}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, location: event.target.value }))
+                }
               />
               {errors.location && (
-                <p className="text-xs text-destructive mt-1">{errors.location}</p>
+                <p className="mt-1 text-xs text-destructive">{errors.location}</p>
               )}
             </div>
-            {!isOngoing && draft.type === "money" && (
+            {!isOngoing && form.type === "MONEY" && (
               <div>
-                <label className="block text-sm font-medium mb-1.5">Fundraising goal (₦)</label>
+                <label className="mb-1.5 block text-sm font-medium">Fundraising goal (₦)</label>
                 <input
-                  type="number"
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. 8500000"
-                  value={draft.goal ?? ""}
-                  onChange={(e) => setDraft({ goal: parseInt(e.target.value) || 0 })}
+                  type="text"
+                  inputMode="numeric"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="2,500,000"
+                  value={form.goalAmount}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      goalAmount: formatAmountInput(event.target.value),
+                    }))
+                  }
                 />
-                {errors.goal && <p className="text-xs text-destructive mt-1">{errors.goal}</p>}
+                {errors.goalAmount && (
+                  <p className="mt-1 text-xs text-destructive">{errors.goalAmount}</p>
+                )}
               </div>
             )}
             {!isOngoing && (
               <div>
-                <label className="block text-sm font-medium mb-2">Urgency</label>
+                <label className="mb-2 block text-sm font-medium">Urgency</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {urgencyOptions.map(({ v, label, desc }) => (
+                  {urgencyOptions.map((option) => (
                     <button
-                      key={v}
+                      key={option.value}
                       type="button"
-                      onClick={() => setDraft({ urgency: v })}
-                      className={`flex flex-col p-3 rounded-xl border text-left transition ${draft.urgency === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
+                      onClick={() =>
+                        setForm((current) => ({ ...current, urgency: option.value }))
+                      }
+                      className={`rounded-xl border p-3 text-left transition ${form.urgency === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
                     >
-                      <span className="text-sm font-medium">{label}</span>
-                      <span className="text-xs text-muted-foreground mt-0.5">{desc}</span>
+                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{option.desc}</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Link to an org <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
+              <label className="mb-1.5 block text-sm font-medium">Link to an org</label>
               <select
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                value={draft.orgId ?? ""}
-                onChange={(e) => setDraft({ orgId: e.target.value || undefined })}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.organizationId}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, organizationId: event.target.value }))
+                }
               >
-                <option value="">No org — individual campaign</option>
-                {orgs.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
+                <option value="">No org selected</option>
+                {orgs.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
                   </option>
                 ))}
               </select>
@@ -429,139 +561,127 @@ function AzarFaithCreate() {
           </div>
         )}
 
-        {/* Step 4 (ongoing only): Support options */}
         {step === 4 && isOngoing && (
           <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Giving frequencies</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Which frequencies do you want donors to be able to give at?
-              </p>
-            </div>
+            <h1 className="font-display text-2xl">Giving frequencies</h1>
             <div className="space-y-3">
-              {frequencyOptions.map(({ v, label }) => {
-                const selected = draft.frequencies?.includes(v) ?? false;
+              {frequencyOptions.map((option) => {
+                const selected = form.frequencies.includes(option.value);
                 return (
                   <button
-                    key={v}
+                    key={option.value}
                     type="button"
-                    onClick={() => {
-                      const current = draft.frequencies ?? [];
-                      setDraft({
-                        frequencies: selected ? current.filter((f) => f !== v) : [...current, v],
-                      });
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition ${selected ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        frequencies: selected
+                          ? current.frequencies.filter((frequency) => frequency !== option.value)
+                          : [...current.frequencies, option.value],
+                      }))
+                    }
+                    className={`flex w-full items-center justify-between rounded-xl border p-4 transition ${selected ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
                   >
                     <div className="flex items-center gap-3">
                       <Repeat2
-                        className={`w-4 h-4 ${selected ? "text-amber-600" : "text-muted-foreground"}`}
+                        className={`h-4 w-4 ${selected ? "text-amber-600" : "text-muted-foreground"}`}
                       />
-                      <span className="text-sm font-medium">{label}</span>
+                      <span className="text-sm font-medium">{option.label}</span>
                     </div>
-                    {selected && <Check className="w-4 h-4 text-amber-600" />}
+                    {selected && <Check className="h-4 w-4 text-amber-600" />}
                   </button>
                 );
               })}
             </div>
             {errors.frequencies && <p className="text-xs text-destructive">{errors.frequencies}</p>}
-            <p className="text-xs text-muted-foreground">
-              Donors can choose their preferred frequency when they give. Selecting all three gives
-              donors maximum flexibility.
-            </p>
           </div>
         )}
 
-        {/* Preview step */}
         {((isOngoing && step === 5) || (!isOngoing && step === 4)) && (
           <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Preview &amp; publish</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Your campaign goes live immediately.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="aspect-[16/9] bg-muted flex items-center justify-center">
-                {draft.cover ? (
-                  <img src={draft.cover} alt="" className="w-full h-full object-cover" />
+            <h1 className="font-display text-2xl">Preview &amp; publish</h1>
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="flex aspect-[16/9] items-center justify-center bg-muted">
+                {form.coverImageUrl ? (
+                  <img src={form.coverImageUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <ImagePlus className="w-10 h-10 text-muted-foreground" />
+                  <ImagePlus className="h-10 w-10 text-muted-foreground" />
                 )}
               </div>
-              <div className="p-5 space-y-3">
+              <div className="space-y-3 p-5">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${isOngoing ? "bg-amber-100 text-amber-700" : "bg-muted text-foreground"}`}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-amber-100 text-amber-700" : "bg-muted text-foreground"}`}
                   >
                     {isOngoing ? "Ongoing" : "One-time"}
                   </span>
-                  {draft.faithCategory && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground">
-                      {draft.faithCategory}
+                  {form.faithCategory && (
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+                      {
+                        faithCategoryOptions.find(
+                          (option) => option.value === form.faithCategory,
+                        )?.label
+                      }
                     </span>
                   )}
                 </div>
-                <h2 className="font-display text-xl">{draft.title}</h2>
-                <p className="text-sm text-muted-foreground line-clamp-3">{draft.story}</p>
-                {!isOngoing && draft.goal && (
-                  <div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full w-0" />
-                    </div>
-                    <div className="mt-1.5 text-sm">
-                      Goal: <span className="font-semibold">₦{draft.goal.toLocaleString()}</span>
-                    </div>
+                <h2 className="font-display text-xl">{form.title}</h2>
+                <p className="line-clamp-3 text-sm text-muted-foreground">{form.story}</p>
+                {!isOngoing && form.goalAmount && (
+                  <div className="text-sm">
+                    Goal: <span className="font-semibold">₦{parseAmountInput(form.goalAmount).toLocaleString()}</span>
                   </div>
                 )}
-                {isOngoing && draft.frequencies && (
+                {isOngoing && form.frequencies.length > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    Give: {draft.frequencies.join(" · ")}
+                    Give: {form.frequencies.join(" · ")}
+                  </div>
+                )}
+                {form.galleryImageUrls.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    {form.galleryImageUrls.map((url) => (
+                      <img
+                        key={url}
+                        src={url}
+                        alt=""
+                        className="aspect-square w-full rounded-2xl object-cover"
+                      />
+                    ))}
                   </div>
                 )}
               </div>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
-              Your campaign goes live with an <strong>unverified</strong> badge. You can request
-              verification from the campaign page after publishing.
-            </div>
-            {draft.type === "emergency" && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-urgent/10 border border-urgent/20 text-sm">
-                <Flame className="w-4 h-4 text-urgent shrink-0" />
-                <span>
-                  This will be marked as an emergency campaign and shown with an urgent badge.
-                </span>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Navigation */}
         <div className="mt-8 flex items-center justify-between">
           {step > 0 ? (
             <button
-              onClick={() => setStep((s) => s - 1)}
-              className="px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
+              onClick={() => setStep((value) => value - 1)}
+              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
             >
               Back
             </button>
           ) : (
             <span />
           )}
-          {(isOngoing && step < 5) || (!isOngoing && step < 4) ? (
+          {step < stepLabels.length - 1 ? (
             <button
               onClick={next}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition"
+              className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
             >
               Continue
             </button>
           ) : (
             <button
-              onClick={publish}
-              disabled={publishing}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-60"
+              onClick={() => createCampaignMutation.mutate()}
+              disabled={
+                createCampaignMutation.isPending ||
+                uploadCoverMutation.isPending ||
+                uploadGalleryMutation.isPending
+              }
+              className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
             >
-              {publishing ? "Publishing…" : "Publish campaign"}
+              {createCampaignMutation.isPending ? "Publishing…" : "Publish campaign"}
             </button>
           )}
         </div>

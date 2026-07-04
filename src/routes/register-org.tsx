@@ -1,370 +1,355 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { useApp } from "@/lib/store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Check, Church, Globe, Baby, GraduationCap, Users, ImagePlus } from "lucide-react";
-import type { Org } from "@/lib/mock";
+import { Baby, Check, Church, Globe, GraduationCap, ImagePlus, Loader2, Users } from "lucide-react";
+
+import { Navbar } from "@/components/Navbar";
+import { createOrganization, getCloudinaryStatus, uploadMedia } from "@/features/catalog/api";
+import { orgCategoryOptions } from "@/lib/catalog";
 
 export const Route = createFileRoute("/register-org")({
   component: RegisterOrg,
 });
 
-const orgCategories = [
-  { v: "church", icon: Church, label: "Church", desc: "Local congregation or church plant" },
-  {
-    v: "mission",
-    icon: Globe,
-    label: "Mission / Outreach",
-    desc: "Missionaries or evangelism ministry",
-  },
-  { v: "orphanage", icon: Baby, label: "Orphanage", desc: "Faith-based care for children" },
-  {
-    v: "school",
-    icon: GraduationCap,
-    label: "School",
-    desc: "Faith-based educational institution",
-  },
-  { v: "other", icon: Users, label: "Other ministry", desc: "Any other Christian ministry" },
-] as const;
+const orgIcons = {
+  CHURCH: Church,
+  MISSION: Globe,
+  ORPHANAGE: Baby,
+  SCHOOL: GraduationCap,
+  OTHER: Users,
+} as const;
 
 function RegisterOrg() {
   const nav = useNavigate();
-  const { orgDraft, setOrgDraft, resetOrgDraft, addOrg } = useApp();
+  const queryClient = useQueryClient();
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const {
+    data: mediaStatus,
+    isLoading: mediaStatusLoading,
+    isError: mediaStatusError,
+  } = useQuery({
+    queryKey: ["media", "cloudinary-status"],
+    queryFn: getCloudinaryStatus,
+  });
+
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    category: "" as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER" | "",
+    denomination: "",
+    foundedYear: "",
+    location: "",
+    tagline: "",
+    bio: "",
+    photoUrls: [] as string[],
+    videoUrls: [] as string[],
+  });
+
+  const uploadPhotosMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const uploads = await Promise.all(
+        files.map((file) =>
+          uploadMedia({
+            file,
+            folder: "organization-photo",
+            entityId: form.name.trim() || undefined,
+          }),
+        ),
+      );
+
+      return uploads.map((upload) => upload.url);
+    },
+    onSuccess: (urls) => {
+      setForm((current) => ({
+        ...current,
+        photoUrls: [...current.photoUrls, ...urls],
+      }));
+      toast.success(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded.`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const createOrgMutation = useMutation({
+    mutationFn: () =>
+      createOrganization({
+        name: form.name,
+        tagline: form.tagline,
+        category: form.category || "OTHER",
+        denomination: form.denomination,
+        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
+        location: form.location,
+        bio: form.bio,
+        photoUrls: form.photoUrls,
+        videoUrls: form.videoUrls,
+      }),
+    onSuccess: (organization) => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      toast.success("Organization created successfully.");
+      nav({ to: "/org/$id", params: { id: organization.id } });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   const steps = ["Details", "Mission", "Media", "Preview"];
 
+  const openPhotoPicker = () => {
+    if (uploadPhotosMutation.isPending) return;
+
+    if (!mediaStatus?.enabled) {
+      if (mediaStatusLoading) {
+        toast.error("Checking media upload connection. Try again in a moment.");
+        return;
+      }
+
+      if (mediaStatusError) {
+        toast.error("Could not confirm media upload setup. Refresh and try again.");
+        return;
+      }
+
+      const missing = mediaStatus?.missing?.join(", ");
+      toast.error(
+        missing
+          ? `Media upload is not configured yet: ${missing}`
+          : "Media upload is not configured yet.",
+      );
+      return;
+    }
+
+    photoInputRef.current?.click();
+  };
+
   const validate = () => {
-    const e: Record<string, string> = {};
+    const nextErrors: Record<string, string> = {};
     if (step === 0) {
-      if (!orgDraft.name?.trim()) e.name = "Org name is required";
-      if (!orgDraft.category) e.category = "Select a category";
-      if (!orgDraft.denomination?.trim()) e.denomination = "Denomination or tradition is required";
-      if (!orgDraft.location?.trim()) e.location = "Location is required";
+      if (!form.name.trim()) nextErrors.name = "Organisation name is required";
+      if (!form.category) nextErrors.category = "Select a category";
+      if (!form.denomination.trim()) nextErrors.denomination = "Denomination or tradition is required";
+      if (!form.location.trim()) nextErrors.location = "Location is required";
     }
     if (step === 1) {
-      if (!orgDraft.tagline?.trim() || orgDraft.tagline.length < 10)
-        e.tagline = "Add a short tagline (at least 10 characters)";
-      if (!orgDraft.bio?.trim() || orgDraft.bio.length < 60)
-        e.bio = "Tell us more about your org (at least 60 characters)";
+      if (form.tagline.trim().length < 10) nextErrors.tagline = "Add a short tagline (at least 10 characters)";
+      if (form.bio.trim().length < 60) nextErrors.bio = "Tell us more about your org (at least 60 characters)";
     }
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const next = () => {
     if (!validate()) return;
-    setStep((s) => s + 1);
-  };
-
-  const submit = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      const org: Org = {
-        id: `o${Math.random().toString(36).slice(2)}`,
-        name: orgDraft.name!,
-        tagline: orgDraft.tagline!,
-        category: orgDraft.category!,
-        denomination: orgDraft.denomination!,
-        location: orgDraft.location!,
-        founded: orgDraft.founded ?? "2020",
-        bio: orgDraft.bio!,
-        photos: orgDraft.photos ?? [],
-        videos: orgDraft.videos ?? [],
-        campaignIds: [],
-        verificationStatus: "unverified",
-        totalReceived: 0,
-        supporters: 0,
-      };
-      addOrg(org);
-      resetOrgDraft();
-      toast("Your org is live on AzarFaith");
-      nav({ to: "/org/$id", params: { id: org.id } });
-    }, 1000);
+    setStep((value) => value + 1);
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="mx-auto max-w-xl px-5 py-10">
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
-          {steps.map((label, i) => (
-            <div key={label} className="flex items-center gap-2 flex-1 last:flex-none">
-              <div
-                className={`w-7 h-7 rounded-full text-xs font-semibold grid place-items-center shrink-0 ${i < step ? "bg-amber-500 text-white" : i === step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
-              >
-                {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
+        <div className="mb-8 flex items-center gap-2">
+          {steps.map((label, index) => (
+            <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
+              <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${index <= step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
               </div>
-              <span
-                className={`text-xs hidden sm:block ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}
-              >
-                {label}
-              </span>
-              {i < steps.length - 1 && (
-                <div className={`h-px flex-1 ${i < step ? "bg-amber-400" : "bg-border"}`} />
-              )}
+              <span className={`hidden text-xs sm:block ${index === step ? "font-medium text-foreground" : "text-muted-foreground"}`}>{label}</span>
+              {index < steps.length - 1 && <div className={`h-px flex-1 ${index < step ? "bg-amber-400" : "bg-border"}`} />}
             </div>
           ))}
         </div>
 
-        {/* Step 0: Basic details */}
         {step === 0 && (
           <div className="space-y-5">
             <div>
               <h1 className="font-display text-2xl">Tell us about your org</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Basic information donors will see on your profile.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Basic information donors will see on your profile.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Organisation name</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. ECWA Mission Board, Grace Harvest Orphanage"
-                value={orgDraft.name ?? ""}
-                onChange={(e) => setOrgDraft({ name: e.target.value })}
-              />
-              {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+              <label className="mb-1.5 block text-sm font-medium">Organisation name</label>
+              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+              {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
-              <div className="grid grid-cols-1 gap-2">
-                {orgCategories.map(({ v, icon: Icon, label, desc }) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setOrgDraft({ category: v })}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition ${orgDraft.category === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${orgDraft.category === v ? "bg-amber-100" : "bg-muted"}`}
-                    >
-                      <Icon
-                        className={`w-4.5 h-4.5 ${orgDraft.category === v ? "text-amber-600" : "text-muted-foreground"}`}
-                      />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">{label}</div>
-                      <div className="text-xs text-muted-foreground">{desc}</div>
-                    </div>
-                    {orgDraft.category === v && (
-                      <Check className="w-4 h-4 text-amber-600 ml-auto" />
-                    )}
-                  </button>
-                ))}
+              <label className="mb-2 block text-sm font-medium">Category</label>
+              <div className="grid gap-2">
+                {orgCategoryOptions.map((option) => {
+                  const Icon = orgIcons[option.value];
+                  return (
+                    <button key={option.value} type="button" onClick={() => setForm((current) => ({ ...current, category: option.value }))} className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition ${form.category === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}>
+                      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${form.category === option.value ? "bg-amber-100" : "bg-muted"}`}>
+                        <Icon className={`h-4.5 w-4.5 ${form.category === option.value ? "text-amber-600" : "text-muted-foreground"}`} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{option.label}</div>
+                      </div>
+                      {form.category === option.value && <Check className="ml-auto h-4 w-4 text-amber-600" />}
+                    </button>
+                  );
+                })}
               </div>
-              {errors.category && (
-                <p className="text-xs text-destructive mt-1">{errors.category}</p>
-              )}
+              {errors.category && <p className="mt-1 text-xs text-destructive">{errors.category}</p>}
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Denomination / tradition</label>
-                <input
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. ECWA, Baptist, Pentecostal"
-                  value={orgDraft.denomination ?? ""}
-                  onChange={(e) => setOrgDraft({ denomination: e.target.value })}
-                />
-                {errors.denomination && (
-                  <p className="text-xs text-destructive mt-1">{errors.denomination}</p>
-                )}
+                <label className="mb-1.5 block text-sm font-medium">Denomination / tradition</label>
+                <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.denomination} onChange={(event) => setForm((current) => ({ ...current, denomination: event.target.value }))} />
+                {errors.denomination && <p className="mt-1 text-xs text-destructive">{errors.denomination}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Year founded</label>
-                <input
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. 2008"
-                  value={orgDraft.founded ?? ""}
-                  onChange={(e) => setOrgDraft({ founded: e.target.value })}
-                />
+                <label className="mb-1.5 block text-sm font-medium">Year founded</label>
+                <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.foundedYear} onChange={(event) => setForm((current) => ({ ...current, foundedYear: event.target.value }))} />
               </div>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1.5">Location</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Lagos, Nigeria"
-                value={orgDraft.location ?? ""}
-                onChange={(e) => setOrgDraft({ location: e.target.value })}
-              />
-              {errors.location && (
-                <p className="text-xs text-destructive mt-1">{errors.location}</p>
-              )}
+              <label className="mb-1.5 block text-sm font-medium">Location</label>
+              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} />
+              {errors.location && <p className="mt-1 text-xs text-destructive">{errors.location}</p>}
             </div>
           </div>
         )}
 
-        {/* Step 1: Mission / bio */}
         {step === 1 && (
           <div className="space-y-5">
             <div>
               <h1 className="font-display text-2xl">Your mission</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Help donors understand who you are and what you do.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Help donors understand who you are and what you do.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Tagline <span className="text-muted-foreground font-normal">(one sentence)</span>
-              </label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Every Sunday, under the bridge, for the forgotten"
-                value={orgDraft.tagline ?? ""}
-                onChange={(e) => setOrgDraft({ tagline: e.target.value })}
-              />
-              {errors.tagline && <p className="text-xs text-destructive mt-1">{errors.tagline}</p>}
+              <label className="mb-1.5 block text-sm font-medium">Tagline</label>
+              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.tagline} onChange={(event) => setForm((current) => ({ ...current, tagline: event.target.value }))} />
+              {errors.tagline && <p className="mt-1 text-xs text-destructive">{errors.tagline}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">About your org</label>
-              <textarea
-                rows={6}
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background resize-none"
-                placeholder="Tell donors who you are, what you do, who you serve, and why it matters. Be specific — share real stories, numbers, and impact."
-                value={orgDraft.bio ?? ""}
-                onChange={(e) => setOrgDraft({ bio: e.target.value })}
-              />
-              <div className="flex items-center justify-between mt-1">
+              <label className="mb-1.5 block text-sm font-medium">About your org</label>
+              <textarea rows={6} className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} />
+              <div className="mt-1 flex items-center justify-between">
                 {errors.bio ? <p className="text-xs text-destructive">{errors.bio}</p> : <span />}
-                <span className="text-xs text-muted-foreground">
-                  {orgDraft.bio?.length ?? 0} chars
-                </span>
+                <span className="text-xs text-muted-foreground">{form.bio.length} chars</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 2: Media */}
         {step === 2 && (
           <div className="space-y-5">
             <div>
               <h1 className="font-display text-2xl">Add photos &amp; videos</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Show donors the work. This is the most convincing thing you can do.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Show donors the work. This is the most convincing thing you can do.</p>
             </div>
-            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center">
-              <ImagePlus className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium">Upload photos of your work</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Buildings, team, community, events — real photos build trust
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) {
+                  uploadPhotosMutation.mutate(files);
+                }
+                event.target.value = "";
+              }}
+            />
+            <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center">
+              <ImagePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="text-sm font-medium">Upload organization photos</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {mediaStatusLoading
+                  ? "Checking Cloudinary connection..."
+                  : mediaStatus?.enabled
+                    ? "Images will be stored in Cloudinary under AzarFaith organization folders."
+                    : mediaStatusError
+                      ? "Could not confirm Cloudinary status. You can retry the button after refresh."
+                      : `Uploads are unavailable until these credentials are set: ${(mediaStatus?.missing ?? []).join(", ") || "CLOUDINARY_*"}`}
               </p>
               <button
                 type="button"
-                onClick={() => toast("Photo upload coming soon")}
-                className="mt-4 px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
+                onClick={openPhotoPicker}
+                disabled={uploadPhotosMutation.isPending}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Choose photos
+                {uploadPhotosMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                {uploadPhotosMutation.isPending ? "Uploading..." : "Choose photos"}
               </button>
             </div>
+            {(form.videoUrls.length > 0 || form.photoUrls.length > 0) && (
+              <div className="space-y-3">
+                {form.photoUrls.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium">Uploaded photos</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {form.photoUrls.map((url) => (
+                        <img key={url} src={url} alt="" className="aspect-square w-full rounded-2xl object-cover" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {form.videoUrls.length > 0 && (
+                  <div className="space-y-1">
+                    {form.videoUrls.map((url) => <div key={url} className="truncate rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">{url}</div>)}
+                  </div>
+                )}
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium mb-1.5">
-                YouTube or Vimeo links{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
+              <label className="mb-1.5 block text-sm font-medium">YouTube or Vimeo links</label>
               <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 placeholder="https://youtube.com/watch?v=..."
-                onBlur={(e) => {
-                  if (e.target.value.trim()) {
-                    setOrgDraft({ videos: [...(orgDraft.videos ?? []), e.target.value.trim()] });
-                    e.target.value = "";
+                onBlur={(event) => {
+                  if (event.target.value.trim()) {
+                    setForm((current) => ({ ...current, videoUrls: [...current.videoUrls, event.target.value.trim()] }));
+                    event.target.value = "";
                   }
                 }}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Paste a link and press Tab or click away to add it
-              </p>
-              {(orgDraft.videos ?? []).length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {(orgDraft.videos ?? []).map((v, i) => (
-                    <div
-                      key={i}
-                      className="text-xs text-muted-foreground truncate bg-muted rounded-lg px-3 py-2"
-                    >
-                      {v}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              You can always add more photos and videos after registration from your org profile.
-            </p>
           </div>
         )}
 
-        {/* Step 3: Preview */}
         {step === 3 && (
           <div className="space-y-5">
             <div>
               <h1 className="font-display text-2xl">Review before publishing</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Your org goes live immediately. You can edit everything later.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Your org goes live immediately. You can edit everything later.</p>
             </div>
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-3 text-sm">
+            <div className="space-y-3 rounded-2xl border border-border bg-card p-5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-display text-xl">{orgDraft.name}</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                  {orgDraft.category}
-                </span>
+                <span className="font-display text-xl">{form.name}</span>
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">{form.category || "other"}</span>
               </div>
-              <p className="text-muted-foreground italic">{orgDraft.tagline}</p>
-              <div className="text-xs text-muted-foreground flex items-center gap-3">
-                <span>{orgDraft.denomination}</span>
+              <p className="italic text-muted-foreground">{form.tagline}</p>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>{form.denomination}</span>
                 <span>·</span>
-                <span>{orgDraft.location}</span>
-                {orgDraft.founded && (
-                  <>
-                    <span>·</span>
-                    <span>Est. {orgDraft.founded}</span>
-                  </>
-                )}
+                <span>{form.location}</span>
+                {form.foundedYear && <><span>·</span><span>Est. {form.foundedYear}</span></>}
               </div>
-              <p className="text-sm leading-relaxed">{orgDraft.bio}</p>
+              <p className="leading-relaxed">{form.bio}</p>
+              {form.photoUrls[0] && <img src={form.photoUrls[0]} alt="" className="h-52 w-full rounded-2xl object-cover" />}
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
-              Your profile will go live immediately with an <strong>unverified</strong> badge. To
-              get verified, our team will reach out within 5 business days.
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Your profile will go live immediately with a <strong>pending</strong> verification badge.
             </div>
           </div>
         )}
 
-        {/* Navigation */}
         <div className="mt-8 flex items-center justify-between">
           {step > 0 ? (
-            <button
-              onClick={() => setStep((s) => s - 1)}
-              className="px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
-            >
+            <button onClick={() => setStep((value) => value - 1)} className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted">
               Back
             </button>
-          ) : (
-            <span />
-          )}
+          ) : <span />}
           {step < steps.length - 1 ? (
-            <button
-              onClick={next}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition"
-            >
+            <button onClick={next} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600">
               Continue
             </button>
           ) : (
-            <button
-              onClick={submit}
-              disabled={submitting}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-60"
-            >
-              {submitting ? "Publishing…" : "Publish org profile"}
+            <button onClick={() => createOrgMutation.mutate()} disabled={createOrgMutation.isPending || uploadPhotosMutation.isPending} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60">
+              {createOrgMutation.isPending ? "Publishing…" : "Publish org profile"}
             </button>
           )}
         </div>

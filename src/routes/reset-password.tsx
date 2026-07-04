@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { clearAuthError, resetPassword } from "@/features/auth/authSlice";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/reset-password")({
@@ -20,7 +21,26 @@ function ResetPassword() {
   const { token } = Route.useSearch();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [done, setDone] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+
+  const validateForm = () => {
+    const nextErrors: { password?: string; confirmPassword?: string } = {};
+
+    if (password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters.";
+    }
+    if (confirmPassword.length < 8) {
+      nextErrors.confirmPassword = "Confirm your new password.";
+    } else if (password !== confirmPassword) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +51,7 @@ function ResetPassword() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       await dispatch(resetPassword({ token, password })).unwrap();
@@ -67,28 +84,56 @@ function ResetPassword() {
             <form onSubmit={submit} className="mt-8 space-y-5">
               <div>
                 <label className="text-sm font-medium">New password</label>
-                <input
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setFieldErrors((current) => ({ ...current, password: undefined }));
+                    }}
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {fieldErrors.password && <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Confirm password</label>
-                <input
-                  type="password"
-                  placeholder="Repeat your new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                />
+                <div className="relative mt-1.5">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Repeat your new password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors((current) => ({ ...current, confirmPassword: undefined }));
+                    }}
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((current) => !current)}
+                    className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground hover:text-foreground"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {fieldErrors.confirmPassword && <p className="mt-1 text-sm text-red-600">{fieldErrors.confirmPassword}</p>}
               </div>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-60"
+                className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? "Updating password..." : "Reset password"}
               </button>

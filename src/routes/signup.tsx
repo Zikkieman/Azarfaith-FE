@@ -1,32 +1,106 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { clearAuthError, signup, verifyOtp } from "@/features/auth/authSlice";
-import { Flame, ShieldCheck } from "lucide-react";
+import {
+  clearAuthError,
+  clearPendingVerification,
+  signup,
+  verifyOtp,
+} from "@/features/auth/authSlice";
+import { Eye, EyeOff, Flame, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/signup")({ component: Signup });
+export const Route = createFileRoute("/signup")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    mode: search.mode === "otp" ? "otp" : "form",
+  }),
+  component: Signup,
+});
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phonePattern = /^\+?[1-9]\d{7,14}$/;
+
+type SignupErrors = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  agreedToTerms?: string;
+  otp?: string;
+};
 
 function Signup() {
   const nav = useNavigate();
   const dispatch = useAppDispatch();
+  const { mode } = Route.useSearch();
   const { loading, pendingVerificationEmail, error } = useAppSelector((state) => state.auth);
-  const [step, setStep] = useState<"form" | "otp">("form");
+  const [step, setStep] = useState<"form" | "otp">(mode === "otp" ? "otp" : "form");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("+234");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [otp, setOtp] = useState(["", "", "", ""]);
+  const [fieldErrors, setFieldErrors] = useState<SignupErrors>({});
+
+  useEffect(() => {
+    if (mode === "otp" && pendingVerificationEmail) {
+      setStep("otp");
+    }
+  }, [mode, pendingVerificationEmail]);
+
+  const normalizedPhone = phone.replace(/\s+/g, "").trim();
+
+  const validateSignupForm = () => {
+    const nextErrors: SignupErrors = {};
+
+    if (fullName.trim().length < 2) {
+      nextErrors.fullName = "Enter your full name.";
+    }
+    if (!emailPattern.test(email.trim())) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    if (!phonePattern.test(normalizedPhone)) {
+      nextErrors.phone = "Enter a valid phone number.";
+    }
+    if (password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters.";
+    }
+    if (!agreedToTerms) {
+      nextErrors.agreedToTerms = "You must agree to the Terms and Privacy Policy.";
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const validateOtpForm = () => {
+    if (otp.every((digit) => /^\d$/.test(digit))) {
+      setFieldErrors((current) => ({ ...current, otp: undefined }));
+      return true;
+    }
+
+    setFieldErrors((current) => ({
+      ...current,
+      otp: "Enter the complete 4-digit verification code.",
+    }));
+    return false;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateSignupForm()) return;
+
     dispatch(clearAuthError());
     try {
-      await dispatch(signup({ fullName, email, phone, password })).unwrap();
+      await dispatch(signup({ fullName, email, phone: normalizedPhone, password })).unwrap();
       toast.success("Verification code sent to your email");
+      setFieldErrors({});
       setStep("otp");
+      nav({ to: "/signup", search: { mode: "otp" } });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Signup failed";
       toast.error(message);
@@ -39,14 +113,91 @@ function Signup() {
       return;
     }
 
+    if (!validateOtpForm()) return;
+
     dispatch(clearAuthError());
     try {
       await dispatch(verifyOtp({ email: pendingVerificationEmail, code: otp.join("") })).unwrap();
+      dispatch(clearPendingVerification());
       toast.success("Account verified");
       nav({ to: "/" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Verification failed";
       toast.error(message);
+    }
+  };
+
+  const updateOtpDigit = (index: number, value: string) => {
+    const next = [...otp];
+    next[index] = value;
+    setOtp(next);
+    setFieldErrors((current) => ({ ...current, otp: undefined }));
+  };
+
+  const focusOtpInput = (index: number) => {
+    const target = document.getElementById(`otp-${index}`);
+    if (target) {
+      (target as HTMLInputElement).focus();
+      (target as HTMLInputElement).select();
+    }
+  };
+
+  const handleOtpChange = (index: number, rawValue: string) => {
+    const digits = rawValue.replace(/\D/g, "");
+    if (!digits) {
+      updateOtpDigit(index, "");
+      return;
+    }
+
+    if (digits.length === 1) {
+      updateOtpDigit(index, digits);
+      if (index < otp.length - 1) {
+        focusOtpInput(index + 1);
+      }
+      return;
+    }
+
+    const next = [...otp];
+    digits
+      .slice(0, otp.length - index)
+      .split("")
+      .forEach((digit, offset) => {
+        next[index + offset] = digit;
+      });
+    setOtp(next);
+    setFieldErrors((current) => ({ ...current, otp: undefined }));
+    focusOtpInput(Math.min(index + digits.length - 1, otp.length - 1));
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const digits = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, otp.length);
+    if (!digits) return;
+
+    const next = [...otp];
+    for (let i = 0; i < otp.length; i += 1) {
+      next[i] = digits[i] ?? "";
+    }
+    setOtp(next);
+    setFieldErrors((current) => ({ ...current, otp: undefined }));
+    focusOtpInput(Math.min(digits.length - 1, otp.length - 1));
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      focusOtpInput(index - 1);
+      return;
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      focusOtpInput(index - 1);
+      return;
+    }
+
+    if (e.key === "ArrowRight" && index < otp.length - 1) {
+      e.preventDefault();
+      focusOtpInput(index + 1);
     }
   };
 
@@ -90,37 +241,78 @@ function Signup() {
                   label="Full name"
                   placeholder="e.g. Tunde Adebayo"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    setFieldErrors((current) => ({ ...current, fullName: undefined }));
+                  }}
+                  error={fieldErrors.fullName}
                 />
                 <Field
                   label="Email"
                   placeholder="you@email.com"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((current) => ({ ...current, email: undefined }));
+                  }}
+                  error={fieldErrors.email}
                 />
                 <div>
                   <label className="text-sm font-medium">Phone number</label>
                   <input
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((current) => ({ ...current, phone: undefined }));
+                    }}
                     className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                   />
+                  {fieldErrors.phone && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p>}
                 </div>
-                <Field
-                  label="Password"
-                  placeholder="At least 8 characters"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div>
+                  <label className="text-sm font-medium">Password</label>
+                  <div className="relative mt-1.5">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 8 characters"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setFieldErrors((current) => ({ ...current, password: undefined }));
+                      }}
+                      className="w-full px-4 py-3 pr-12 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>}
+                </div>
                 {error && <p className="text-sm text-red-600">{error}</p>}
-                <p className="text-xs text-muted-foreground">
-                  By continuing you agree to our Terms and Privacy Policy.
-                </p>
+                <label className="flex items-start gap-3 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => {
+                      setAgreedToTerms(e.target.checked);
+                      setFieldErrors((current) => ({ ...current, agreedToTerms: undefined }));
+                    }}
+                    className="mt-0.5 h-4 w-4 rounded border-border accent-amber-500"
+                  />
+                  <span>By continuing you agree to our Terms and Privacy Policy.</span>
+                </label>
+                {fieldErrors.agreedToTerms && (
+                  <p className="-mt-3 text-sm text-red-600">{fieldErrors.agreedToTerms}</p>
+                )}
                 <button
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold disabled:opacity-60 transition hover:bg-amber-600"
+                  className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed transition hover:bg-amber-600"
                 >
                   {loading ? "Sending code…" : "Continue"}
                 </button>
@@ -150,28 +342,31 @@ function Signup() {
                     <input
                       key={i}
                       value={v}
-                      maxLength={1}
-                      onChange={(e) => {
-                        const next = [...otp];
-                        next[i] = e.target.value.replace(/\D/g, "");
-                        setOtp(next);
-                        const n = document.getElementById(`otp-${i + 1}`);
-                        if (e.target.value && n) (n as HTMLInputElement).focus();
-                      }}
+                      inputMode="numeric"
+                      autoComplete={i === 0 ? "one-time-code" : "off"}
+                      maxLength={4}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onPaste={handleOtpPaste}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       id={`otp-${i}`}
                       className="w-14 h-16 text-center text-2xl font-display rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
                     />
                   ))}
                 </div>
+                {fieldErrors.otp && <p className="mt-3 text-sm text-center text-red-600">{fieldErrors.otp}</p>}
                 <button
                   onClick={verify}
-                  disabled={loading || otp.some((d) => !d)}
-                  className="mt-8 w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold disabled:opacity-50 hover:bg-amber-600"
+                  disabled={loading}
+                  className="mt-8 w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-amber-600"
                 >
                   {loading ? "Verifying…" : "Verify & continue"}
                 </button>
                 <button
-                  onClick={() => setStep("form")}
+                  onClick={() => {
+                    dispatch(clearPendingVerification());
+                    setStep("form");
+                    nav({ to: "/signup", search: { mode: "form" } });
+                  }}
                   className="mt-3 w-full py-3 text-sm text-muted-foreground"
                 >
                   Wrong email? Edit
@@ -192,8 +387,9 @@ function Signup() {
 
 function Field({
   label,
+  error,
   ...props
-}: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
@@ -201,6 +397,7 @@ function Field({
         {...props}
         className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
       />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>
   );
 }

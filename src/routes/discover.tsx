@@ -1,117 +1,138 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  Search,
-  ShieldCheck,
-  Repeat2,
-  Target,
-  MapPin,
+  Baby,
+  Church,
   Flame,
   Globe,
-  Church,
-  Baby,
   GraduationCap,
+  MapPin,
+  Repeat2,
+  Search,
+  ShieldCheck,
+  Target,
   Users,
 } from "lucide-react";
+
 import { Navbar } from "@/components/Navbar";
-import { useApp } from "@/lib/store";
-import { formatMoney, categories } from "@/lib/mock";
+import { PageSpinner } from "@/components/PageSpinner";
+import { listCampaigns, listOrganizations } from "@/features/catalog/api";
+import { faithCategoryOptions, formatMoney } from "@/lib/catalog";
 
 export const Route = createFileRoute("/discover")({
   component: AzarFaithDiscover,
 });
 
-const orgCategoryIcon: Record<string, React.ReactNode> = {
-  church: <Church className="w-4 h-4" />,
-  mission: <Globe className="w-4 h-4" />,
-  orphanage: <Baby className="w-4 h-4" />,
-  school: <GraduationCap className="w-4 h-4" />,
-  other: <Users className="w-4 h-4" />,
-};
-
-const orgCategoryLabel: Record<string, string> = {
-  church: "Church",
-  mission: "Mission",
-  orphanage: "Orphanage",
-  school: "School",
-  other: "Ministry",
+const orgCategoryIcon: Record<string, JSX.Element> = {
+  church: <Church className="h-4 w-4" />,
+  mission: <Globe className="h-4 w-4" />,
+  orphanage: <Baby className="h-4 w-4" />,
+  school: <GraduationCap className="h-4 w-4" />,
+  other: <Users className="h-4 w-4" />,
 };
 
 type Tab = "all" | "ongoing" | "one-time" | "orgs";
 
+function DiscoverEmptyState({
+  title,
+  body,
+  primaryHref,
+  primaryLabel,
+}: {
+  title: string;
+  body: string;
+  primaryHref: "/create" | "/register-org";
+  primaryLabel: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-dashed border-border bg-card/70 px-6 py-14 text-center text-muted-foreground">
+      <p className="font-display text-2xl text-foreground">{title}</p>
+      <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed">{body}</p>
+      <Link
+        to={primaryHref}
+        className="mt-5 inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+      >
+        {primaryLabel}
+      </Link>
+    </div>
+  );
+}
+
 function AzarFaithDiscover() {
-  const { campaigns, orgs } = useApp();
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
-  const filteredCampaigns = campaigns.filter((c) => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      !q ||
-      c.title.toLowerCase().includes(q) ||
-      c.story.toLowerCase().includes(q) ||
-      c.location.toLowerCase().includes(q);
-    const matchesTab = tab === "all" || tab === c.mode;
-    const matchesCategory = !categoryFilter || c.faithCategory === categoryFilter;
-    return matchesSearch && matchesTab && matchesCategory;
+  const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
+    queryKey: ["campaigns", "discover", tab, search, categoryFilter],
+    queryFn: () =>
+      listCampaigns({
+        search: search || undefined,
+        mode: tab === "ongoing" ? "ONGOING" : tab === "one-time" ? "ONE_TIME" : undefined,
+        faithCategory: categoryFilter ?? undefined,
+      }),
   });
 
-  const filteredOrgs = orgs.filter((o) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      o.name.toLowerCase().includes(q) ||
-      o.location.toLowerCase().includes(q) ||
-      o.denomination.toLowerCase().includes(q)
-    );
+  const { data: orgs = [], isLoading: orgsLoading } = useQuery({
+    queryKey: ["organizations", "discover", search],
+    queryFn: () => listOrganizations({ search: search || undefined }),
   });
 
-  const tabs: { v: Tab; label: string; count: number }[] = [
-    { v: "all", label: "All campaigns", count: campaigns.length },
-    { v: "ongoing", label: "Ongoing", count: campaigns.filter((c) => c.mode === "ongoing").length },
+  const tabs: { value: Tab; label: string; count: number }[] = [
+    { value: "all", label: "All campaigns", count: campaigns.length },
     {
-      v: "one-time",
-      label: "One-time",
-      count: campaigns.filter((c) => c.mode === "one-time").length,
+      value: "ongoing",
+      label: "Ongoing",
+      count:
+        tab === "ongoing"
+          ? campaigns.length
+          : campaigns.filter((campaign) => campaign.mode === "ongoing").length,
     },
-    { v: "orgs", label: "Organizations", count: orgs.length },
+    {
+      value: "one-time",
+      label: "One-time",
+      count:
+        tab === "one-time"
+          ? campaigns.length
+          : campaigns.filter((campaign) => campaign.mode === "one-time").length,
+    },
+    { value: "orgs", label: "Organizations", count: orgs.length },
   ];
+
+  const isGlobalEmpty = !campaignsLoading && !orgsLoading && campaigns.length === 0 && orgs.length === 0;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
-      <div className="mx-auto max-w-6xl px-5 md:px-8 py-10">
+      <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
         <div className="mb-8">
           <h1 className="font-display text-3xl md:text-4xl">Discover AzarFaith causes</h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="mt-2 text-muted-foreground">
             Find missionaries, churches, orphanages, and schools to support.
           </p>
         </div>
 
-        {/* Search */}
         <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            className="w-full pl-10 pr-4 py-3 rounded-2xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="w-full rounded-2xl border border-border bg-card py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
             placeholder="Search campaigns, orgs, or locations…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
-          {tabs.map(({ v, label, count }) => (
+        <div className="mb-6 flex items-center gap-1 overflow-x-auto pb-1">
+          {tabs.map(({ value, label, count }) => (
             <button
-              key={v}
-              onClick={() => setTab(v)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition ${tab === v ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+              key={value}
+              onClick={() => setTab(value)}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition ${tab === value ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}
             >
               {label}
               <span
-                className={`text-xs px-1.5 py-0.5 rounded-full ${tab === v ? "bg-amber-600 text-white" : "bg-background text-muted-foreground"}`}
+                className={`rounded-full px-1.5 py-0.5 text-xs ${tab === value ? "bg-amber-600 text-white" : "bg-background text-muted-foreground"}`}
               >
                 {count}
               </span>
@@ -119,123 +140,126 @@ function AzarFaithDiscover() {
           ))}
         </div>
 
-        {/* Category filter (only for campaigns tabs) */}
         {tab !== "orgs" && (
-          <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1">
+          <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-1">
             <button
               onClick={() => setCategoryFilter(null)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${!categoryFilter ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${!categoryFilter ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:text-foreground"}`}
             >
               All categories
             </button>
-            {categories.map(({ label, icon }) => (
+            {faithCategoryOptions.map((option) => (
               <button
-                key={label}
-                onClick={() => setCategoryFilter(categoryFilter === label ? null : label)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${categoryFilter === label ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                key={option.value}
+                onClick={() =>
+                  setCategoryFilter(categoryFilter === option.value ? null : option.value)
+                }
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${categoryFilter === option.value ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground hover:text-foreground"}`}
               >
-                <span>{icon}</span> {label}
+                <span>{option.icon}</span> {option.label}
               </button>
             ))}
           </div>
         )}
 
-        {/* Campaigns grid */}
-        {tab !== "orgs" && (
+        {isGlobalEmpty && !search && (
+          <DiscoverEmptyState
+            title="No causes have been published yet"
+            body="The platform is empty right now. A user can create a personal campaign, or register an organization and create campaigns under it."
+            primaryHref="/create"
+            primaryLabel="Create the first campaign"
+          />
+        )}
+
+        {tab !== "orgs" && !isGlobalEmpty && (
           <>
-            {filteredCampaigns.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                <p className="font-medium">No campaigns found</p>
-                <p className="text-sm mt-1">Try a different search or category</p>
-              </div>
+            {campaignsLoading ? (
+              <PageSpinner label="Loading campaigns..." fullScreen={false} />
+            ) : campaigns.length === 0 ? (
+              <DiscoverEmptyState
+                title="No campaigns found"
+                body={
+                  search || categoryFilter
+                    ? "Try a different search or category filter."
+                    : "No campaigns have been published yet. The first campaign created will appear here."
+                }
+                primaryHref="/create"
+                primaryLabel="Create a campaign"
+              />
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredCampaigns.map((c) => {
-                  const pct = c.goal ? Math.min(100, Math.round((c.raised / c.goal) * 100)) : null;
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {campaigns.map((campaign) => {
+                  const pct = campaign.goal ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100)) : null;
                   return (
-                    <Link
-                      key={c.id}
-                      to="/campaign/$id"
-                      params={{ id: c.id }}
-                      className="group block"
-                    >
-                      <article className="bg-card border border-border rounded-3xl overflow-hidden hover:border-amber-200 hover:shadow-md transition-all h-full flex flex-col">
+                    <Link key={campaign.id} to="/campaign/$id" params={{ id: campaign.id }} className="group block">
+                      <article className="flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-amber-200 hover:shadow-md">
                         <div className="relative aspect-[16/10] overflow-hidden">
                           <img
-                            src={c.cover}
+                            src={campaign.cover}
                             alt=""
-                            className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-500"
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
                           />
-                          <div className="absolute top-3 left-3 flex gap-1.5">
+                          <div className="absolute left-3 top-3 flex gap-1.5">
                             <span
-                              className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full ${c.mode === "ongoing" ? "bg-amber-100 text-amber-700" : "bg-card/90 text-foreground border border-border"}`}
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${campaign.mode === "ongoing" ? "bg-amber-100 text-amber-700" : "border border-border bg-card/90 text-foreground"}`}
                             >
-                              {c.mode === "ongoing" ? (
+                              {campaign.mode === "ongoing" ? (
                                 <>
-                                  <Repeat2 className="w-3 h-3" /> Ongoing
+                                  <Repeat2 className="h-3 w-3" /> Ongoing
                                 </>
                               ) : (
                                 <>
-                                  <Target className="w-3 h-3" /> One-time
+                                  <Target className="h-3 w-3" /> One-time
                                 </>
                               )}
                             </span>
-                            {c.verificationStatus === "verified" && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-trust text-trust-foreground">
-                                <ShieldCheck className="w-3 h-3" /> Verified
+                            {campaign.verificationStatus === "verified" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-trust px-2.5 py-1 text-[11px] font-medium text-trust-foreground">
+                                <ShieldCheck className="h-3 w-3" /> Verified
                               </span>
                             )}
-                            {c.urgency === "critical" && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-urgent text-urgent-foreground">
-                                <Flame className="w-3 h-3" /> Urgent
+                            {campaign.urgency === "critical" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-urgent px-2.5 py-1 text-[11px] font-medium text-urgent-foreground">
+                                <Flame className="h-3 w-3" /> Urgent
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="p-4 flex flex-col flex-1">
-                          <p className="text-xs text-amber-600 font-medium mb-1">
-                            {c.faithCategory}
-                          </p>
-                          <h3 className="font-display text-[16px] leading-snug line-clamp-2 flex-1">
-                            {c.title}
+                        <div className="flex flex-1 flex-col p-4">
+                          <p className="mb-1 text-xs font-medium text-amber-600">{campaign.faithCategory}</p>
+                          <h3 className="flex-1 font-display text-[16px] leading-snug line-clamp-2">
+                            {campaign.title}
                           </h3>
                           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <img
-                              src={c.raiser.avatar}
-                              alt=""
-                              className="w-4 h-4 rounded-full object-cover"
-                            />
-                            <span className="truncate">{c.raiser.name}</span>
+                            <span className="truncate">{campaign.raiser.name}</span>
                             <span>·</span>
-                            <MapPin className="w-3 h-3" />
-                            <span className="truncate">{c.location}</span>
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{campaign.location}</span>
                           </div>
                           <div className="mt-3">
                             {pct !== null ? (
                               <>
-                                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                                   <div
-                                    className="h-full bg-amber-500 rounded-full"
+                                    className="h-full rounded-full bg-amber-500"
                                     style={{ width: `${pct}%` }}
                                   />
                                 </div>
                                 <div className="mt-1.5 flex items-baseline justify-between text-xs">
-                                  <span className="font-display text-sm">
-                                    {formatMoney(c.raised)}
-                                  </span>
+                                  <span className="font-display text-sm">{formatMoney(campaign.raised)}</span>
                                   <span className="text-muted-foreground">
-                                    {pct}% · {c.donors} donors
+                                    {pct}% · {campaign.donors} donors
                                   </span>
                                 </div>
                               </>
                             ) : (
                               <div className="flex items-center justify-between text-xs">
                                 <span className="text-muted-foreground">
-                                  {c.donors.toLocaleString()} supporters
+                                  {campaign.donors.toLocaleString()} supporters
                                 </span>
-                                {c.frequencies && (
-                                  <span className="text-amber-600 font-medium">
-                                    {c.frequencies.slice(0, 2).join(" · ")}
+                                {campaign.frequencies && (
+                                  <span className="font-medium text-amber-600">
+                                    {campaign.frequencies.slice(0, 2).join(" · ")}
                                   </span>
                                 )}
                               </div>
@@ -251,60 +275,58 @@ function AzarFaithDiscover() {
           </>
         )}
 
-        {/* Orgs grid */}
-        {tab === "orgs" && (
+        {tab === "orgs" && !isGlobalEmpty && (
           <>
-            {filteredOrgs.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                <p className="font-medium">No organizations found</p>
-                <p className="text-sm mt-1">Try a different search</p>
-              </div>
+            {orgsLoading ? (
+              <PageSpinner label="Loading organizations..." fullScreen={false} />
+            ) : orgs.length === 0 ? (
+              <DiscoverEmptyState
+                title="No organizations found"
+                body={
+                  search
+                    ? "Try a different search term."
+                    : "No organizations have been registered yet. The first ministry, church, or school profile will appear here."
+                }
+                primaryHref="/register-org"
+                primaryLabel="Register an organization"
+              />
             ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredOrgs.map((org) => (
+              <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {orgs.map((org) => (
                   <Link key={org.id} to="/org/$id" params={{ id: org.id }} className="group block">
-                    <article className="bg-card border border-border rounded-3xl overflow-hidden hover:border-amber-200 hover:shadow-md transition-all">
-                      <div className="aspect-[16/9] overflow-hidden">
-                        <img
-                          src={
-                            org.photos[0] ??
-                            "https://images.unsplash.com/photo-1532635241-17e820acc59f?auto=format&fit=crop&w=1200&q=80"
-                          }
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-500"
-                        />
+                    <article className="overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-amber-200 hover:shadow-md">
+                      <div className="aspect-[16/10] overflow-hidden bg-muted">
+                        {org.photos[0] ? (
+                          <img
+                            src={org.photos[0]}
+                            alt=""
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full place-items-center text-sm text-muted-foreground">
+                            No image yet
+                          </div>
+                        )}
                       </div>
                       <div className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                            {orgCategoryIcon[org.category]} {orgCategoryLabel[org.category]}
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                            {orgCategoryIcon[org.category]} {org.category}
                           </span>
                           {org.verificationStatus === "verified" && (
                             <span className="inline-flex items-center gap-1 text-xs font-medium text-trust">
-                              <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                              <ShieldCheck className="h-3.5 w-3.5" /> Verified
                             </span>
                           )}
                         </div>
                         <h3 className="font-display text-lg leading-snug">{org.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                          {org.tagline}
-                        </p>
-                        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3" /> {org.location}
+                        <p className="mt-1 text-xs text-muted-foreground">{org.tagline}</p>
+                        <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> {org.location}
                         </div>
-                        <div className="mt-3 flex items-center gap-4 text-xs">
-                          <span>
-                            <span className="font-semibold text-foreground">
-                              {formatMoney(org.totalReceived)}
-                            </span>{" "}
-                            <span className="text-muted-foreground">received</span>
-                          </span>
-                          <span>
-                            <span className="font-semibold text-foreground">
-                              {org.supporters.toLocaleString()}
-                            </span>{" "}
-                            <span className="text-muted-foreground">supporters</span>
-                          </span>
+                        <div className="mt-4 flex items-center justify-between text-xs">
+                          <span>{formatMoney(org.totalReceived)} received</span>
+                          <span className="text-muted-foreground">{org.campaignCount} campaigns</span>
                         </div>
                       </div>
                     </article>

@@ -8,10 +8,23 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/forgot-password")({ component: ForgotPassword });
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function ForgotPassword() {
   const dispatch = useAppDispatch();
   const { loading, forgotPasswordSent, error } = useAppSelector((state) => state.auth);
   const [email, setEmail] = useState("");
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  const validateForm = () => {
+    if (emailPattern.test(email.trim())) {
+      setFieldError(null);
+      return true;
+    }
+
+    setFieldError("Enter a valid email address.");
+    return false;
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -25,6 +38,8 @@ function ForgotPassword() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (!validateForm()) return;
+
               dispatch(clearAuthError());
               try {
                 await dispatch(forgotPassword({ email })).unwrap();
@@ -42,9 +57,13 @@ function ForgotPassword() {
                 type="email"
                 placeholder="you@email.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldError(null);
+                }}
                 className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
               />
+              {fieldError && <p className="mt-1 text-sm text-red-600">{fieldError}</p>}
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             {forgotPasswordSent && (
@@ -54,7 +73,7 @@ function ForgotPassword() {
             )}
             <button
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-60"
+              className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? "Sending..." : "Send reset link"}
             </button>

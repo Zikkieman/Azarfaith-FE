@@ -1,143 +1,105 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  ShieldCheck,
-  MapPin,
-  Repeat2,
-  Target,
   ArrowRight,
-  Flame,
-  MessageSquare,
   ChevronDown,
   ChevronUp,
+  Flame,
+  MapPin,
+  MessageSquare,
+  Repeat2,
+  ShieldCheck,
+  Target,
 } from "lucide-react";
+
 import { Navbar } from "@/components/Navbar";
-import { useApp } from "@/lib/store";
-import { formatMoney } from "@/lib/mock";
+import { PageSpinner } from "@/components/PageSpinner";
+import { getCampaign } from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 
 export const Route = createFileRoute("/campaign/$id")({
-  component: Campaign,
+  component: CampaignRoute,
 });
 
-function Campaign() {
+function CampaignRoute() {
   const { id } = Route.useParams();
-  const { campaigns, orgs } = useApp();
   const [showAllUpdates, setShowAllUpdates] = useState(false);
   const [selectedFreq, setSelectedFreq] = useState<string | null>(null);
+  const { data: campaign, isLoading } = useQuery({
+    queryKey: ["campaign", id],
+    queryFn: () => getCampaign(id),
+  });
 
-  const campaign = campaigns.find((c) => c.id === id);
-  if (!campaign) throw notFound();
+  if (!isLoading && !campaign) throw notFound();
+  if (!campaign) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <PageSpinner label="Loading campaign..." />
+      </div>
+    );
+  }
 
-  const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : null;
-  const pct = campaign.goal
-    ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
-    : null;
+  const pct = campaign.goal ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100)) : null;
   const isOngoing = campaign.mode === "ongoing";
   const visibleUpdates = showAllUpdates ? campaign.updates : campaign.updates.slice(0, 1);
-
-  const frequencyLabel: Record<string, string> = {
-    weekly: "Give weekly",
-    monthly: "Give monthly",
-    quarterly: "Give quarterly",
-  };
+  const donateFreq = selectedFreq ?? (isOngoing ? "monthly" : "once");
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
-      <div className="mx-auto max-w-3xl px-5 md:px-8 py-8 space-y-8">
-        {/* Cover */}
-        <div className="relative rounded-3xl overflow-hidden aspect-[16/9]">
-          <img src={campaign.cover} alt="" className="w-full h-full object-cover" />
-          <div className="absolute top-4 left-4 flex gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full ${isOngoing ? "bg-amber-100 text-amber-800" : "bg-card/90 text-foreground border border-border/60"}`}
-            >
-              {isOngoing ? (
-                <>
-                  <Repeat2 className="w-3.5 h-3.5" /> Ongoing
-                </>
-              ) : (
-                <>
-                  <Target className="w-3.5 h-3.5" /> One-time
-                </>
-              )}
+      <div className="mx-auto max-w-3xl space-y-8 px-5 py-8 md:px-8">
+        <div className="relative aspect-[16/9] overflow-hidden rounded-3xl">
+          <img src={campaign.cover} alt="" className="h-full w-full object-cover" />
+          <div className="absolute left-4 top-4 flex gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${isOngoing ? "bg-amber-100 text-amber-800" : "border border-border/60 bg-card/90 text-foreground"}`}>
+              {isOngoing ? <><Repeat2 className="h-3.5 w-3.5" /> Ongoing</> : <><Target className="h-3.5 w-3.5" /> One-time</>}
             </span>
             {campaign.verificationStatus === "verified" && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-trust text-trust-foreground">
-                <ShieldCheck className="w-3.5 h-3.5" /> Verified
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-trust px-3 py-1.5 text-xs font-medium text-trust-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" /> Verified
               </span>
             )}
             {campaign.urgency === "critical" && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-urgent text-urgent-foreground">
-                <Flame className="w-3.5 h-3.5" /> Urgent
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-urgent px-3 py-1.5 text-xs font-medium text-urgent-foreground">
+                <Flame className="h-3.5 w-3.5" /> Urgent
               </span>
             )}
           </div>
         </div>
 
-        {/* Title + meta */}
         <div>
-          <p className="text-xs font-medium text-amber-600 mb-1">{campaign.faithCategory}</p>
-          <h1 className="font-display text-2xl md:text-3xl leading-tight">{campaign.title}</h1>
+          <p className="mb-1 text-xs font-medium text-amber-600">{campaign.faithCategory}</p>
+          <h1 className="font-display text-2xl leading-tight md:text-3xl">{campaign.title}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <img
-                src={campaign.raiser.avatar}
-                alt=""
-                className="w-5 h-5 rounded-full object-cover"
-              />
-              <span>{campaign.raiser.name}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" /> {campaign.location}
-            </div>
+            <div>{campaign.raiser.name}</div>
+            <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {campaign.location}</div>
           </div>
-          {org && (
-            <Link
-              to="/org/$id"
-              params={{ id: org.id }}
-              className="mt-3 inline-flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700 transition"
-            >
-              Part of {org.name} <ArrowRight className="w-3.5 h-3.5" />
+          {campaign.orgId && (
+            <Link to="/org/$id" params={{ id: campaign.orgId }} className="mt-3 inline-flex items-center gap-2 text-sm text-amber-600 transition hover:text-amber-700">
+              View organization <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           )}
         </div>
 
-        {/* Give widget */}
-        <div className="bg-card border border-border rounded-3xl p-6">
+        <div className="rounded-3xl border border-border bg-card p-6">
           {isOngoing ? (
             <div>
-              <h2 className="font-display text-lg mb-1">Support this ministry</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Choose how you'd like to give. You can change or cancel anytime.
-              </p>
-              <div className="flex flex-wrap gap-2 mb-4">
+              <h2 className="mb-1 font-display text-lg">Support this ministry</h2>
+              <p className="mb-4 text-sm text-muted-foreground">Choose how you'd like to give. You can change or cancel anytime.</p>
+              <div className="mb-4 flex flex-wrap gap-2">
                 {(campaign.frequencies ?? ["monthly"]).map((freq) => (
-                  <button
-                    key={freq}
-                    onClick={() => setSelectedFreq(freq)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${selectedFreq === freq ? "bg-amber-500 text-white" : "border border-border hover:border-amber-300"}`}
-                  >
-                    {frequencyLabel[freq]}
+                  <button key={freq} onClick={() => setSelectedFreq(freq)} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedFreq === freq ? "bg-amber-500 text-white" : "border border-border hover:border-amber-300"}`}>
+                    Give {freq}
                   </button>
                 ))}
-                <button
-                  onClick={() => setSelectedFreq("once")}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition ${selectedFreq === "once" ? "bg-amber-500 text-white" : "border border-border hover:border-amber-300"}`}
-                >
+                <button onClick={() => setSelectedFreq("once")} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedFreq === "once" ? "bg-amber-500 text-white" : "border border-border hover:border-amber-300"}`}>
                   Give once
                 </button>
               </div>
-              <Link
-                to="/donate/$id"
-                params={{ id: campaign.id }}
-                search={{ freq: selectedFreq ?? "" }}
-                className="block w-full py-3.5 rounded-2xl bg-amber-500 text-white font-semibold text-center hover:bg-amber-600 transition"
-              >
-                {selectedFreq
-                  ? `${frequencyLabel[selectedFreq] ?? "Give once"} →`
-                  : "Choose a frequency above"}
+              <Link to="/donate/$id" params={{ id: campaign.id }} search={{ freq: donateFreq }} className="block w-full rounded-2xl bg-amber-500 py-3.5 text-center font-semibold text-white transition hover:bg-amber-600">
+                Continue to give
               </Link>
               <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{campaign.donors.toLocaleString()} supporters</span>
@@ -147,122 +109,80 @@ function Campaign() {
             </div>
           ) : (
             <div>
-              <div className="flex items-baseline justify-between mb-2">
+              <div className="mb-2 flex items-baseline justify-between">
                 <span className="font-display text-2xl">{formatMoney(campaign.raised)}</span>
-                <span className="text-sm text-muted-foreground">
-                  of {formatMoney(campaign.goal ?? 0)}
-                </span>
+                <span className="text-sm text-muted-foreground">of {formatMoney(campaign.goal ?? 0)}</span>
               </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
-                <div
-                  className="h-full bg-amber-500 rounded-full transition-all"
-                  style={{ width: `${pct ?? 0}%` }}
-                />
+              <div className="mb-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct ?? 0}%` }} />
               </div>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-5">
+              <div className="mb-5 flex items-center gap-4 text-xs text-muted-foreground">
                 <span>{pct}% funded</span>
                 <span>·</span>
                 <span>{campaign.donors.toLocaleString()} donors</span>
               </div>
-              <Link
-                to="/donate/$id"
-                params={{ id: campaign.id }}
-                search={{ freq: "once" }}
-                className="block w-full py-3.5 rounded-2xl bg-amber-500 text-white font-semibold text-center hover:bg-amber-600 transition"
-              >
+              <Link to="/donate/$id" params={{ id: campaign.id }} search={{ freq: "once" }} className="block w-full rounded-2xl bg-amber-500 py-3.5 text-center font-semibold text-white transition hover:bg-amber-600">
                 Donate now
               </Link>
             </div>
           )}
         </div>
 
-        {/* Story */}
         <section>
-          <h2 className="font-display text-xl mb-3">The story</h2>
-          <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-            {campaign.story}
-          </p>
+          <h2 className="mb-3 font-display text-xl">The story</h2>
+          <p className="whitespace-pre-line leading-relaxed text-muted-foreground">{campaign.story}</p>
         </section>
 
-        {/* Gallery */}
-        {campaign.gallery.length > 1 && (
+        {campaign.gallery.length > 0 && (
           <section>
-            <h2 className="font-display text-xl mb-4">Photos</h2>
+            <h2 className="mb-4 font-display text-xl">Photos</h2>
             <div className="grid grid-cols-3 gap-3">
-              {campaign.gallery.map((img, i) => (
-                <div key={i} className="aspect-square rounded-2xl overflow-hidden">
-                  <img
-                    src={img}
-                    alt=""
-                    className="w-full h-full object-cover hover:scale-105 transition duration-300"
-                  />
+              {campaign.gallery.map((image) => (
+                <div key={image} className="aspect-square overflow-hidden rounded-2xl">
+                  <img src={image} alt="" className="h-full w-full object-cover transition duration-300 hover:scale-105" />
                 </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Updates */}
         {campaign.updates.length > 0 && (
           <section>
-            <h2 className="font-display text-xl mb-4">
-              Updates{" "}
-              <span className="text-muted-foreground text-base font-normal">
-                ({campaign.updates.length})
-              </span>
-            </h2>
+            <h2 className="mb-4 font-display text-xl">Updates <span className="text-base font-normal text-muted-foreground">({campaign.updates.length})</span></h2>
             <div className="space-y-4">
-              {visibleUpdates.map((u) => (
-                <div key={u.id} className="bg-card border border-border rounded-2xl p-5">
-                  <div className="text-xs text-muted-foreground mb-1">{u.date}</div>
-                  <h3 className="font-semibold text-sm">{u.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{u.body}</p>
+              {visibleUpdates.map((update) => (
+                <div key={update.id} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-1 text-xs text-muted-foreground">{update.date}</div>
+                  <h3 className="text-sm font-semibold">{update.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{update.body}</p>
                 </div>
               ))}
             </div>
             {campaign.updates.length > 1 && (
-              <button
-                onClick={() => setShowAllUpdates(!showAllUpdates)}
-                className="mt-3 flex items-center gap-1.5 text-sm text-amber-600 hover:text-amber-700 transition"
-              >
-                {showAllUpdates ? (
-                  <>
-                    <ChevronUp className="w-4 h-4" /> Show less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4" /> Show all {campaign.updates.length} updates
-                  </>
-                )}
+              <button onClick={() => setShowAllUpdates((value) => !value)} className="mt-3 flex items-center gap-1.5 text-sm text-amber-600 transition hover:text-amber-700">
+                {showAllUpdates ? <><ChevronUp className="h-4 w-4" /> Show less</> : <><ChevronDown className="h-4 w-4" /> Show all {campaign.updates.length} updates</>}
               </button>
             )}
           </section>
         )}
 
-        {/* Comments */}
         {campaign.comments.length > 0 && (
           <section>
-            <h2 className="font-display text-xl mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-amber-500" />
-              Comments{" "}
-              <span className="text-muted-foreground text-base font-normal">
-                ({campaign.comments.length})
-              </span>
+            <h2 className="mb-4 flex items-center gap-2 font-display text-xl">
+              <MessageSquare className="h-5 w-5 text-amber-500" /> Comments <span className="text-base font-normal text-muted-foreground">({campaign.comments.length})</span>
             </h2>
             <div className="space-y-4">
-              {campaign.comments.map((c) => (
-                <div key={c.id} className="flex gap-3">
-                  <img
-                    src={c.avatar}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5"
-                  />
+              {campaign.comments.map((comment) => (
+                <div key={comment.id} className="flex gap-3">
+                  <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
+                    {(comment.author || "A").slice(0, 1).toUpperCase()}
+                  </div>
                   <div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="font-medium">{c.author}</span>
-                      <span className="text-muted-foreground">{c.date}</span>
+                      <span className="font-medium">{comment.author}</span>
+                      <span className="text-muted-foreground">{comment.date}</span>
                     </div>
-                    <p className="text-sm mt-1 text-muted-foreground">{c.body}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{comment.body}</p>
                   </div>
                 </div>
               ))}
@@ -270,20 +190,19 @@ function Campaign() {
           </section>
         )}
 
-        {/* Recent donors */}
         {campaign.donations.length > 0 && (
           <section>
-            <h2 className="font-display text-xl mb-4">Recent giving</h2>
+            <h2 className="mb-4 font-display text-xl">Recent giving</h2>
             <div className="space-y-3">
-              {campaign.donations.slice(0, 5).map((d) => (
-                <div key={d.id} className="flex items-center justify-between text-sm">
+              {campaign.donations.slice(0, 5).map((donation) => (
+                <div key={donation.id} className="flex items-center justify-between text-sm">
                   <div>
-                    <span className="font-medium">{d.donor}</span>
-                    {d.note && <span className="text-muted-foreground"> · "{d.note}"</span>}
+                    <span className="font-medium">{donation.donor}</span>
+                    {donation.note && <span className="text-muted-foreground"> · &quot;{donation.note}&quot;</span>}
                   </div>
                   <div className="flex items-center gap-3 text-muted-foreground">
-                    <span>{formatMoney(d.amount)}</span>
-                    <span className="text-xs">{d.date}</span>
+                    <span>{formatMoney(donation.amount)}</span>
+                    <span className="text-xs">{donation.date}</span>
                   </div>
                 </div>
               ))}
