@@ -19,10 +19,19 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as OrgIdRouteImport } from './routes/org.$id'
 import { Route as DonateIdRouteImport } from './routes/donate.$id'
 import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
+import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
+import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
+import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
+import { Route as AdminCampaignsIdRouteImport } from './routes/admin/campaigns.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -74,10 +83,20 @@ const CreateRoute = CreateRouteImport.update({
   path: '/create',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const OrgIdRoute = OrgIdRouteImport.update({
   id: '/org/$id',
@@ -94,9 +113,45 @@ const CampaignIdRoute = CampaignIdRouteImport.update({
   path: '/campaign/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrgsRoute = AdminOrgsRouteImport.update({
+  id: '/orgs',
+  path: '/orgs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminUsersRoute,
+} as any)
+const AdminOrgsIdRoute = AdminOrgsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminOrgsRoute,
+} as any)
+const AdminCampaignsIdRoute = AdminCampaignsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminCampaignsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/create': typeof CreateRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -107,9 +162,17 @@ export interface FileRoutesByFullPath {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
   '/org/$id': typeof OrgIdRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
+  '/admin/orgs/$id': typeof AdminOrgsIdRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -123,13 +186,22 @@ export interface FileRoutesByTo {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
   '/org/$id': typeof OrgIdRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
+  '/admin/orgs/$id': typeof AdminOrgsIdRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/create': typeof CreateRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -140,14 +212,23 @@ export interface FileRoutesById {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
   '/donate/$id': typeof DonateIdRoute
   '/org/$id': typeof OrgIdRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
+  '/admin/orgs/$id': typeof AdminOrgsIdRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/create'
     | '/discover'
     | '/forgot-password'
@@ -158,9 +239,17 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/admin/campaigns'
+    | '/admin/orgs'
+    | '/admin/settings'
+    | '/admin/users'
     | '/campaign/$id'
     | '/donate/$id'
     | '/org/$id'
+    | '/admin/'
+    | '/admin/campaigns/$id'
+    | '/admin/orgs/$id'
+    | '/admin/users/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,12 +263,21 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/admin/campaigns'
+    | '/admin/orgs'
+    | '/admin/settings'
+    | '/admin/users'
     | '/campaign/$id'
     | '/donate/$id'
     | '/org/$id'
+    | '/admin'
+    | '/admin/campaigns/$id'
+    | '/admin/orgs/$id'
+    | '/admin/users/$id'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/create'
     | '/discover'
     | '/forgot-password'
@@ -190,13 +288,22 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/admin/campaigns'
+    | '/admin/orgs'
+    | '/admin/settings'
+    | '/admin/users'
     | '/campaign/$id'
     | '/donate/$id'
     | '/org/$id'
+    | '/admin/'
+    | '/admin/campaigns/$id'
+    | '/admin/orgs/$id'
+    | '/admin/users/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CreateRoute: typeof CreateRoute
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -284,12 +391,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/org/$id': {
       id: '/org/$id'
@@ -312,11 +433,115 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orgs': {
+      id: '/admin/orgs'
+      path: '/orgs'
+      fullPath: '/admin/orgs'
+      preLoaderRoute: typeof AdminOrgsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/campaigns': {
+      id: '/admin/campaigns'
+      path: '/campaigns'
+      fullPath: '/admin/campaigns'
+      preLoaderRoute: typeof AdminCampaignsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/$id': {
+      id: '/admin/users/$id'
+      path: '/$id'
+      fullPath: '/admin/users/$id'
+      preLoaderRoute: typeof AdminUsersIdRouteImport
+      parentRoute: typeof AdminUsersRoute
+    }
+    '/admin/orgs/$id': {
+      id: '/admin/orgs/$id'
+      path: '/$id'
+      fullPath: '/admin/orgs/$id'
+      preLoaderRoute: typeof AdminOrgsIdRouteImport
+      parentRoute: typeof AdminOrgsRoute
+    }
+    '/admin/campaigns/$id': {
+      id: '/admin/campaigns/$id'
+      path: '/$id'
+      fullPath: '/admin/campaigns/$id'
+      preLoaderRoute: typeof AdminCampaignsIdRouteImport
+      parentRoute: typeof AdminCampaignsRoute
+    }
   }
 }
 
+interface AdminCampaignsRouteChildren {
+  AdminCampaignsIdRoute: typeof AdminCampaignsIdRoute
+}
+
+const AdminCampaignsRouteChildren: AdminCampaignsRouteChildren = {
+  AdminCampaignsIdRoute: AdminCampaignsIdRoute,
+}
+
+const AdminCampaignsRouteWithChildren = AdminCampaignsRoute._addFileChildren(
+  AdminCampaignsRouteChildren,
+)
+
+interface AdminOrgsRouteChildren {
+  AdminOrgsIdRoute: typeof AdminOrgsIdRoute
+}
+
+const AdminOrgsRouteChildren: AdminOrgsRouteChildren = {
+  AdminOrgsIdRoute: AdminOrgsIdRoute,
+}
+
+const AdminOrgsRouteWithChildren = AdminOrgsRoute._addFileChildren(
+  AdminOrgsRouteChildren,
+)
+
+interface AdminUsersRouteChildren {
+  AdminUsersIdRoute: typeof AdminUsersIdRoute
+}
+
+const AdminUsersRouteChildren: AdminUsersRouteChildren = {
+  AdminUsersIdRoute: AdminUsersIdRoute,
+}
+
+const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
+  AdminUsersRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminCampaignsRoute: typeof AdminCampaignsRouteWithChildren
+  AdminOrgsRoute: typeof AdminOrgsRouteWithChildren
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminUsersRoute: typeof AdminUsersRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCampaignsRoute: AdminCampaignsRouteWithChildren,
+  AdminOrgsRoute: AdminOrgsRouteWithChildren,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminUsersRoute: AdminUsersRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CreateRoute: CreateRoute,
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
