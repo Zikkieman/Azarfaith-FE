@@ -2,6 +2,9 @@ import { useEffect, useId, useRef } from "react";
 
 declare global {
   interface Window {
+    __azarfaithGoogleInitialized?: boolean;
+  }
+  interface Window {
     google?: {
       accounts: {
         id: {
@@ -41,21 +44,27 @@ export function GoogleSignInButton({
       const container = containerRef.current;
       if (!container || !window.google?.accounts.id) return;
 
+      const width = Math.max(Math.round(container.getBoundingClientRect().width), 240);
+
       container.innerHTML = "";
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: ({ credential }) => {
-          if (credential) {
-            onCredential(credential);
-          }
-        },
-      });
+      if (!window.__azarfaithGoogleInitialized) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: ({ credential }) => {
+            if (credential) {
+              onCredential(credential);
+            }
+          },
+        });
+        window.__azarfaithGoogleInitialized = true;
+      }
+
       window.google.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
         shape: "pill",
         text: "continue_with",
-        width: "100%",
+        width,
       });
     };
 
