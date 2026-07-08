@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Save, RotateCcw } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RotateCcw, Save } from "lucide-react";
+import {
+  getAdminPlatformSettings,
+  updateAdminPlatformSettings,
+  type AdminPlatformSettings,
+} from "@/features/catalog/api";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { PageSpinner } from "@/components/PageSpinner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -12,16 +18,58 @@ export const Route = createFileRoute("/admin/settings")({
 });
 
 function AdminSettings() {
-  const { platformSettings, updatePlatformSettings } = useApp();
-  const [settings, setSettings] = useState({ ...platformSettings });
+  const queryClient = useQueryClient();
+  const { data: platformSettings, isLoading } = useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: getAdminPlatformSettings,
+  });
+  const [settings, setSettings] = useState<AdminPlatformSettings | null>(null);
+
+  useEffect(() => {
+    if (platformSettings) {
+      setSettings(platformSettings);
+    }
+  }, [platformSettings]);
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: Partial<Omit<AdminPlatformSettings, "id" | "updatedAt">>) =>
+      updateAdminPlatformSettings(payload),
+    onSuccess: (savedSettings) => {
+      queryClient.setQueryData(["admin", "settings"], savedSettings);
+      setSettings(savedSettings);
+      toast.success("Settings saved successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  if (isLoading || !settings || !platformSettings) {
+    return (
+      <AdminPageWrapper title="Platform Settings">
+        <PageSpinner label="Loading settings..." fullScreen={false} />
+      </AdminPageWrapper>
+    );
+  }
 
   const handleSave = () => {
-    updatePlatformSettings(settings);
-    toast.success("Settings saved successfully");
+    saveMutation.mutate({
+      platformFeePercent: settings.platformFeePercent,
+      minDonation: settings.minDonation,
+      maxDonation: settings.maxDonation,
+      maxTipAmount: settings.maxTipAmount,
+      campaignExpiryDays: settings.campaignExpiryDays,
+      autoApproveVerifiedOrgs: settings.autoApproveVerifiedOrgs,
+      requirePhoneForCampaigns: settings.requirePhoneForCampaigns,
+      reapplicationDays: settings.reapplicationDays,
+      emailNotifications: settings.emailNotifications,
+      smsNotifications: settings.smsNotifications,
+      adminNotificationEmail: settings.adminNotificationEmail.trim(),
+    });
   };
 
   const handleReset = () => {
-    setSettings({ ...platformSettings });
+    setSettings(platformSettings);
     toast.info("Settings reset to saved values");
   };
 
@@ -40,7 +88,10 @@ function AdminSettings() {
                 max="10"
                 value={settings.platformFeePercent}
                 onChange={(e) =>
-                  setSettings({ ...settings, platformFeePercent: parseFloat(e.target.value) || 0 })
+                  setSettings({
+                    ...settings,
+                    platformFeePercent: parseFloat(e.target.value) || 0,
+                  })
                 }
                 className="mt-1 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
@@ -105,7 +156,10 @@ function AdminSettings() {
                 max="365"
                 value={settings.campaignExpiryDays}
                 onChange={(e) =>
-                  setSettings({ ...settings, campaignExpiryDays: parseInt(e.target.value) || 90 })
+                  setSettings({
+                    ...settings,
+                    campaignExpiryDays: parseInt(e.target.value) || 90,
+                  })
                 }
                 className="mt-1 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
               />
@@ -215,9 +269,13 @@ function AdminSettings() {
             <RotateCcw className="h-4 w-4" />
             Reset
           </Button>
-          <Button className="gap-2 bg-amber-500 hover:bg-amber-600 text-white" onClick={handleSave}>
+          <Button
+            className="gap-2 bg-amber-500 text-white hover:bg-amber-600"
+            onClick={handleSave}
+            disabled={saveMutation.isPending}
+          >
             <Save className="h-4 w-4" />
-            Save Changes
+            {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>

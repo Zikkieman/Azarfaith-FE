@@ -1,4 +1,5 @@
 import { Link, useMatchRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Building2,
@@ -10,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useApp } from "@/lib/admin-store";
+import { getAdminDashboard } from "@/features/catalog/api";
 import { useSidebar } from "./AdminLayout";
 
 const navItems = [
@@ -23,11 +24,11 @@ const navItems = [
 
 export function AdminSidebar() {
   const matchRoute = useMatchRoute();
-  const { orgs, campaigns } = useApp();
   const { setOpen } = useSidebar();
-
-  const pendingOrgs = orgs.filter((o) => o.verificationStatus === "pending").length;
-  const pendingCampaigns = campaigns.filter((c) => c.verificationStatus === "pending").length;
+  const { data } = useQuery({
+    queryKey: ["admin", "dashboard", "sidebar"],
+    queryFn: getAdminDashboard,
+  });
 
   const handleNavClick = () => setOpen(false);
 
@@ -60,9 +61,9 @@ export function AdminSidebar() {
 
           const badge =
             item.to === "/admin/orgs"
-              ? pendingOrgs
+              ? (data?.pendingOrganizations ?? 0)
               : item.to === "/admin/campaigns"
-                ? pendingCampaigns
+                ? (data?.pendingCampaigns ?? 0)
                 : 0;
 
           return (

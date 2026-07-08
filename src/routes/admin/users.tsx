@@ -1,14 +1,13 @@
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, UserX, UserCheck, Users, ShieldCheck, Phone, Mail } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import { listAdminUsers, updateAdminUserStatus } from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
-import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
-import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,19 +19,40 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { PageSpinner } from "@/components/PageSpinner";
 
 export const Route = createFileRoute("/admin/users")({
   component: AdminUsers,
 });
 
 function AdminUsers() {
-  const { users, suspendUser, reactivateUser } = useApp();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [suspendDialog, setSuspendDialog] = useState<string | null>(null);
-  const [reactivateDialog, setReactivateDialog] = useState<string | null>(null);
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["admin", "users", { search }],
+    queryFn: () => listAdminUsers({ search: search || undefined }),
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({
+      id,
+      status,
+      reason,
+    }: {
+      id: string;
+      status: "active" | "suspended";
+      reason?: string;
+    }) => updateAdminUserStatus(id, { status, reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("User status updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   const perPage = 10;
 
@@ -98,11 +118,15 @@ function AdminUsers() {
         />
 
         {paginated.length === 0 ? (
-          <AdminEmptyState
-            icon={<Users className="h-6 w-6" />}
-            title="No users found"
-            description="No users match your current filters."
-          />
+          isLoading ? (
+            <PageSpinner label="Loading users..." fullScreen={false} />
+          ) : (
+            <AdminEmptyState
+              icon={<Users className="h-6 w-6" />}
+              title="No users found"
+              description="No users match your current filters."
+            />
+          )
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
             <Table className="min-w-[800px]">
@@ -145,7 +169,7 @@ function AdminUsers() {
                         }
                       >
                         {user.role === "platform_admin"
-                          ? "Admin"
+                          ? "Platform Admin"
                           : user.role === "org_admin"
                             ? "Org Admin"
                             : "Donor"}
@@ -178,12 +202,19 @@ function AdminUsers() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        {user.status === "active" && user.role !== "platform_admin" && (
+                        {user.status === "active" && (
                           <Button
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:text-red-700"
-                            onClick={() => setSuspendDialog(user.id)}
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                id: user.id,
+                                status: "suspended",
+                                reason: "Suspended by admin from the users list.",
+                              })
+                            }
                           >
                             <UserX className="h-4 w-4" />
                           </Button>
@@ -193,7 +224,13 @@ function AdminUsers() {
                             variant="ghost"
                             size="sm"
                             className="text-emerald-600 hover:text-emerald-700"
-                            onClick={() => setReactivateDialog(user.id)}
+                            disabled={statusMutation.isPending}
+                            onClick={() =>
+                              statusMutation.mutate({
+                                id: user.id,
+                                status: "active",
+                              })
+                            }
                           >
                             <UserCheck className="h-4 w-4" />
                           </Button>
@@ -211,59 +248,6 @@ function AdminUsers() {
           </div>
         )}
       </div>
-
-      <SuspendUserDialog
-        open={!!suspendDialog}
-        onOpenChange={() => setSuspendDialog(null)}
-        onSuspend={(reason) => {
-          if (suspendDialog) {
-            suspendUser(suspendDialog, reason);
-            toast.error("User suspended");
-          }
-        }}
-      />
-
-      <AdminConfirmDialog
-        open={!!reactivateDialog}
-        onOpenChange={() => setReactivateDialog(null)}
-        title="Reactivate User"
-        description="Are you sure you want to reactivate this user? They will regain full access to the platform."
-        confirmLabel="Reactivate"
-        onConfirm={() => {
-          if (reactivateDialog) {
-            reactivateUser(reactivateDialog);
-            toast.success("User reactivated");
-          }
-        }}
-      />
     </AdminPageWrapper>
-  );
-}
-
-function SuspendUserDialog({
-  open,
-  onOpenChange,
-  onSuspend,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuspend: (reason: string) => void;
-}) {
-  const [reason, setReason] = useState("");
-
-  return (
-    <AdminRejectDialog
-      open={open}
-      onOpenChange={(v: boolean) => {
-        setReason("");
-        onOpenChange(v);
-      }}
-      title="Suspend User"
-      description="Suspended users cannot login or make donations. Please provide a reason."
-      onReject={(r: string) => {
-        onSuspend(r);
-        setReason("");
-      }}
-    />
   );
 }

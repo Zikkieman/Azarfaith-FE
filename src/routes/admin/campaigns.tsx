@@ -1,8 +1,12 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, ShieldCheck, ShieldAlert } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import {
+  listAdminCampaigns,
+  updateAdminCampaignStatus,
+} from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
@@ -11,6 +15,7 @@ import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
+import { PageSpinner } from "@/components/PageSpinner";
 import {
   Table,
   TableBody,
@@ -26,7 +31,7 @@ export const Route = createFileRoute("/admin/campaigns")({
 });
 
 function AdminCampaigns() {
-  const { campaigns, moderateCampaign } = useApp();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [modeFilter, setModeFilter] = useState("");
@@ -37,18 +42,35 @@ function AdminCampaigns() {
 
   const perPage = 10;
 
-  const filtered = useMemo(() => {
-    return campaigns.filter((c) => {
-      const matchSearch =
-        !search ||
-        c.title.toLowerCase().includes(search.toLowerCase()) ||
-        c.raiser.name.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = !statusFilter || c.verificationStatus === statusFilter;
-      const matchMode = !modeFilter || c.mode === modeFilter;
-      const matchType = !typeFilter || c.type === typeFilter;
-      return matchSearch && matchStatus && matchMode && matchType;
-    });
-  }, [campaigns, search, statusFilter, modeFilter, typeFilter]);
+  const { data: campaigns = [], isLoading } = useQuery({
+    queryKey: ["admin", "campaigns", { search, statusFilter, modeFilter, typeFilter }],
+    queryFn: () =>
+      listAdminCampaigns({
+        search: search || undefined,
+        status: statusFilter ? statusFilter.toUpperCase() as "VERIFIED" | "PENDING" | "UNVERIFIED" : undefined,
+        mode: modeFilter ? (modeFilter === "one-time" ? "ONE_TIME" : "ONGOING") : undefined,
+        type: typeFilter ? typeFilter.toUpperCase() as "MONEY" | "ITEM" | "VOLUNTEER" | "PROFESSIONAL" | "EMERGENCY" : undefined,
+      }),
+  });
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "VERIFIED" | "UNVERIFIED" }) =>
+      updateAdminCampaignStatus(id, status),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(
+        variables.status === "VERIFIED"
+          ? "Campaign approved and published"
+          : "Campaign moved to unverified.",
+      );
+      setApproveDialog(null);
+      setRejectDialog(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const filtered = useMemo(() => campaigns, [campaigns]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -116,11 +138,15 @@ function AdminCampaigns() {
         />
 
         {paginated.length === 0 ? (
-          <AdminEmptyState
-            icon={<ShieldCheck className="h-6 w-6" />}
-            title="No campaigns found"
-            description="No campaigns match your current filters."
-          />
+          isLoading ? (
+            <PageSpinner label="Loading campaigns..." fullScreen={false} />
+          ) : (
+            <AdminEmptyState
+              icon={<ShieldCheck className="h-6 w-6" />}
+              title="No campaigns found"
+              description="No campaigns match your current filters."
+            />
+          )
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
             <Table className="min-w-[900px]">
@@ -235,8 +261,7 @@ function AdminCampaigns() {
         confirmLabel="Approve"
         onConfirm={() => {
           if (approveDialog) {
-            moderateCampaign(approveDialog, "verified");
-            toast.success("Campaign approved and published");
+            updateStatusMutation.mutate({ id: approveDialog, status: "VERIFIED" });
           }
         }}
       />
@@ -247,8 +272,7 @@ function AdminCampaigns() {
         title="Reject Campaign"
         onReject={(reason) => {
           if (rejectDialog) {
-            moderateCampaign(rejectDialog, "rejected", reason);
-            toast.error("Campaign rejected");
+            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED" });
           }
         }}
       />

@@ -1,14 +1,6 @@
 import { Building2, Megaphone, DollarSign, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type ActivityItem = {
-  id: string;
-  type: "org_registered" | "campaign_submitted" | "donation" | "user_suspended";
-  title: string;
-  description: string;
-  timestamp: string;
-  link?: string;
-};
+import type { AdminActivityItem } from "@/features/catalog/api";
 
 const typeConfig = {
   org_registered: { icon: Building2, color: "text-blue-500", bg: "bg-blue-50" },
@@ -17,53 +9,10 @@ const typeConfig = {
   user_suspended: { icon: UserX, color: "text-red-500", bg: "bg-red-50" },
 };
 
-const activityItems: ActivityItem[] = [
-  {
-    id: "a1",
-    type: "org_registered",
-    title: "New organization registered",
-    description: "CAPROS Nigeria has registered and is awaiting verification.",
-    timestamp: "2 days ago",
-    link: "/admin/orgs/o4",
-  },
-  {
-    id: "a2",
-    type: "campaign_submitted",
-    title: "Campaign pending review",
-    description: "Emergency food for displaced Christians in Mangu.",
-    timestamp: "2 days ago",
-    link: "/admin/campaigns/gfc6",
-  },
-  {
-    id: "a3",
-    type: "donation",
-    title: "Large donation received",
-    description: "₦500,000 donated to Build a permanent worship hall for ECWA Kano.",
-    timestamp: "5 days ago",
-    link: "/admin/campaigns/gfc4",
-  },
-  {
-    id: "a4",
-    type: "org_registered",
-    title: "New organization registered",
-    description: "Lifegate Christian Academy has registered.",
-    timestamp: "2 weeks ago",
-    link: "/admin/orgs/o5",
-  },
-  {
-    id: "a5",
-    type: "user_suspended",
-    title: "User suspended",
-    description: "David Ogundimu suspended for suspicious activity.",
-    timestamp: "2 weeks ago",
-    link: "/admin/users/u7",
-  },
-];
-
-export function AdminActivityFeed() {
+export function AdminActivityFeed({ items }: { items: AdminActivityItem[] }) {
   return (
     <div className="space-y-0">
-      {activityItems.map((item) => {
+      {items.map((item) => {
         const config = typeConfig[item.type];
         const Icon = config.icon;
 

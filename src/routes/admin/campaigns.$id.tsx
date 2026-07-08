@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -10,14 +11,19 @@ import {
   Users,
   AlertTriangle,
 } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import {
+  getAdminCampaign,
+  getAdminOrganization,
+  updateAdminCampaignStatus,
+} from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { PageSpinner } from "@/components/PageSpinner";
 
 export const Route = createFileRoute("/admin/campaigns/$id")({
   component: AdminCampaignDetail,
@@ -25,13 +31,45 @@ export const Route = createFileRoute("/admin/campaigns/$id")({
 
 function AdminCampaignDetail() {
   const { id } = Route.useParams();
-  const { campaigns, orgs, moderateCampaign } = useApp();
+  const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-
-  const campaign = campaigns.find((c) => c.id === id);
+  const { data: campaign, isLoading } = useQuery({
+    queryKey: ["admin", "campaign", id],
+    queryFn: () => getAdminCampaign(id),
+  });
+  const { data: org } = useQuery({
+    queryKey: ["admin", "campaign-org", campaign?.orgId],
+    queryFn: () => getAdminOrganization(campaign!.orgId!),
+    enabled: Boolean(campaign?.orgId),
+  });
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: "VERIFIED" | "UNVERIFIED") =>
+      updateAdminCampaignStatus(id, status),
+    onSuccess: (_, status) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(
+        status === "VERIFIED"
+          ? "Campaign approved and published"
+          : "Campaign moved to unverified",
+      );
+      setApproveDialog(false);
+      setRejectDialog(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   if (!campaign) {
+    if (isLoading) {
+      return (
+        <AdminPageWrapper title="Loading Campaign">
+          <PageSpinner label="Loading campaign..." fullScreen={false} />
+        </AdminPageWrapper>
+      );
+    }
+
     return (
       <AdminPageWrapper title="Campaign Not Found">
         <div className="flex flex-col items-center justify-center py-20">
@@ -47,7 +85,6 @@ function AdminCampaignDetail() {
     );
   }
 
-  const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : null;
   const progress = campaign.goal ? Math.min((campaign.raised / campaign.goal) * 100, 100) : 0;
 
   return (
@@ -313,8 +350,7 @@ function AdminCampaignDetail() {
         description={`Are you sure you want to approve "${campaign.title}"? It will become visible to all donors.`}
         confirmLabel="Approve Campaign"
         onConfirm={() => {
-          moderateCampaign(campaign.id, "verified");
-          toast.success("Campaign approved and published");
+          updateStatusMutation.mutate("VERIFIED");
         }}
       />
 
@@ -323,8 +359,7 @@ function AdminCampaignDetail() {
         onOpenChange={setRejectDialog}
         title={`Reject "${campaign.title}"`}
         onReject={(reason) => {
-          moderateCampaign(campaign.id, "rejected", reason);
-          toast.error("Campaign rejected");
+          updateStatusMutation.mutate("UNVERIFIED");
         }}
       />
     </AdminPageWrapper>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -10,14 +11,19 @@ import {
   Megaphone,
   AlertTriangle,
 } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import {
+  getAdminUser,
+  updateAdminUserRole,
+  updateAdminUserStatus,
+} from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminBadge, StatusBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { PageSpinner } from "@/components/PageSpinner";
 
 export const Route = createFileRoute("/admin/users/$id")({
   component: AdminUserDetail,
@@ -25,14 +31,56 @@ export const Route = createFileRoute("/admin/users/$id")({
 
 function AdminUserDetail() {
   const { id } = Route.useParams();
-  const { users, suspendUser, reactivateUser, updateUserRole } = useApp();
+  const queryClient = useQueryClient();
   const [suspendDialog, setSuspendDialog] = useState(false);
   const [reactivateDialog, setReactivateDialog] = useState(false);
   const [roleDialog, setRoleDialog] = useState(false);
-
-  const user = users.find((u) => u.id === id);
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["admin", "user", id],
+    queryFn: () => getAdminUser(id),
+  });
+  const statusMutation = useMutation({
+    mutationFn: ({
+      status,
+      reason,
+    }: {
+      status: "active" | "suspended";
+      reason?: string;
+    }) => updateAdminUserStatus(id, { status, reason }),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(["admin", "user", id], updatedUser);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      setSuspendDialog(false);
+      setReactivateDialog(false);
+      toast.success("User status updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+  const roleMutation = useMutation({
+    mutationFn: (role: "donor" | "org_admin" | "platform_admin") =>
+      updateAdminUserRole(id, { role }),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(["admin", "user", id], updatedUser);
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      setRoleDialog(false);
+      toast.success("User role updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   if (!user) {
+    if (isLoading) {
+      return (
+        <AdminPageWrapper title="Loading User">
+          <PageSpinner label="Loading user..." fullScreen={false} />
+        </AdminPageWrapper>
+      );
+    }
+
     return (
       <AdminPageWrapper title="User Not Found">
         <div className="flex flex-col items-center justify-center py-20">
@@ -93,7 +141,7 @@ function AdminUserDetail() {
           </div>
 
           <div className="flex gap-2">
-            {user.status === "active" && user.role !== "platform_admin" && (
+            {user.status === "active" && (
               <Button
                 variant="destructive"
                 className="gap-2"
@@ -283,8 +331,7 @@ function AdminUserDetail() {
         title={`Suspend ${user.name}`}
         description="Suspended users cannot login or make donations. Please provide a reason."
         onReject={(reason) => {
-          suspendUser(user.id, reason);
-          toast.error(`${user.name} has been suspended`);
+          statusMutation.mutate({ status: "suspended", reason });
         }}
       />
 
@@ -295,8 +342,7 @@ function AdminUserDetail() {
         description="Are you sure you want to reactivate this user? They will regain full access to the platform."
         confirmLabel="Reactivate"
         onConfirm={() => {
-          reactivateUser(user.id);
-          toast.success(`${user.name} has been reactivated`);
+          statusMutation.mutate({ status: "active" });
         }}
       />
 
@@ -305,8 +351,7 @@ function AdminUserDetail() {
         onOpenChange={setRoleDialog}
         currentRole={user.role}
         onRoleChange={(role) => {
-          updateUserRole(user.id, role);
-          toast.success(`${user.name}'s role updated to ${role}`);
+          roleMutation.mutate(role);
         }}
       />
     </AdminPageWrapper>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -10,14 +11,18 @@ import {
   Users,
   Megaphone,
 } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import {
+  getAdminOrganization,
+  updateAdminOrganizationStatus,
+} from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { PageSpinner } from "@/components/PageSpinner";
 
 export const Route = createFileRoute("/admin/orgs/$id")({
   component: AdminOrgDetail,
@@ -25,14 +30,40 @@ export const Route = createFileRoute("/admin/orgs/$id")({
 
 function AdminOrgDetail() {
   const { id } = Route.useParams();
-  const { orgs, campaigns, verifyOrg } = useApp();
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-
-  const org = orgs.find((o) => o.id === id);
+  const { data: org, isLoading } = useQuery({
+    queryKey: ["admin", "org", id],
+    queryFn: () => getAdminOrganization(id),
+  });
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: "VERIFIED" | "UNVERIFIED") =>
+      updateAdminOrganizationStatus(id, status),
+    onSuccess: (_, status) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(
+        status === "VERIFIED"
+          ? `${org?.name ?? "Organization"} has been verified`
+          : `${org?.name ?? "Organization"} moved to unverified`,
+      );
+      setApproveDialog(false);
+      setRejectDialog(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   if (!org) {
+    if (isLoading) {
+      return (
+        <AdminPageWrapper title="Loading Organization">
+          <PageSpinner label="Loading organization..." fullScreen={false} />
+        </AdminPageWrapper>
+      );
+    }
+
     return (
       <AdminPageWrapper title="Organization Not Found">
         <div className="flex flex-col items-center justify-center py-20">
@@ -48,7 +79,7 @@ function AdminOrgDetail() {
     );
   }
 
-  const orgCampaigns = campaigns.filter((c) => c.orgId === org.id);
+  const orgCampaigns = org.campaigns;
 
   return (
     <AdminPageWrapper title={org.name}>
@@ -235,8 +266,7 @@ function AdminOrgDetail() {
         description={`Are you sure you want to verify ${org.name}? They will receive a verification badge on their profile and all campaigns.`}
         confirmLabel="Verify Organization"
         onConfirm={() => {
-          verifyOrg(org.id, "verified");
-          toast.success(`${org.name} has been verified`);
+          updateStatusMutation.mutate("VERIFIED");
         }}
       />
 
@@ -245,8 +275,7 @@ function AdminOrgDetail() {
         onOpenChange={setRejectDialog}
         title={`Reject ${org.name}`}
         onReject={(reason) => {
-          verifyOrg(org.id, "rejected", reason);
-          toast.error(`${org.name} has been rejected`);
+          updateStatusMutation.mutate("UNVERIFIED");
         }}
       />
     </AdminPageWrapper>

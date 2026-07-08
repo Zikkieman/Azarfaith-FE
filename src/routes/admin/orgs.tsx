@@ -1,8 +1,12 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, ShieldCheck, ShieldAlert } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
-import { formatMoney } from "@/lib/admin-mock";
+import {
+  listAdminOrganizations,
+  updateAdminOrganizationStatus,
+} from "@/features/catalog/api";
+import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { AdminFilterBar } from "@/components/admin/AdminFilterBar";
 import { AdminPagination } from "@/components/admin/AdminPagination";
@@ -11,6 +15,7 @@ import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
+import { PageSpinner } from "@/components/PageSpinner";
 import {
   Table,
   TableBody,
@@ -26,7 +31,7 @@ export const Route = createFileRoute("/admin/orgs")({
 });
 
 function AdminOrgs() {
-  const { orgs, verifyOrg } = useApp();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -36,17 +41,35 @@ function AdminOrgs() {
 
   const perPage = 10;
 
-  const filtered = useMemo(() => {
-    return orgs.filter((o) => {
-      const matchSearch =
-        !search ||
-        o.name.toLowerCase().includes(search.toLowerCase()) ||
-        o.location.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = !statusFilter || o.verificationStatus === statusFilter;
-      const matchCategory = !categoryFilter || o.category === categoryFilter;
-      return matchSearch && matchStatus && matchCategory;
-    });
-  }, [orgs, search, statusFilter, categoryFilter]);
+  const { data: orgs = [], isLoading } = useQuery({
+    queryKey: ["admin", "orgs", { search, statusFilter, categoryFilter }],
+    queryFn: () =>
+      listAdminOrganizations({
+        search: search || undefined,
+        status: statusFilter ? statusFilter.toUpperCase() as "VERIFIED" | "PENDING" | "UNVERIFIED" : undefined,
+        category: categoryFilter ? categoryFilter.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER" : undefined,
+      }),
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "VERIFIED" | "UNVERIFIED" }) =>
+      updateAdminOrganizationStatus(id, status),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(
+        variables.status === "VERIFIED"
+          ? "Organization verified successfully"
+          : "Organization moved to unverified.",
+      );
+      setApproveDialog(null);
+      setRejectDialog(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const filtered = useMemo(() => orgs, [orgs]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
@@ -101,11 +124,15 @@ function AdminOrgs() {
         />
 
         {paginated.length === 0 ? (
-          <AdminEmptyState
-            icon={<ShieldCheck className="h-6 w-6" />}
-            title="No organizations found"
-            description="No organizations match your current filters."
-          />
+          isLoading ? (
+            <PageSpinner label="Loading organizations..." fullScreen={false} />
+          ) : (
+            <AdminEmptyState
+              icon={<ShieldCheck className="h-6 w-6" />}
+              title="No organizations found"
+              description="No organizations match your current filters."
+            />
+          )
         ) : (
           <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
             <Table className="min-w-[800px]">
@@ -200,8 +227,7 @@ function AdminOrgs() {
         confirmLabel="Verify"
         onConfirm={() => {
           if (approveDialog) {
-            verifyOrg(approveDialog, "verified");
-            toast.success("Organization verified successfully");
+            updateStatusMutation.mutate({ id: approveDialog, status: "VERIFIED" });
           }
         }}
       />
@@ -212,8 +238,7 @@ function AdminOrgs() {
         title="Reject Organization"
         onReject={(reason) => {
           if (rejectDialog) {
-            verifyOrg(rejectDialog, "rejected", reason);
-            toast.error("Organization rejected");
+            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED" });
           }
         }}
       />

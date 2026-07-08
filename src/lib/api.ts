@@ -1,5 +1,6 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:1000";
+const ADMIN_REVIEW_KEY = import.meta.env.VITE_ADMIN_REVIEW_KEY?.trim();
 
 const AUTH_STORAGE_KEY = "azarfaith-auth";
 
@@ -65,6 +66,35 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     }
 
     throw new ApiError(message, response.status);
+  }
+
+  return data as T;
+}
+
+export async function adminApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!ADMIN_REVIEW_KEY) {
+    throw new ApiError(
+      "Admin review key is missing. Set VITE_ADMIN_REVIEW_KEY in the frontend env.",
+      500,
+    );
+  }
+
+  const headers = new Headers(init?.headers ?? {});
+  headers.set("x-admin-review-key", ADMIN_REVIEW_KEY);
+
+  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+
+  const data = (await response.json().catch(() => null)) as { message?: string } | null;
+
+  if (!response.ok) {
+    throw new ApiError(data?.message ?? "Admin request failed", response.status);
   }
 
   return data as T;
