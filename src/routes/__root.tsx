@@ -85,7 +85,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "AzarFaith connects donors to churches, missionaries, orphanages, and faith-based schools across Nigeria.",
       },
+      { name: "robots", content: "index,follow" },
       { name: "author", content: "AzarFaith" },
+      { property: "og:site_name", content: "AzarFaith" },
       { property: "og:title", content: "AzarFaith" },
       {
         property: "og:description",
@@ -93,7 +95,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "AzarFaith connects donors to churches, missionaries, orphanages, and faith-based schools across Nigeria.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:url", content: "https://www.azarfaith.com" },
+      {
+        property: "og:image",
+        content: "https://www.azarfaith.com/og-thumbnail.svg",
+      },
+      { property: "og:image:alt", content: "AzarFaith faith-based giving platform" },
+      { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@AzarFaith" },
       { name: "twitter:title", content: "AzarFaith" },
       {
@@ -101,8 +109,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "AzarFaith connects donors to churches, missionaries, orphanages, and faith-based schools across Nigeria.",
       },
+      {
+        name: "twitter:image",
+        content: "https://www.azarfaith.com/og-thumbnail.svg",
+      },
     ],
     links: [
+      {
+        rel: "canonical",
+        href: "https://www.azarfaith.com",
+      },
       {
         rel: "icon",
         type: "image/svg+xml",
