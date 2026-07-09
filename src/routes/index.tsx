@@ -15,10 +15,8 @@ import {
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { PageSpinner } from "@/components/PageSpinner";
 import { listCampaigns, listOrganizations } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
-import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -79,25 +77,14 @@ function EmptyPanel({
 }
 
 function AzarFaithLanding() {
-  const isAuthed = useRequireAuth();
   const { data: orgs = [], isLoading: orgsLoading } = useQuery({
     queryKey: ["organizations", "landing"],
     queryFn: () => listOrganizations(),
-    enabled: isAuthed,
   });
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
     queryKey: ["campaigns", "landing"],
     queryFn: () => listCampaigns(),
-    enabled: isAuthed,
   });
-
-  if (!isAuthed) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <PageSpinner label="Redirecting to login..." />
-      </div>
-    );
-  }
 
   const featuredOrgs = orgs.slice(0, 3);
   const ongoingCampaigns = campaigns
