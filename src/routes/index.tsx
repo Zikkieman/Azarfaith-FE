@@ -17,6 +17,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { listCampaigns, listOrganizations } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
+import { PageSpinner } from "@/components/PageSpinner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,9 +54,7 @@ function EmptyPanel({
         <Building2 className="h-5 w-5" />
       </div>
       <h3 className="font-display text-xl">{title}</h3>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-        {body}
-      </p>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{body}</p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
         <Link
           to={primaryHref}
@@ -87,9 +86,7 @@ function AzarFaithLanding() {
   });
 
   const featuredOrgs = orgs.slice(0, 3);
-  const ongoingCampaigns = campaigns
-    .filter((campaign) => campaign.mode === "ongoing")
-    .slice(0, 2);
+  const ongoingCampaigns = campaigns.filter((campaign) => campaign.mode === "ongoing").slice(0, 2);
   const oneTimeCampaigns = campaigns
     .filter((campaign) => campaign.mode === "one-time" && campaign.goal)
     .slice(0, 2);
@@ -148,13 +145,17 @@ function AzarFaithLanding() {
               <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-amber-700">
                 <Sparkles className="h-3.5 w-3.5" /> Live giving
               </div>
-              <p className="mt-1 font-display text-lg">{campaignsLoading ? "..." : campaigns.length} active causes</p>
+              <p className="mt-1 font-display text-lg">
+                {campaignsLoading ? "..." : campaigns.length} active causes
+              </p>
             </div>
             <div className="absolute -right-2 bottom-8 hidden rounded-2xl border border-amber-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur md:block">
               <div className="text-xs font-medium uppercase tracking-[0.16em] text-amber-700">
                 Community
               </div>
-              <p className="mt-1 font-display text-lg">{orgsLoading ? "..." : orgs.length} orgs onboarded</p>
+              <p className="mt-1 font-display text-lg">
+                {orgsLoading ? "..." : orgs.length} orgs onboarded
+              </p>
             </div>
 
             <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-white/80 shadow-[0_24px_70px_-30px_rgba(15,23,42,0.25)] backdrop-blur">
@@ -178,13 +179,17 @@ function AzarFaithLanding() {
                     <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-amber-700">
                       Organizations
                     </p>
-                    <p className="mt-2 font-display text-3xl">{orgsLoading ? "..." : orgs.length}</p>
+                    <p className="mt-2 font-display text-3xl">
+                      {orgsLoading ? "..." : orgs.length}
+                    </p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-4 py-4">
                     <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-600">
                       Campaigns
                     </p>
-                    <p className="mt-2 font-display text-3xl">{campaignsLoading ? "..." : campaigns.length}</p>
+                    <p className="mt-2 font-display text-3xl">
+                      {campaignsLoading ? "..." : campaigns.length}
+                    </p>
                   </div>
                   <div className="rounded-2xl bg-emerald-50 px-4 py-4 sm:col-span-2 xl:col-span-1">
                     <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700">
@@ -210,7 +215,11 @@ function AzarFaithLanding() {
                       </p>
                     </div>
                     <span className="inline-flex whitespace-nowrap rounded-full bg-amber-100 px-3.5 py-1.5 text-xs font-medium leading-none text-amber-700">
-                      {heroCampaign?.mode === "ongoing" ? "Ongoing" : heroCampaign ? "One-time" : "Awaiting first cause"}
+                      {heroCampaign?.mode === "ongoing"
+                        ? "Ongoing"
+                        : heroCampaign
+                          ? "One-time"
+                          : "Awaiting first cause"}
                     </span>
                   </div>
 
@@ -232,7 +241,9 @@ function AzarFaithLanding() {
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-sm">
-                        <span className="font-medium">{formatMoney(heroCampaign.raised)} raised</span>
+                        <span className="font-medium">
+                          {formatMoney(heroCampaign.raised)} raised
+                        </span>
                         <span className="text-muted-foreground">
                           {heroCampaign.goal
                             ? `of ${formatMoney(heroCampaign.goal)}`
@@ -247,9 +258,12 @@ function AzarFaithLanding() {
                           <Target className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="font-display text-xl leading-tight text-slate-900">The first cause will anchor this space</h3>
+                          <h3 className="font-display text-xl leading-tight text-slate-900">
+                            The first cause will anchor this space
+                          </h3>
                           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                            Once a campaign is published, donors will immediately see its title, location, and giving progress here.
+                            Once a campaign is published, donors will immediately see its title,
+                            location, and giving progress here.
                           </p>
                         </div>
                       </div>
@@ -273,7 +287,8 @@ function AzarFaithLanding() {
                       Campaign flow
                     </p>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      Create as an individual or under an organization, then let donors discover and support it.
+                      Create as an individual or under an organization, then let donors discover and
+                      support it.
                     </p>
                   </div>
                 </div>
@@ -304,7 +319,9 @@ function AzarFaithLanding() {
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-600">
               Campaigns
             </p>
-            <p className="mt-3 font-display text-4xl">{campaignsLoading ? "..." : campaigns.length}</p>
+            <p className="mt-3 font-display text-4xl">
+              {campaignsLoading ? "..." : campaigns.length}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               One-time and ongoing causes currently listed.
             </p>
@@ -349,7 +366,9 @@ function AzarFaithLanding() {
             </Link>
           </div>
           {orgsLoading ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card/60"><PageSpinner label="Loading organizations..." fullScreen={false} /></div>
+            <div className="rounded-3xl border border-dashed border-border bg-card/60">
+              <PageSpinner label="Loading organizations..." fullScreen={false} />
+            </div>
           ) : featuredOrgs.length === 0 ? (
             <EmptyPanel
               title="No organizations yet"
@@ -395,11 +414,15 @@ function AzarFaithLanding() {
                       </div>
                       <div className="mt-4 flex items-center gap-4 text-xs">
                         <span>
-                          <span className="font-semibold text-foreground">{formatMoney(org.totalReceived)}</span>{" "}
+                          <span className="font-semibold text-foreground">
+                            {formatMoney(org.totalReceived)}
+                          </span>{" "}
                           <span className="text-muted-foreground">received</span>
                         </span>
                         <span>
-                          <span className="font-semibold text-foreground">{org.supporters.toLocaleString()}</span>{" "}
+                          <span className="font-semibold text-foreground">
+                            {org.supporters.toLocaleString()}
+                          </span>{" "}
                           <span className="text-muted-foreground">supporters</span>
                         </span>
                       </div>
@@ -428,7 +451,9 @@ function AzarFaithLanding() {
           </Link>
         </div>
         {campaignsLoading ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card/60"><PageSpinner label="Loading campaigns..." fullScreen={false} /></div>
+          <div className="rounded-3xl border border-dashed border-border bg-card/60">
+            <PageSpinner label="Loading campaigns..." fullScreen={false} />
+          </div>
         ) : ongoingCampaigns.length === 0 ? (
           <EmptyPanel
             title="No ongoing campaigns yet"
@@ -441,7 +466,12 @@ function AzarFaithLanding() {
         ) : (
           <div className="grid gap-5 md:grid-cols-2">
             {ongoingCampaigns.map((campaign) => (
-              <Link key={campaign.id} to="/campaign/$id" params={{ id: campaign.id }} className="group block">
+              <Link
+                key={campaign.id}
+                to="/campaign/$id"
+                params={{ id: campaign.id }}
+                className="group block"
+              >
                 <article className="flex flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-amber-200 hover:shadow-md md:grid md:grid-cols-[12rem_1fr] md:gap-5">
                   <div className="aspect-[16/10] overflow-hidden md:h-full md:aspect-auto">
                     <img
@@ -461,11 +491,19 @@ function AzarFaithLanding() {
                         </span>
                       )}
                     </div>
-                    <h3 className="font-display text-lg leading-snug line-clamp-2">{campaign.title}</h3>
-                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{campaign.story}</p>
+                    <h3 className="font-display text-lg leading-snug line-clamp-2">
+                      {campaign.title}
+                    </h3>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                      {campaign.story}
+                    </p>
                     <div className="mt-4 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{campaign.donors.toLocaleString()} supporters</span>
-                      <span className="font-medium text-amber-600">{formatMoney(campaign.raised)} raised</span>
+                      <span className="text-muted-foreground">
+                        {campaign.donors.toLocaleString()} supporters
+                      </span>
+                      <span className="font-medium text-amber-600">
+                        {formatMoney(campaign.raised)} raised
+                      </span>
                     </div>
                   </div>
                 </article>
@@ -485,7 +523,9 @@ function AzarFaithLanding() {
           </div>
         </div>
         {campaignsLoading ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card/60"><PageSpinner label="Loading campaigns..." fullScreen={false} /></div>
+          <div className="rounded-3xl border border-dashed border-border bg-card/60">
+            <PageSpinner label="Loading campaigns..." fullScreen={false} />
+          </div>
         ) : oneTimeCampaigns.length === 0 ? (
           <EmptyPanel
             title="No one-time campaigns yet"
@@ -498,9 +538,16 @@ function AzarFaithLanding() {
         ) : (
           <div className="grid gap-5 md:grid-cols-2">
             {oneTimeCampaigns.map((campaign) => {
-              const pct = campaign.goal ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100)) : 0;
+              const pct = campaign.goal
+                ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
+                : 0;
               return (
-                <Link key={campaign.id} to="/campaign/$id" params={{ id: campaign.id }} className="group block">
+                <Link
+                  key={campaign.id}
+                  to="/campaign/$id"
+                  params={{ id: campaign.id }}
+                  className="group block"
+                >
                   <article className="overflow-hidden rounded-3xl border border-border bg-card transition-all hover:border-amber-200 hover:shadow-md">
                     <div className="aspect-[16/9] overflow-hidden">
                       <img
@@ -517,7 +564,10 @@ function AzarFaithLanding() {
                       </div>
                       <h3 className="font-display text-lg leading-snug">{campaign.title}</h3>
                       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
                       <div className="mt-1.5 flex items-center justify-between text-xs">
                         <span className="font-medium">{formatMoney(campaign.raised)}</span>
