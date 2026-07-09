@@ -14,8 +14,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import appCss from "../styles.css?url";
 import { store } from "@/app/store";
 import { Toaster } from "@/components/ui/sonner";
-import { logout } from "@/features/auth/authSlice";
-import { getProfile } from "@/features/catalog/api";
+import { fetchSession } from "@/features/auth/authSlice";
 
 function NotFoundComponent() {
   return (
@@ -164,28 +163,12 @@ function RootComponent() {
 
 function AppRoot() {
   const dispatch = useAppDispatch();
-  const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const hydrated = useAppSelector((state) => state.auth.hydrated);
 
   useEffect(() => {
-    if (!accessToken) return;
-
-    let cancelled = false;
-
-    void getProfile().catch((error: Error) => {
-      if (cancelled) return;
-
-      if (
-        error.message === "Your session is no longer valid. Please log in again." ||
-        error.message === "Authentication required."
-      ) {
-        dispatch(logout());
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, dispatch]);
+    if (hydrated) return;
+    void dispatch(fetchSession());
+  }, [dispatch, hydrated]);
 
   return (
     <>

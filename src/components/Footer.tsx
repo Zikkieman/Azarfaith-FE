@@ -6,7 +6,7 @@ import { logout } from "@/features/auth/authSlice";
 export function Footer() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const authed = useAppSelector((state) => Boolean(state.auth.accessToken));
+  const authed = useAppSelector((state) => Boolean(state.auth.user));
 
   return (
     <footer className="border-t border-border bg-card">
@@ -61,8 +61,8 @@ export function Footer() {
               authed ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    dispatch(logout());
+                  onClick={async () => {
+                    await dispatch(logout());
                     navigate({ to: "/login" });
                   }}
                   className="text-sm text-muted-foreground hover:text-foreground transition"

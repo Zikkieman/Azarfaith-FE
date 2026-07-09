@@ -8,52 +8,30 @@ type AuthUser = {
   phone: string | null;
   fullName: string;
   isVerified: boolean;
+  role: "donor" | "org_admin" | "platform_admin";
+  status: "active" | "suspended";
+  avatarUrl?: string | null;
 };
 
 type AuthState = {
-  accessToken: string | null;
   user: AuthUser | null;
   pendingVerificationEmail: string | null;
   pendingVerificationPhone: string | null;
   loading: boolean;
+  hydrated: boolean;
   forgotPasswordSent: boolean;
   error: string | null;
 };
 
-const AUTH_STORAGE_KEY = "azarfaith-auth";
-
 const emptyState = (): AuthState => ({
-  accessToken: null,
   user: null,
   pendingVerificationEmail: null,
   pendingVerificationPhone: null,
   loading: false,
+  hydrated: false,
   forgotPasswordSent: false,
   error: null,
 });
-
-const getInitialState = (): AuthState => {
-  if (typeof window === "undefined") return emptyState();
-
-  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-  if (!raw) return emptyState();
-
-  try {
-    const parsed = JSON.parse(raw) as Pick<AuthState, "accessToken" | "user">;
-    return {
-      ...emptyState(),
-      accessToken: parsed.accessToken ?? null,
-      user: parsed.user ?? null,
-    };
-  } catch {
-    return emptyState();
-  }
-};
-
-const persistAuth = (state: Pick<AuthState, "accessToken" | "user">) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
-};
 
 type SignupPayload = {
   fullName: string;
@@ -82,7 +60,6 @@ type ResetPasswordPayload = {
 };
 
 type AuthResponse = {
-  accessToken: string;
   user: AuthUser;
 };
 
@@ -125,6 +102,15 @@ export const login = createAsyncThunk("auth/login", async (payload: LoginPayload
   }),
 );
 
+export const adminLogin = createAsyncThunk(
+  "auth/adminLogin",
+  async (payload: LoginPayload) =>
+    apiFetch<AuthResponse>("/auth/admin/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+);
+
 export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (payload: ForgotPasswordPayload) =>
@@ -152,9 +138,19 @@ export const resetPassword = createAsyncThunk(
     }),
 );
 
+export const fetchSession = createAsyncThunk("auth/fetchSession", async () =>
+  apiFetch<AuthResponse>("/auth/session"),
+);
+
+export const logout = createAsyncThunk("auth/logout", async () =>
+  apiFetch<MessageResponse>("/auth/logout", {
+    method: "POST",
+  }),
+);
+
 const authSlice = createSlice({
   name: "auth",
-  initialState: getInitialState(),
+  initialState: emptyState(),
   reducers: {
     clearAuthError(state) {
       state.error = null;
@@ -168,18 +164,29 @@ const authSlice = createSlice({
       state.pendingVerificationEmail = null;
       state.pendingVerificationPhone = null;
     },
-    logout(state) {
-      state.accessToken = null;
+    clearSessionState(state) {
       state.user = null;
       state.pendingVerificationEmail = null;
       state.pendingVerificationPhone = null;
       state.forgotPasswordSent = false;
       state.error = null;
-      persistAuth({ accessToken: null, user: null });
+      state.hydrated = true;
     },
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchSession.pending, (state) => {
+        state.hydrated = false;
+      })
+      .addCase(fetchSession.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.hydrated = true;
+        state.error = null;
+      })
+      .addCase(fetchSession.rejected, (state) => {
+        state.user = null;
+        state.hydrated = true;
+      })
       .addCase(signup.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -198,14 +205,10 @@ const authSlice = createSlice({
       })
       .addCase(verifyOtp.fulfilled, (state, action) => {
         state.loading = false;
-        state.accessToken = action.payload.accessToken;
         state.user = action.payload.user;
+        state.hydrated = true;
         state.pendingVerificationEmail = null;
         state.pendingVerificationPhone = null;
-        persistAuth({
-          accessToken: action.payload.accessToken,
-          user: action.payload.user,
-        });
       })
       .addCase(verifyOtp.rejected, (state, action) => {
         state.loading = false;
@@ -229,16 +232,25 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.accessToken = action.payload.accessToken;
         state.user = action.payload.user;
-        persistAuth({
-          accessToken: action.payload.accessToken,
-          user: action.payload.user,
-        });
+        state.hydrated = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message ?? "Login failed";
+      })
+      .addCase(adminLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(adminLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload.user;
+        state.hydrated = true;
+      })
+      .addCase(adminLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message ?? "Admin login failed";
       })
       .addCase(googleAuth.pending, (state) => {
         state.loading = true;
@@ -246,12 +258,8 @@ const authSlice = createSlice({
       })
       .addCase(googleAuth.fulfilled, (state, action) => {
         state.loading = false;
-        state.accessToken = action.payload.accessToken;
         state.user = action.payload.user;
-        persistAuth({
-          accessToken: action.payload.accessToken,
-          user: action.payload.user,
-        });
+        state.hydrated = true;
       })
       .addCase(googleAuth.rejected, (state, action) => {
         state.loading = false;
@@ -280,6 +288,22 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message ?? "Password reset failed";
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.user = null;
+        state.pendingVerificationEmail = null;
+        state.pendingVerificationPhone = null;
+        state.forgotPasswordSent = false;
+        state.error = null;
+        state.hydrated = true;
+      })
+      .addCase(logout.rejected, (state) => {
+        state.user = null;
+        state.pendingVerificationEmail = null;
+        state.pendingVerificationPhone = null;
+        state.forgotPasswordSent = false;
+        state.error = null;
+        state.hydrated = true;
       });
   },
 });
@@ -288,6 +312,6 @@ export const {
   clearAuthError,
   setPendingVerificationEmail,
   clearPendingVerification,
-  logout,
+  clearSessionState,
 } = authSlice.actions;
 export const authReducer = authSlice.reducer;

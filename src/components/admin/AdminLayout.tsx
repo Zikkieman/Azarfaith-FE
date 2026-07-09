@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Outlet, useNavigate } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
+import { useAppSelector } from "@/app/hooks";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
 
@@ -13,15 +12,23 @@ const SidebarContext = createContext<{
 export const useSidebar = () => useContext(SidebarContext);
 
 export function AdminLayout() {
-  const { authed, adminRole } = useApp();
+  const { hydrated, user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isPlatformAdmin = user?.role === "platform_admin";
 
   useEffect(() => {
-    if (!authed || adminRole !== "platform_admin") {
-      navigate({ to: "/login" });
+    if (!hydrated) return;
+
+    if (!user) {
+      navigate({ to: "/admin/login", replace: true });
+      return;
     }
-  }, [authed, adminRole, navigate]);
+
+    if (!isPlatformAdmin) {
+      navigate({ to: "/", replace: true });
+    }
+  }, [hydrated, user, isPlatformAdmin, navigate]);
 
   useEffect(() => {
     const handler = () => setSidebarOpen(false);
@@ -29,7 +36,7 @@ export function AdminLayout() {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  if (!authed || adminRole !== "platform_admin") {
+  if (!hydrated || !user || !isPlatformAdmin) {
     return null;
   }
 

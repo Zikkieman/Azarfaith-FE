@@ -5,12 +5,12 @@ import { useAppSelector } from "@/app/hooks";
 
 export function useRequireAuth() {
   const navigate = useNavigate();
-  const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const { user, hydrated } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    if (accessToken) return;
+    if (!hydrated || user) return;
     navigate({ to: "/login", replace: true });
-  }, [accessToken, navigate]);
+  }, [hydrated, user, navigate]);
 
-  return Boolean(accessToken);
+  return hydrated && Boolean(user);
 }

@@ -5,7 +5,7 @@ import { useAppSelector } from "@/app/hooks";
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const authed = useAppSelector((state) => Boolean(state.auth.accessToken));
+  const authed = useAppSelector((state) => Boolean(state.auth.user));
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   const navLink = (to: string, label: string) => (

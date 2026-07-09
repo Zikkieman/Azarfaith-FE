@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Calendar, Heart, ImagePlus, Loader2, MapPin, Repeat2, ShieldCheck, Target, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
 import { getCloudinaryStatus, getOrganization, getProfile, updateOrganization, uploadMedia } from "@/features/catalog/api";
-import { hasStoredAccessToken } from "@/lib/api";
 import { formatMoney, orgCategoryOptions } from "@/lib/catalog";
 
 export const Route = createFileRoute("/org/$id")({
@@ -30,10 +30,11 @@ function OrgProfile() {
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
   });
+  const { user, hydrated } = useAppSelector((state) => state.auth);
   const { data: viewer } = useQuery({
     queryKey: ["profile", "viewer"],
     queryFn: getProfile,
-    enabled: hasStoredAccessToken(),
+    enabled: hydrated && Boolean(user),
   });
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
 import {
@@ -28,7 +29,6 @@ import {
   updateCampaign,
   uploadMedia,
 } from "@/features/catalog/api";
-import { hasStoredAccessToken } from "@/lib/api";
 import {
   faithCategoryOptions,
   formatAmountInput,
@@ -65,10 +65,11 @@ function CampaignRoute() {
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
   });
+  const { user, hydrated } = useAppSelector((state) => state.auth);
   const { data: viewer } = useQuery({
     queryKey: ["profile", "viewer"],
     queryFn: getProfile,
-    enabled: hasStoredAccessToken(),
+    enabled: hydrated && Boolean(user),
   });
   const [editForm, setEditForm] = useState({
     title: "",

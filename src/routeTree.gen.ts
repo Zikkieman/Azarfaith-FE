@@ -28,6 +28,7 @@ import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
 import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
@@ -128,6 +129,11 @@ const AdminOrgsRoute = AdminOrgsRouteImport.update({
   path: '/orgs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
+  '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin/campaigns'
+    | '/admin/login'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin/campaigns'
+    | '/admin/login'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/admin/campaigns'
+    | '/admin/login'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
@@ -454,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrgsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/campaigns': {
       id: '/admin/campaigns'
       path: '/campaigns'
@@ -523,6 +542,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminCampaignsRoute: typeof AdminCampaignsRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
   AdminOrgsRoute: typeof AdminOrgsRouteWithChildren
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
@@ -531,6 +551,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCampaignsRoute: AdminCampaignsRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
   AdminOrgsRoute: AdminOrgsRouteWithChildren,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,
