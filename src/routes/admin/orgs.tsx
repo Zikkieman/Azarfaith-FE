@@ -31,6 +31,7 @@ export const Route = createFileRoute("/admin/orgs")({
 });
 
 function AdminOrgs() {
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -49,11 +50,24 @@ function AdminOrgs() {
         status: statusFilter ? statusFilter.toUpperCase() as "VERIFIED" | "PENDING" | "UNVERIFIED" : undefined,
         category: categoryFilter ? categoryFilter.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER" : undefined,
       }),
+    enabled: isClient,
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "VERIFIED" | "UNVERIFIED" }) =>
-      updateAdminOrganizationStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      reason,
+    }: {
+      id: string;
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
+      updateAdminOrganizationStatus(id, {
+        status,
+        reason,
+        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+      }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
@@ -238,7 +252,7 @@ function AdminOrgs() {
         title="Reject Organization"
         onReject={(reason) => {
           if (rejectDialog) {
-            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED" });
+            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED", reason });
           }
         }}
       />

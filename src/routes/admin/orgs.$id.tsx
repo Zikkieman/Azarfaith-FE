@@ -30,20 +30,32 @@ export const Route = createFileRoute("/admin/orgs/$id")({
 
 function AdminOrgDetail() {
   const { id } = Route.useParams();
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
   const { data: org, isLoading } = useQuery({
     queryKey: ["admin", "org", id],
     queryFn: () => getAdminOrganization(id),
+    enabled: isClient,
   });
   const updateStatusMutation = useMutation({
-    mutationFn: (status: "VERIFIED" | "UNVERIFIED") =>
-      updateAdminOrganizationStatus(id, status),
-    onSuccess: (_, status) => {
+    mutationFn: ({
+      status,
+      reason,
+    }: {
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
+      updateAdminOrganizationStatus(id, {
+        status,
+        reason,
+        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+      }),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
-        status === "VERIFIED"
+        variables.status === "VERIFIED"
           ? `${org?.name ?? "Organization"} has been verified`
           : `${org?.name ?? "Organization"} moved to unverified`,
       );
@@ -266,7 +278,7 @@ function AdminOrgDetail() {
         description={`Are you sure you want to verify ${org.name}? They will receive a verification badge on their profile and all campaigns.`}
         confirmLabel="Verify Organization"
         onConfirm={() => {
-          updateStatusMutation.mutate("VERIFIED");
+          updateStatusMutation.mutate({ status: "VERIFIED" });
         }}
       />
 
@@ -275,7 +287,7 @@ function AdminOrgDetail() {
         onOpenChange={setRejectDialog}
         title={`Reject ${org.name}`}
         onReject={(reason) => {
-          updateStatusMutation.mutate("UNVERIFIED");
+          updateStatusMutation.mutate({ status: "UNVERIFIED", reason });
         }}
       />
     </AdminPageWrapper>

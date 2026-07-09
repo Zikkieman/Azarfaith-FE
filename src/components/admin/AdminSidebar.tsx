@@ -25,15 +25,17 @@ const navItems = [
 export function AdminSidebar() {
   const matchRoute = useMatchRoute();
   const { setOpen } = useSidebar();
+  const isClient = typeof window !== "undefined";
   const { data } = useQuery({
     queryKey: ["admin", "dashboard", "sidebar"],
     queryFn: getAdminDashboard,
+    enabled: isClient,
   });
 
   const handleNavClick = () => setOpen(false);
 
   return (
-    <aside className="flex h-full w-60 flex-col bg-gray-950">
+    <aside className="flex h-screen w-60 flex-col bg-gray-950 lg:fixed lg:inset-y-0 lg:left-0">
       <div className="flex h-16 items-center justify-between border-b border-gray-800 px-5">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">

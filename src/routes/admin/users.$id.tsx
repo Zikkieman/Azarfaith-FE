@@ -31,6 +31,7 @@ export const Route = createFileRoute("/admin/users/$id")({
 
 function AdminUserDetail() {
   const { id } = Route.useParams();
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [suspendDialog, setSuspendDialog] = useState(false);
   const [reactivateDialog, setReactivateDialog] = useState(false);
@@ -38,6 +39,7 @@ function AdminUserDetail() {
   const { data: user, isLoading } = useQuery({
     queryKey: ["admin", "user", id],
     queryFn: () => getAdminUser(id),
+    enabled: isClient,
   });
   const statusMutation = useMutation({
     mutationFn: ({

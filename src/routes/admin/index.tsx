@@ -15,9 +15,11 @@ export const Route = createFileRoute("/admin/")({
 });
 
 function AdminDashboard() {
+  const isClient = typeof window !== "undefined";
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "dashboard"],
     queryFn: getAdminDashboard,
+    enabled: isClient,
   });
 
   if (!data) {

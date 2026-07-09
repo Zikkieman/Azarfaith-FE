@@ -19,6 +19,7 @@ type AuthState = {
   pendingVerificationPhone: string | null;
   loading: boolean;
   hydrated: boolean;
+  sessionRequestId: string | null;
   forgotPasswordSent: boolean;
   error: string | null;
 };
@@ -29,6 +30,7 @@ const emptyState = (): AuthState => ({
   pendingVerificationPhone: null,
   loading: false,
   hydrated: false,
+  sessionRequestId: null,
   forgotPasswordSent: false,
   error: null,
 });
@@ -171,21 +173,31 @@ const authSlice = createSlice({
       state.forgotPasswordSent = false;
       state.error = null;
       state.hydrated = true;
+      state.sessionRequestId = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSession.pending, (state) => {
-        state.hydrated = false;
+      .addCase(fetchSession.pending, (state, action) => {
+        state.sessionRequestId = action.meta.requestId;
+        if (!state.user) {
+          state.hydrated = false;
+        }
       })
       .addCase(fetchSession.fulfilled, (state, action) => {
+        if (state.sessionRequestId !== action.meta.requestId) return;
         state.user = action.payload.user;
         state.hydrated = true;
+        state.sessionRequestId = null;
         state.error = null;
       })
-      .addCase(fetchSession.rejected, (state) => {
-        state.user = null;
+      .addCase(fetchSession.rejected, (state, action) => {
+        if (state.sessionRequestId !== action.meta.requestId) return;
+        if (!state.user) {
+          state.user = null;
+        }
         state.hydrated = true;
+        state.sessionRequestId = null;
       })
       .addCase(signup.pending, (state) => {
         state.loading = true;
@@ -207,6 +219,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.hydrated = true;
+        state.sessionRequestId = null;
         state.pendingVerificationEmail = null;
         state.pendingVerificationPhone = null;
       })
@@ -234,6 +247,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.hydrated = true;
+        state.sessionRequestId = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -247,6 +261,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.hydrated = true;
+        state.sessionRequestId = null;
       })
       .addCase(adminLogin.rejected, (state, action) => {
         state.loading = false;
@@ -260,6 +275,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload.user;
         state.hydrated = true;
+        state.sessionRequestId = null;
       })
       .addCase(googleAuth.rejected, (state, action) => {
         state.loading = false;
@@ -296,6 +312,7 @@ const authSlice = createSlice({
         state.forgotPasswordSent = false;
         state.error = null;
         state.hydrated = true;
+        state.sessionRequestId = null;
       })
       .addCase(logout.rejected, (state) => {
         state.user = null;
@@ -304,6 +321,7 @@ const authSlice = createSlice({
         state.forgotPasswordSent = false;
         state.error = null;
         state.hydrated = true;
+        state.sessionRequestId = null;
       });
   },
 });

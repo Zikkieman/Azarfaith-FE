@@ -18,10 +18,12 @@ export const Route = createFileRoute("/admin/settings")({
 });
 
 function AdminSettings() {
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const { data: platformSettings, isLoading } = useQuery({
     queryKey: ["admin", "settings"],
     queryFn: getAdminPlatformSettings,
+    enabled: isClient,
   });
   const [settings, setSettings] = useState<AdminPlatformSettings | null>(null);
 

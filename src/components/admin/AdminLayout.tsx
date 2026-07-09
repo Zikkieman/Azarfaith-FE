@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { Outlet, useNavigate } from "@tanstack/react-router";
+import { Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useAppSelector } from "@/app/hooks";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
@@ -13,22 +13,10 @@ export const useSidebar = () => useContext(SidebarContext);
 
 export function AdminLayout() {
   const { hydrated, user } = useAppSelector((state) => state.auth);
-  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isPlatformAdmin = user?.role === "platform_admin";
-
-  useEffect(() => {
-    if (!hydrated) return;
-
-    if (!user) {
-      navigate({ to: "/admin/login", replace: true });
-      return;
-    }
-
-    if (!isPlatformAdmin) {
-      navigate({ to: "/", replace: true });
-    }
-  }, [hydrated, user, isPlatformAdmin, navigate]);
+  const isAdminLoginRoute = pathname === "/admin/login";
 
   useEffect(() => {
     const handler = () => setSidebarOpen(false);
@@ -36,8 +24,20 @@ export function AdminLayout() {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
+  if (isAdminLoginRoute) {
+    return <Outlet />;
+  }
+
   if (!hydrated || !user || !isPlatformAdmin) {
-    return null;
+    if (!hydrated) {
+      return null;
+    }
+
+    if (!user) {
+      return <Navigate to="/admin/login" replace />;
+    }
+
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -62,7 +62,7 @@ export function AdminLayout() {
         )}
 
         {/* Main content area */}
-        <div className="lg:pl-60">
+        <div className="min-h-screen lg:pl-60">
           <main className="min-h-screen">
             <Outlet />
           </main>

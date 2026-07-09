@@ -31,6 +31,7 @@ export const Route = createFileRoute("/admin/campaigns")({
 });
 
 function AdminCampaigns() {
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -51,10 +52,23 @@ function AdminCampaigns() {
         mode: modeFilter ? (modeFilter === "one-time" ? "ONE_TIME" : "ONGOING") : undefined,
         type: typeFilter ? typeFilter.toUpperCase() as "MONEY" | "ITEM" | "VOLUNTEER" | "PROFESSIONAL" | "EMERGENCY" : undefined,
       }),
+    enabled: isClient,
   });
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "VERIFIED" | "UNVERIFIED" }) =>
-      updateAdminCampaignStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      reason,
+    }: {
+      id: string;
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
+      updateAdminCampaignStatus(id, {
+        status,
+        reason,
+        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+      }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
@@ -272,7 +286,7 @@ function AdminCampaigns() {
         title="Reject Campaign"
         onReject={(reason) => {
           if (rejectDialog) {
-            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED" });
+            updateStatusMutation.mutate({ id: rejectDialog, status: "UNVERIFIED", reason });
           }
         }}
       />

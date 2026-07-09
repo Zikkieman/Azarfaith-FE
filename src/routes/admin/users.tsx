@@ -26,6 +26,7 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 function AdminUsers() {
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -34,6 +35,7 @@ function AdminUsers() {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin", "users", { search }],
     queryFn: () => listAdminUsers({ search: search || undefined }),
+    enabled: isClient,
   });
   const statusMutation = useMutation({
     mutationFn: ({

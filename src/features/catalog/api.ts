@@ -118,6 +118,10 @@ export type AdminOrganization = {
   campaignIds: string[];
   totalReceived: number;
   supporters: number;
+  reviewAction?: "approved" | "rejected" | "more_info_requested";
+  reviewReason?: string;
+  reviewedAt?: string;
+  reviewedByEmail?: string;
   createdAt: string;
 };
 
@@ -150,6 +154,10 @@ export type AdminCampaign = {
   donors: number;
   location: string;
   urgency: "low" | "medium" | "high" | "critical";
+  reviewAction?: "approved" | "rejected" | "changes_requested";
+  reviewReason?: string;
+  reviewedAt?: string;
+  reviewedByEmail?: string;
   createdAt: string;
 };
 
@@ -366,13 +374,17 @@ export const getAdminOrganization = (id: string) =>
 
 export const updateAdminOrganizationStatus = (
   id: string,
-  status: "VERIFIED" | "UNVERIFIED",
+  payload: {
+    status: "VERIFIED" | "PENDING" | "UNVERIFIED";
+    reviewAction?: "APPROVED" | "REJECTED" | "MORE_INFO_REQUESTED";
+    reason?: string;
+  },
 ) =>
-  adminApiFetch<{ id: string; verificationStatus: "VERIFIED" | "PENDING" | "UNVERIFIED" }>(
+  adminApiFetch<AdminOrganizationDetail>(
     `/admin/review/organizations/${id}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     },
   );
 
@@ -388,13 +400,17 @@ export const getAdminCampaign = (id: string) =>
 
 export const updateAdminCampaignStatus = (
   id: string,
-  status: "VERIFIED" | "UNVERIFIED",
+  payload: {
+    status: "VERIFIED" | "PENDING" | "UNVERIFIED";
+    reviewAction?: "APPROVED" | "REJECTED" | "CHANGES_REQUESTED";
+    reason?: string;
+  },
 ) =>
-  adminApiFetch<{ id: string; verificationStatus: "VERIFIED" | "PENDING" | "UNVERIFIED" }>(
+  adminApiFetch<AdminCampaignDetail>(
     `/admin/review/campaigns/${id}/status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(payload),
     },
   );
 

@@ -31,25 +31,37 @@ export const Route = createFileRoute("/admin/campaigns/$id")({
 
 function AdminCampaignDetail() {
   const { id } = Route.useParams();
+  const isClient = typeof window !== "undefined";
   const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
   const { data: campaign, isLoading } = useQuery({
     queryKey: ["admin", "campaign", id],
     queryFn: () => getAdminCampaign(id),
+    enabled: isClient,
   });
   const { data: org } = useQuery({
     queryKey: ["admin", "campaign-org", campaign?.orgId],
     queryFn: () => getAdminOrganization(campaign!.orgId!),
-    enabled: Boolean(campaign?.orgId),
+    enabled: isClient && Boolean(campaign?.orgId),
   });
   const updateStatusMutation = useMutation({
-    mutationFn: (status: "VERIFIED" | "UNVERIFIED") =>
-      updateAdminCampaignStatus(id, status),
-    onSuccess: (_, status) => {
+    mutationFn: ({
+      status,
+      reason,
+    }: {
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
+      updateAdminCampaignStatus(id, {
+        status,
+        reason,
+        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+      }),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
-        status === "VERIFIED"
+        variables.status === "VERIFIED"
           ? "Campaign approved and published"
           : "Campaign moved to unverified",
       );
@@ -350,7 +362,7 @@ function AdminCampaignDetail() {
         description={`Are you sure you want to approve "${campaign.title}"? It will become visible to all donors.`}
         confirmLabel="Approve Campaign"
         onConfirm={() => {
-          updateStatusMutation.mutate("VERIFIED");
+          updateStatusMutation.mutate({ status: "VERIFIED" });
         }}
       />
 
@@ -359,7 +371,7 @@ function AdminCampaignDetail() {
         onOpenChange={setRejectDialog}
         title={`Reject "${campaign.title}"`}
         onReject={(reason) => {
-          updateStatusMutation.mutate("UNVERIFIED");
+          updateStatusMutation.mutate({ status: "UNVERIFIED", reason });
         }}
       />
     </AdminPageWrapper>
