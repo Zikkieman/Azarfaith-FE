@@ -1,11 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Baby, Check, Church, Globe, GraduationCap, ImagePlus, Loader2, Users } from "lucide-react";
 
 import { Navbar } from "@/components/Navbar";
-import { createOrganization, getCloudinaryStatus, uploadMedia } from "@/features/catalog/api";
+import {
+  createOrganization,
+  getCloudinaryStatus,
+  getOrganizationDraft,
+  saveOrganizationDraft,
+  submitOrganizationDraft,
+  updateOrganizationDraft,
+  uploadMedia,
+} from "@/features/catalog/api";
 import { orgCategoryOptions } from "@/lib/catalog";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
@@ -24,6 +32,10 @@ const orgIcons = {
 function RegisterOrg() {
   const isAuthed = useRequireAuth();
   const nav = useNavigate();
+  const draftId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("draftId") ?? undefined
+      : undefined;
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const {
@@ -33,6 +45,11 @@ function RegisterOrg() {
   } = useQuery({
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
+  });
+  const { data: draft } = useQuery({
+    queryKey: ["organization-draft", draftId],
+    queryFn: () => getOrganizationDraft(draftId!),
+    enabled: isAuthed && Boolean(draftId),
   });
 
   const [step, setStep] = useState(0);
@@ -48,6 +65,24 @@ function RegisterOrg() {
     photoUrls: [] as string[],
     videoUrls: [] as string[],
   });
+
+  const countWords = (value: string) =>
+    value.trim().split(/\s+/).filter(Boolean).length;
+
+  useEffect(() => {
+    if (!draft) return;
+    setForm({
+      name: draft.name,
+      category: draft.category.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER",
+      denomination: draft.denomination,
+      foundedYear: draft.founded || "",
+      location: draft.location,
+      tagline: draft.tagline,
+      bio: draft.bio,
+      photoUrls: draft.photos,
+      videoUrls: draft.videos,
+    });
+  }, [draft]);
 
   const uploadPhotosMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -90,7 +125,74 @@ function RegisterOrg() {
       }),
     onSuccess: (organization) => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
       toast.success("Organization created successfully.");
+      nav({ to: "/org/$id", params: { id: organization.id } });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const saveDraftMutation = useMutation({
+    mutationFn: () => {
+      const payload = {
+        name: form.name,
+        tagline: form.tagline,
+        category: form.category || undefined,
+        denomination: form.denomination,
+        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
+        location: form.location,
+        bio: form.bio,
+        photoUrls: form.photoUrls,
+        videoUrls: form.videoUrls,
+      };
+
+      return draftId
+        ? updateOrganizationDraft(draftId, payload)
+        : saveOrganizationDraft(payload);
+    },
+    onSuccess: async (organization) => {
+      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
+      toast.success("Organization draft saved.");
+
+      if (!draftId) {
+        await nav({
+          to: "/register-org",
+          search: { draftId: organization.id },
+          replace: true,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const submitDraftMutation = useMutation({
+    mutationFn: async () => {
+      if (!draftId) {
+        throw new Error("No organization draft selected.");
+      }
+
+      await updateOrganizationDraft(draftId, {
+        name: form.name,
+        tagline: form.tagline,
+        category: form.category || undefined,
+        denomination: form.denomination,
+        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
+        location: form.location,
+        bio: form.bio,
+        photoUrls: form.photoUrls,
+        videoUrls: form.videoUrls,
+      });
+
+      return submitOrganizationDraft(draftId);
+    },
+    onSuccess: (organization) => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
+      toast.success("Organization submitted for review.");
       nav({ to: "/org/$id", params: { id: organization.id } });
     },
     onError: (error: Error) => {
@@ -130,13 +232,18 @@ function RegisterOrg() {
     const nextErrors: Record<string, string> = {};
     if (step === 0) {
       if (!form.name.trim()) nextErrors.name = "Organisation name is required";
+      if (form.name.trim().length > 120) nextErrors.name = "Organisation name cannot exceed 120 characters";
       if (!form.category) nextErrors.category = "Select a category";
       if (!form.denomination.trim()) nextErrors.denomination = "Denomination or tradition is required";
       if (!form.location.trim()) nextErrors.location = "Location is required";
     }
     if (step === 1) {
       if (form.tagline.trim().length < 10) nextErrors.tagline = "Add a short tagline (at least 10 characters)";
-      if (form.bio.trim().length < 60) nextErrors.bio = "Tell us more about your org (at least 60 characters)";
+      if (form.tagline.trim().length > 200) nextErrors.tagline = "Tagline cannot exceed 200 characters";
+      if (countWords(form.bio) < 100) nextErrors.bio = "Tell us more about your org in at least 100 words";
+    }
+    if (step === 2) {
+      if (form.photoUrls.length < 3) nextErrors.photoUrls = "Upload at least 3 organization photos";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -173,6 +280,12 @@ function RegisterOrg() {
             </div>
           ))}
         </div>
+
+        {draftId ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            You are editing a saved organization draft. Save as you go, then submit when everything is ready.
+          </div>
+        ) : null}
 
         {step === 0 && (
           <div className="space-y-5">
@@ -233,14 +346,17 @@ function RegisterOrg() {
             <div>
               <label className="mb-1.5 block text-sm font-medium">Tagline</label>
               <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.tagline} onChange={(event) => setForm((current) => ({ ...current, tagline: event.target.value }))} />
-              {errors.tagline && <p className="mt-1 text-xs text-destructive">{errors.tagline}</p>}
+              <div className="mt-1 flex items-center justify-between">
+                {errors.tagline ? <p className="text-xs text-destructive">{errors.tagline}</p> : <span />}
+                <span className="text-xs text-muted-foreground">{form.tagline.length}/200</span>
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">About your org</label>
               <textarea rows={6} className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} />
               <div className="mt-1 flex items-center justify-between">
                 {errors.bio ? <p className="text-xs text-destructive">{errors.bio}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{form.bio.length} chars</span>
+                <span className="text-xs text-muted-foreground">{countWords(form.bio)} words</span>
               </div>
             </div>
           </div>
@@ -287,6 +403,7 @@ function RegisterOrg() {
                 {uploadPhotosMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
                 {uploadPhotosMutation.isPending ? "Uploading..." : "Choose photos"}
               </button>
+              {errors.photoUrls && <p className="mt-3 text-xs text-destructive">{errors.photoUrls}</p>}
             </div>
             {(form.videoUrls.length > 0 || form.photoUrls.length > 0) && (
               <div className="space-y-3">
@@ -327,7 +444,7 @@ function RegisterOrg() {
           <div className="space-y-5">
             <div>
               <h1 className="font-display text-2xl">Review before publishing</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Your org goes live immediately. You can edit everything later.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your organization will be submitted for admin review after this step.</p>
             </div>
             <div className="space-y-3 rounded-2xl border border-border bg-card p-5 text-sm">
               <div className="flex items-center justify-between">
@@ -345,7 +462,7 @@ function RegisterOrg() {
               {form.photoUrls[0] && <img src={form.photoUrls[0]} alt="" className="h-52 w-full rounded-2xl object-cover" />}
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              Your profile will go live immediately with a <strong>pending</strong> verification badge.
+              Once submitted, your organization page will show a <strong>pending review</strong> label until the AzarFaith team verifies it.
             </div>
           </div>
         )}
@@ -356,15 +473,50 @@ function RegisterOrg() {
               Back
             </button>
           ) : <span />}
-          {step < steps.length - 1 ? (
-            <button onClick={next} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600">
-              Continue
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => saveDraftMutation.mutate()}
+              disabled={
+                saveDraftMutation.isPending ||
+                submitDraftMutation.isPending ||
+                createOrgMutation.isPending ||
+                uploadPhotosMutation.isPending
+              }
+              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
+            >
+              {saveDraftMutation.isPending ? "Saving draft..." : "Save draft"}
             </button>
-          ) : (
-            <button onClick={() => createOrgMutation.mutate()} disabled={createOrgMutation.isPending || uploadPhotosMutation.isPending} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60">
-              {createOrgMutation.isPending ? "Publishing…" : "Publish org profile"}
-            </button>
-          )}
+            {step < steps.length - 1 ? (
+              <button onClick={next} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600">
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (draftId) {
+                    submitDraftMutation.mutate();
+                    return;
+                  }
+
+                  createOrgMutation.mutate();
+                }}
+                disabled={
+                  createOrgMutation.isPending ||
+                  submitDraftMutation.isPending ||
+                  uploadPhotosMutation.isPending
+                }
+                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+              >
+                {draftId
+                  ? submitDraftMutation.isPending
+                    ? "Submitting..."
+                    : "Submit for review"
+                  : createOrgMutation.isPending
+                    ? "Submitting..."
+                    : "Submit for review"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

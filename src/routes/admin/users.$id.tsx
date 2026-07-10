@@ -22,6 +22,14 @@ import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminBadge, StatusBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/PageSpinner";
 
@@ -373,14 +381,87 @@ function RoleChangeDialog({
 }) {
   const [selectedRole, setSelectedRole] = useState(currentRole);
 
+  const roles: Array<{
+    value: "donor" | "org_admin" | "platform_admin";
+    label: string;
+    description: string;
+  }> = [
+    {
+      value: "donor",
+      label: "Donor",
+      description: "Can give to campaigns and manage personal giving activity.",
+    },
+    {
+      value: "org_admin",
+      label: "Org Admin",
+      description: "Can manage organizations and campaigns they own.",
+    },
+    {
+      value: "platform_admin",
+      label: "Platform Admin",
+      description: "Has access to the internal admin dashboard and moderation tools.",
+    },
+  ];
+
   return (
-    <AdminConfirmDialog
+    <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Change User Role"
-      description="Select the new role for this user."
-      confirmLabel="Update Role"
-      onConfirm={() => onRoleChange(selectedRole as "donor" | "org_admin" | "platform_admin")}
-    />
+    >
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Change User Role</DialogTitle>
+          <DialogDescription>
+            Select the role you want to assign to this user.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {roles.map((role) => {
+            const active = selectedRole === role.value;
+
+            return (
+              <button
+                key={role.value}
+                type="button"
+                onClick={() => setSelectedRole(role.value)}
+                className={`w-full rounded-xl border p-4 text-left transition ${
+                  active
+                    ? "border-amber-400 bg-amber-50"
+                    : "border-gray-200 bg-white hover:border-amber-200 hover:bg-amber-50/40"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{role.label}</p>
+                    <p className="mt-1 text-sm text-gray-500">{role.description}</p>
+                  </div>
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${
+                      active
+                        ? "border-amber-500 bg-amber-500 text-white"
+                        : "border-gray-300 bg-white"
+                    }`}
+                  >
+                    {active ? "•" : ""}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => onRoleChange(selectedRole as "donor" | "org_admin" | "platform_admin")}
+          >
+            Update Role
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

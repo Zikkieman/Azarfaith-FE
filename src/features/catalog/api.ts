@@ -1,5 +1,7 @@
 import { adminApiFetch, apiFetch } from "@/lib/api";
 import type {
+  OrganizationDashboard,
+  OrganizationDraftSummary,
   Campaign,
   DonationDetail,
   DonationHistoryItem,
@@ -72,6 +74,7 @@ export type UpdateProfilePayload = {
   avatarUrl?: string;
 };
 
+export type SaveOrganizationDraftPayload = Partial<CreateOrganizationPayload>;
 export type UpdateOrganizationPayload = Partial<CreateOrganizationPayload>;
 
 export type UpdateCampaignPayload = Omit<
@@ -99,6 +102,16 @@ export type AdminDashboard = {
   donationChart: Array<{ label: string; value: number }>;
   campaignStatusChart: Array<{ label: string; value: number }>;
   recentActivity: AdminActivityItem[];
+};
+
+export type AdminNotificationItem = {
+  id: string;
+  kind: "organization_review" | "campaign_review" | "donation" | "audit";
+  title: string;
+  message: string;
+  link: string;
+  createdAt: string;
+  relativeTime: string;
 };
 
 export type AdminOrganization = {
@@ -224,10 +237,39 @@ export const listOrganizations = (params?: { search?: string; category?: string 
 export const getOrganization = (id: string) =>
   apiFetch<Org & { campaigns: Campaign[] }>(`/organizations/${id}`);
 
+export const listOrganizationDrafts = () =>
+  apiFetch<OrganizationDraftSummary[]>("/organizations/mine/drafts");
+
+export const getOrganizationDraft = (id: string) =>
+  apiFetch<Org>(`/organizations/drafts/${id}`);
+
+export const getOrganizationDashboard = (id: string) =>
+  apiFetch<OrganizationDashboard>(`/organizations/${id}/dashboard`);
+
 export const createOrganization = (payload: CreateOrganizationPayload) =>
   apiFetch<Org>("/organizations", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+
+export const saveOrganizationDraft = (payload: SaveOrganizationDraftPayload) =>
+  apiFetch<Org>("/organizations/drafts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateOrganizationDraft = (
+  id: string,
+  payload: SaveOrganizationDraftPayload,
+) =>
+  apiFetch<Org>(`/organizations/${id}/draft`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const submitOrganizationDraft = (id: string) =>
+  apiFetch<Org>(`/organizations/${id}/submit`, {
+    method: "POST",
   });
 
 export const updateOrganization = (id: string, payload: UpdateOrganizationPayload) =>
@@ -362,6 +404,9 @@ export const getCloudinaryStatus = () =>
 
 export const getAdminDashboard = () =>
   adminApiFetch<AdminDashboard>("/admin/review/dashboard");
+
+export const getAdminNotifications = () =>
+  adminApiFetch<AdminNotificationItem[]>("/admin/review/notifications");
 
 export const listAdminOrganizations = (params?: {
   status?: "VERIFIED" | "PENDING" | "UNVERIFIED";

@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Building2, FolderKanban } from "lucide-react";
+import { ArrowRight, Building2, FileClock, FolderKanban } from "lucide-react";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { PageSpinner } from "@/components/PageSpinner";
-import { getProfile } from "@/features/catalog/api";
+import { getProfile, listOrganizationDrafts } from "@/features/catalog/api";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export const Route = createFileRoute("/manage")({
@@ -17,6 +17,11 @@ function ManageWorkspace() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", "manage"],
     queryFn: getProfile,
+    enabled: isAuthed,
+  });
+  const { data: drafts = [] } = useQuery({
+    queryKey: ["organization-drafts"],
+    queryFn: listOrganizationDrafts,
     enabled: isAuthed,
   });
 
@@ -72,6 +77,41 @@ function ManageWorkspace() {
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-border bg-card p-5 md:col-span-2">
+            <div className="flex items-center gap-2">
+              <FileClock className="h-4 w-4 text-amber-600" />
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                Saved drafts
+              </h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {drafts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+                  No saved organization drafts yet.
+                </div>
+              ) : (
+                drafts.map((draft) => (
+                  <Link
+                    key={draft.id}
+                    to="/register-org"
+                    search={{ draftId: draft.id }}
+                    className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{draft.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Saved {new Date(draft.draftSavedAt).toLocaleDateString()} · {draft.hasMinimumSubmissionData ? "Ready to submit" : "Needs more details"}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
+                      Continue <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+
           <div className="rounded-3xl border border-border bg-card p-5">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-amber-600" />

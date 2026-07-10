@@ -30,6 +30,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
+import { Route as ManageOrgIdRouteImport } from './routes/manage.org.$id'
 import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
 import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
 import { Route as AdminCampaignsIdRouteImport } from './routes/admin/campaigns.$id'
@@ -139,6 +140,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => AdminRoute,
 } as any)
+const ManageOrgIdRoute = ManageOrgIdRouteImport.update({
+  id: '/org/$id',
+  path: '/org/$id',
+  getParentRoute: () => ManageRoute,
+} as any)
 const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -162,7 +168,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
-  '/manage': typeof ManageRoute
+  '/manage': typeof ManageRouteWithChildren
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
+  '/manage/org/$id': typeof ManageOrgIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,7 +194,7 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
-  '/manage': typeof ManageRoute
+  '/manage': typeof ManageRouteWithChildren
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
+  '/manage/org/$id': typeof ManageOrgIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -214,7 +222,7 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
-  '/manage': typeof ManageRoute
+  '/manage': typeof ManageRouteWithChildren
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
+  '/manage/org/$id': typeof ManageOrgIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
+    | '/manage/org/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
+    | '/manage/org/$id'
   id:
     | '__root__'
     | '/'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
+    | '/manage/org/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -320,7 +332,7 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
-  ManageRoute: typeof ManageRoute
+  ManageRoute: typeof ManageRouteWithChildren
   MyGivingRoute: typeof MyGivingRoute
   ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
@@ -480,6 +492,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCampaignsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/manage/org/$id': {
+      id: '/manage/org/$id'
+      path: '/org/$id'
+      fullPath: '/manage/org/$id'
+      preLoaderRoute: typeof ManageOrgIdRouteImport
+      parentRoute: typeof ManageRoute
+    }
     '/admin/users/$id': {
       id: '/admin/users/$id'
       path: '/$id'
@@ -560,6 +579,17 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ManageRouteChildren {
+  ManageOrgIdRoute: typeof ManageOrgIdRoute
+}
+
+const ManageRouteChildren: ManageRouteChildren = {
+  ManageOrgIdRoute: ManageOrgIdRoute,
+}
+
+const ManageRouteWithChildren =
+  ManageRoute._addFileChildren(ManageRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -567,7 +597,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
-  ManageRoute: ManageRoute,
+  ManageRoute: ManageRouteWithChildren,
   MyGivingRoute: MyGivingRoute,
   ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,

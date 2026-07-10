@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bell, Search, ChevronDown, LogOut, User, Menu } from "lucide-react";
-import { useApp } from "@/lib/admin-store";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { cn } from "@/lib/utils";
 import { logout } from "@/features/auth/authSlice";
+import { getAdminNotifications } from "@/features/catalog/api";
 import { useSidebar } from "./AdminLayout";
 import {
   DropdownMenu,
@@ -20,11 +20,14 @@ type AdminHeaderProps = {
 export function AdminHeader({ title }: AdminHeaderProps) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
-  const { adminNotifications, markAllNotificationsRead } = useApp();
   const { setOpen } = useSidebar();
   const [showNotifications, setShowNotifications] = useState(false);
+  const { data: adminNotifications = [], isLoading: notificationsLoading } = useQuery({
+    queryKey: ["admin", "notifications"],
+    queryFn: getAdminNotifications,
+  });
 
-  const unreadCount = adminNotifications.filter((n) => !n.read).length;
+  const notificationCount = adminNotifications.length;
   const displayName = user?.fullName ?? "Platform Admin";
   const initials =
     displayName
@@ -57,18 +60,13 @@ export function AdminHeader({ title }: AdminHeaderProps) {
 
         <div className="relative">
           <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              if (!showNotifications && unreadCount > 0) {
-                markAllNotificationsRead();
-              }
-            }}
+            onClick={() => setShowNotifications(!showNotifications)}
             className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
           >
             <Bell className="h-4 w-4 text-gray-600" />
-            {unreadCount > 0 && (
+            {notificationCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
-                {unreadCount}
+                {Math.min(notificationCount, 9)}
               </span>
             )}
           </button>
@@ -81,20 +79,19 @@ export function AdminHeader({ title }: AdminHeaderProps) {
                   <p className="text-sm font-semibold text-gray-900">Notifications</p>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {adminNotifications.length === 0 ? (
+                  {notificationsLoading ? (
+                    <p className="px-4 py-6 text-center text-sm text-gray-500">Loading notifications...</p>
+                  ) : adminNotifications.length === 0 ? (
                     <p className="px-4 py-6 text-center text-sm text-gray-500">No notifications</p>
                   ) : (
                     adminNotifications.slice(0, 5).map((n) => (
                       <div
                         key={n.id}
-                        className={cn(
-                          "border-b border-gray-50 px-4 py-3 transition-colors hover:bg-gray-50",
-                          !n.read && "bg-amber-50/50",
-                        )}
+                        className="border-b border-gray-50 px-4 py-3 transition-colors hover:bg-gray-50"
                       >
                         <p className="text-sm font-medium text-gray-900">{n.title}</p>
                         <p className="mt-0.5 text-xs text-gray-500">{n.message}</p>
-                        <p className="mt-1 text-[10px] text-gray-400">{n.createdAt}</p>
+                        <p className="mt-1 text-[10px] text-gray-400">{n.relativeTime}</p>
                       </div>
                     ))
                   )}

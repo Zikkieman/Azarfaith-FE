@@ -32,6 +32,7 @@ export function Navbar() {
             <>
               {navLink("/discover", "Discover")}
               {navLink("/create", "Start campaign")}
+              {navLink("/manage", "Manage")}
               {navLink("/my-giving", "My giving")}
               {navLink("/profile", "Profile")}
             </>
@@ -79,6 +80,13 @@ export function Navbar() {
                 className="block py-2 text-sm text-muted-foreground"
               >
                 Start campaign
+              </Link>
+              <Link
+                to="/manage"
+                onClick={() => setMenuOpen(false)}
+                className="block py-2 text-sm text-muted-foreground"
+              >
+                Manage
               </Link>
               <Link
                 to="/my-giving"

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, ShieldCheck, ShieldAlert } from "lucide-react";
 import {
@@ -32,6 +32,7 @@ export const Route = createFileRoute("/admin/campaigns")({
 
 function AdminCampaigns() {
   const isClient = typeof window !== "undefined";
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -88,6 +89,10 @@ function AdminCampaigns() {
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  if (pathname !== "/admin/campaigns") {
+    return <Outlet />;
+  }
 
   return (
     <AdminPageWrapper title="Campaigns">

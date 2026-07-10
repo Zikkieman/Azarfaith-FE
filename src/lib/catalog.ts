@@ -23,11 +23,61 @@ export type Org = {
   bio: string;
   photos: string[];
   videos: string[];
+  isDraft: boolean;
+  submittedAt?: string | null;
+  draftSavedAt?: string | null;
+  nextReapplicationAt?: string | null;
   campaignIds: string[];
   verificationStatus: VerificationStatus;
+  reviewAction?: "approved" | "rejected" | "more_info_requested" | "changes_requested" | null;
+  reviewReason?: string | null;
   totalReceived: number;
   supporters: number;
   campaignCount: number;
+};
+
+export type OrganizationDraftSummary = {
+  id: string;
+  name: string;
+  updatedAt: string;
+  draftSavedAt: string;
+  category: OrgCategory;
+  hasMinimumSubmissionData: boolean;
+};
+
+export type OrganizationDashboard = {
+  organization: Org;
+  overview: {
+    totalRaised: number;
+    totalSupporters: number;
+    activeCampaigns: number;
+    pendingCampaigns: number;
+    recurringDonorCount: number;
+    projectedMonthlyIncome: number;
+  };
+  campaigns: Array<{
+    id: string;
+    title: string;
+    verificationStatus: VerificationStatus;
+    raised: number;
+    goalAmount?: number | null;
+    donorCount: number;
+    lastDonationDate?: string | null;
+  }>;
+  recentDonations: Array<{
+    id: string;
+    campaignId: string;
+    campaignTitle: string;
+    donorName: string;
+    amount: number;
+    date: string;
+  }>;
+  notifications: Array<{
+    id: string;
+    level: "info" | "warning" | "danger";
+    title: string;
+    message: string;
+  }>;
 };
 
 export type Campaign = {

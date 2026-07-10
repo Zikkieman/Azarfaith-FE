@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, UserX, UserCheck, Users, ShieldCheck, Phone, Mail } from "lucide-react";
 import { listAdminUsers, updateAdminUserStatus } from "@/features/catalog/api";
@@ -27,6 +27,8 @@ export const Route = createFileRoute("/admin/users")({
 
 function AdminUsers() {
   const isClient = typeof window !== "undefined";
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -72,6 +74,10 @@ function AdminUsers() {
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paginated = filtered.slice((page - 1) * perPage, page * perPage);
+
+  if (pathname !== "/admin/users") {
+    return <Outlet />;
+  }
 
   return (
     <AdminPageWrapper title="Users">
@@ -199,11 +205,18 @@ function AdminUsers() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Link to="/admin/users/$id" params={{ id: user.id }}>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            navigate({
+                              to: "/admin/users/$id",
+                              params: { id: user.id },
+                            })
+                          }
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         {user.status === "active" && (
                           <Button
                             variant="ghost"

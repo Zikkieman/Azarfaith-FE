@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
-import { getCloudinaryStatus, getOrganization, getProfile, updateOrganization, uploadMedia } from "@/features/catalog/api";
+import { getCloudinaryStatus, getOrganization, getProfile, submitOrganizationDraft, updateOrganization, uploadMedia } from "@/features/catalog/api";
 import { formatMoney, orgCategoryOptions } from "@/lib/catalog";
 
 export const Route = createFileRoute("/org/$id")({
@@ -49,6 +49,8 @@ function OrgProfile() {
     videoUrls: [] as string[],
   });
   const [videoUrlInput, setVideoUrlInput] = useState("");
+  const countWords = (value: string) =>
+    value.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
     if (!org) return;
@@ -94,7 +96,7 @@ function OrgProfile() {
       updateOrganization(id, {
         name: form.name,
         tagline: form.tagline,
-        category: form.category,
+        category: form.category || undefined,
         denomination: form.denomination,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
         location: form.location,
@@ -108,6 +110,16 @@ function OrgProfile() {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       setEditing(false);
       toast.success("Organization updated.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const resubmitOrganizationMutation = useMutation({
+    mutationFn: () => submitOrganizationDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organization", id] });
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Organization resubmitted for review.");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -125,6 +137,14 @@ function OrgProfile() {
   const ongoing = org.campaigns.filter((campaign) => campaign.mode === "ongoing");
   const oneTime = org.campaigns.filter((campaign) => campaign.mode === "one-time");
   const isOwner = viewer?.id === org.ownerId;
+  const isRejected =
+    org.verificationStatus === "unverified" && org.reviewAction === "rejected";
+  const canResubmitNow =
+    !org.nextReapplicationAt ||
+    new Date(org.nextReapplicationAt).getTime() <= Date.now();
+  const criticalIdentityChanged =
+    org.verificationStatus === "verified" &&
+    (form.name.trim() !== org.name || form.category !== org.category.toUpperCase());
   const ensureMediaReady = () => {
     if (mediaStatus?.enabled) return true;
     if (mediaStatusLoading) {
@@ -137,6 +157,33 @@ function OrgProfile() {
     }
     toast.error("Media upload is not configured yet.");
     return false;
+  };
+  const validateOrganizationEdit = () => {
+    if (!form.name.trim()) {
+      toast.error("Organization name is required.");
+      return false;
+    }
+    if (form.name.trim().length > 120) {
+      toast.error("Organization name cannot exceed 120 characters.");
+      return false;
+    }
+    if (form.tagline.trim().length < 10) {
+      toast.error("Tagline must be at least 10 characters.");
+      return false;
+    }
+    if (form.tagline.trim().length > 200) {
+      toast.error("Tagline cannot exceed 200 characters.");
+      return false;
+    }
+    if (countWords(form.bio) < 100) {
+      toast.error("Organization bio must be at least 100 words.");
+      return false;
+    }
+    if (form.photoUrls.length < 3) {
+      toast.error("Keep at least 3 organization photos on the profile.");
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -161,6 +208,10 @@ function OrgProfile() {
                 ) : org.verificationStatus === "pending" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
                     Pending review
+                  </span>
+                ) : org.verificationStatus === "unverified" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
+                    Unverified
                   </span>
                 ) : null}
               </div>
@@ -213,13 +264,38 @@ function OrgProfile() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Keep this organization profile current for donors and reviewers.
                 </p>
+                {isRejected ? (
+                  <p className="mt-2 text-xs text-rose-700">
+                    This organization was rejected during admin review. Update the profile if needed, then resubmit it when eligible.
+                  </p>
+                ) : null}
+                {criticalIdentityChanged ? (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Changing the organization name or category will send this profile back into admin review.
+                  </p>
+                ) : null}
               </div>
-              <button
-                onClick={() => setEditing((current) => !current)}
-                className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted"
-              >
-                {editing ? "Close" : "Edit profile"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {isRejected ? (
+                  <button
+                    onClick={() => resubmitOrganizationMutation.mutate()}
+                    disabled={!canResubmitNow || resubmitOrganizationMutation.isPending}
+                    className="rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {resubmitOrganizationMutation.isPending
+                      ? "Resubmitting..."
+                      : canResubmitNow
+                        ? "Resubmit for review"
+                        : `Available ${org.nextReapplicationAt ? new Date(org.nextReapplicationAt).toLocaleDateString() : "later"}`}
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => setEditing((current) => !current)}
+                  className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted"
+                >
+                  {editing ? "Close" : "Edit profile"}
+                </button>
+              </div>
             </div>
 
             {editing ? (
@@ -365,7 +441,10 @@ function OrgProfile() {
                 </div>
                 <div className="md:col-span-2 flex justify-end">
                   <button
-                    onClick={() => updateOrganizationMutation.mutate()}
+                    onClick={() => {
+                      if (!validateOrganizationEdit()) return;
+                      updateOrganizationMutation.mutate();
+                    }}
                     disabled={updateOrganizationMutation.isPending}
                     className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   >
@@ -379,7 +458,20 @@ function OrgProfile() {
 
         {org.verificationStatus === "pending" && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            This organization is pending admin review. The review provision now exists on the backend, and an admin must approve it before it is treated as verified.
+            This organization is currently under review. Once the AzarFaith team approves it, the verified badge will appear here.
+          </div>
+        )}
+        {isRejected && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p className="font-medium">This organization is currently unverified.</p>
+            <p className="mt-1">
+              {org.reviewReason || "The last admin review rejected this organization."}
+            </p>
+            <p className="mt-2">
+              {canResubmitNow
+                ? "You can update the details above and resubmit it for review now."
+                : `You can reapply from ${org.nextReapplicationAt ? new Date(org.nextReapplicationAt).toLocaleDateString() : "the next eligible date"}.`}
+            </p>
           </div>
         )}
         <section>

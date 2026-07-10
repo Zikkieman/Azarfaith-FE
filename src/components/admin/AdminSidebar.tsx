@@ -1,4 +1,4 @@
-import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
@@ -23,7 +23,7 @@ const navItems = [
 ];
 
 export function AdminSidebar() {
-  const matchRoute = useMatchRoute();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { setOpen } = useSidebar();
   const isClient = typeof window !== "undefined";
   const { data } = useQuery({
@@ -57,9 +57,7 @@ export function AdminSidebar() {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
           const isActive =
-            item.to === "/admin"
-              ? matchRoute({ to: "/admin", fuzzy: true }) === "/admin"
-              : matchRoute({ to: item.to }) !== false;
+            item.to === "/admin" ? pathname === "/admin" : pathname.startsWith(`${item.to}`);
 
           const badge =
             item.to === "/admin/orgs"
