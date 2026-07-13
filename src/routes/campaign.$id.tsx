@@ -26,6 +26,7 @@ import {
   getCloudinaryStatus,
   getCampaign,
   getProfile,
+  submitCampaignDraft,
   updateCampaign,
   uploadMedia,
 } from "@/features/catalog/api";
@@ -193,6 +194,17 @@ function CampaignRoute() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const resubmitCampaignMutation = useMutation({
+    mutationFn: () => submitCampaignDraft(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", id] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
+      toast.success("Campaign submitted for review.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   if (!isLoading && !campaign) throw notFound();
   if (!campaign) {
     return (
@@ -208,6 +220,11 @@ function CampaignRoute() {
   const visibleUpdates = showAllUpdates ? campaign.updates : campaign.updates.slice(0, 1);
   const donateFreq = selectedFreq ?? (isOngoing ? "monthly" : "once");
   const isOwner = viewer?.id === campaign.ownerId;
+  const canResubmit =
+    isOwner &&
+    (campaign.isDraft ||
+      campaign.reviewAction === "rejected" ||
+      campaign.reviewAction === "changes_requested");
   const ensureMediaReady = () => {
     if (mediaStatus?.enabled) return true;
     if (mediaStatusLoading) {
@@ -258,6 +275,56 @@ function CampaignRoute() {
             </Link>
           )}
         </div>
+
+        {isOwner ? (
+          <div
+            className={`rounded-2xl border px-4 py-4 text-sm ${
+              campaign.isDraft
+                ? "border-slate-200 bg-slate-50 text-slate-700"
+                : campaign.reviewAction === "rejected"
+                  ? "border-red-200 bg-red-50 text-red-800"
+                  : campaign.reviewAction === "changes_requested"
+                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                    : campaign.verificationStatus === "pending"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            }`}
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-medium">
+                  {campaign.isDraft
+                    ? "This campaign is still a draft."
+                    : campaign.reviewAction === "rejected"
+                      ? "This campaign was rejected during review."
+                      : campaign.reviewAction === "changes_requested"
+                        ? "Admin changes are required before this campaign can go live."
+                        : campaign.verificationStatus === "pending"
+                          ? "This campaign is awaiting admin review."
+                          : "This campaign is live."}
+                </p>
+                {campaign.reviewReason ? (
+                  <p className="mt-1">{campaign.reviewReason}</p>
+                ) : null}
+                {campaign.nextReapplicationAt ? (
+                  <p className="mt-1 text-xs">
+                    You can resubmit after {new Date(campaign.nextReapplicationAt).toLocaleDateString()}.
+                  </p>
+                ) : null}
+              </div>
+              {canResubmit ? (
+                <button
+                  type="button"
+                  onClick={() => resubmitCampaignMutation.mutate()}
+                  disabled={resubmitCampaignMutation.isPending}
+                  className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                >
+                  {resubmitCampaignMutation.isPending ? "Submitting..." : "Submit for review"}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-3xl border border-border bg-card p-6">
           {isOngoing ? (

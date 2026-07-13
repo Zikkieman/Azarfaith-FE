@@ -1,5 +1,6 @@
 import { adminApiFetch, apiFetch } from "@/lib/api";
 import type {
+  CampaignDraftSummary,
   OrganizationDashboard,
   OrganizationDraftSummary,
   Campaign,
@@ -76,6 +77,7 @@ export type UpdateProfilePayload = {
 
 export type SaveOrganizationDraftPayload = Partial<CreateOrganizationPayload>;
 export type UpdateOrganizationPayload = Partial<CreateOrganizationPayload>;
+export type SaveCampaignDraftPayload = Partial<CreateCampaignPayload>;
 
 export type UpdateCampaignPayload = Omit<
   Partial<CreateCampaignPayload>,
@@ -287,10 +289,36 @@ export const listCampaigns = (params?: {
 
 export const getCampaign = (id: string) => apiFetch<Campaign>(`/campaigns/${id}`);
 
+export const listCampaignDrafts = () =>
+  apiFetch<CampaignDraftSummary[]>("/campaigns/mine/drafts");
+
+export const getCampaignDraft = (id: string) =>
+  apiFetch<Campaign>(`/campaigns/drafts/${id}`);
+
 export const createCampaign = (payload: CreateCampaignPayload) =>
   apiFetch<Campaign>("/campaigns", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+
+export const saveCampaignDraft = (payload: SaveCampaignDraftPayload) =>
+  apiFetch<Campaign>("/campaigns/drafts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const updateCampaignDraft = (
+  id: string,
+  payload: SaveCampaignDraftPayload,
+) =>
+  apiFetch<Campaign>(`/campaigns/${id}/draft`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const submitCampaignDraft = (id: string) =>
+  apiFetch<Campaign>(`/campaigns/${id}/submit`, {
+    method: "POST",
   });
 
 export const updateCampaign = (id: string, payload: UpdateCampaignPayload) =>

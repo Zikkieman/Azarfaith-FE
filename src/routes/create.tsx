@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Banknote,
@@ -16,10 +16,15 @@ import {
 } from "lucide-react";
 
 import { Navbar } from "@/components/Navbar";
+import { PageSpinner } from "@/components/PageSpinner";
 import {
   createCampaign,
+  getCampaignDraft,
   getCloudinaryStatus,
   listOrganizations,
+  saveCampaignDraft,
+  submitCampaignDraft,
+  updateCampaignDraft,
   uploadMedia,
 } from "@/features/catalog/api";
 import {
@@ -47,6 +52,10 @@ const campaignTypeIcons = {
 function AzarFaithCreate() {
   const isAuthed = useRequireAuth();
   const nav = useNavigate();
+  const draftId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("draftId") ?? undefined
+      : undefined;
   const queryClient = useQueryClient();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,6 +70,11 @@ function AzarFaithCreate() {
   } = useQuery({
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
+  });
+  const { data: draft } = useQuery({
+    queryKey: ["campaign-draft", draftId],
+    queryFn: () => getCampaignDraft(draftId!),
+    enabled: isAuthed && Boolean(draftId),
   });
 
   const [step, setStep] = useState(0);
@@ -79,6 +93,36 @@ function AzarFaithCreate() {
     coverImageUrl: "",
     galleryImageUrls: [] as string[],
   });
+
+  const countWords = (value: string) =>
+    value.trim().split(/\s+/).filter(Boolean).length;
+
+  useEffect(() => {
+    if (!draft) return;
+    setForm({
+      mode: draft.mode === "ongoing" ? "ONGOING" : "ONE_TIME",
+      type: draft.type.toUpperCase() as
+        | "MONEY"
+        | "ITEM"
+        | "VOLUNTEER"
+        | "PROFESSIONAL"
+        | "EMERGENCY",
+      title: draft.title,
+      story: draft.story,
+      faithCategory:
+        faithCategoryOptions.find((option) => option.label === draft.faithCategory)
+          ?.value ?? "",
+      organizationId: draft.orgId ?? "",
+      location: draft.location,
+      goalAmount: draft.goal ? formatAmountInput(String(draft.goal)) : "",
+      urgency: draft.urgency.toUpperCase() as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+      frequencies: (draft.frequencies ?? []).map((frequency) =>
+        frequency.toUpperCase(),
+      ) as Array<"WEEKLY" | "MONTHLY" | "QUARTERLY">,
+      coverImageUrl: draft.cover.startsWith("https://placehold.co/") ? "" : draft.cover,
+      galleryImageUrls: draft.gallery,
+    });
+  }, [draft]);
 
   const uploadCoverMutation = useMutation({
     mutationFn: async (file: File) =>
@@ -183,6 +227,106 @@ function AzarFaithCreate() {
     },
   });
 
+  const saveDraftMutation = useMutation({
+    mutationFn: () => {
+      const payload = {
+        mode: form.mode || undefined,
+        type: form.type || undefined,
+        title: form.title,
+        story: form.story,
+        faithCategory: form.faithCategory
+          ? (form.faithCategory as
+              | "CHURCH_BUILDING"
+              | "MISSIONS_OUTREACH"
+              | "ORPHANAGE"
+              | "EDUCATION"
+              | "FOOD_RELIEF"
+              | "MEDICAL_MISSION"
+              | "EMERGENCY"
+              | "COMMUNITY_DEVELOPMENT")
+          : undefined,
+        organizationId: form.organizationId || undefined,
+        location: form.location,
+        goalAmount:
+          form.mode === "ONE_TIME" && form.type === "MONEY"
+            ? parseAmountInput(form.goalAmount) || undefined
+            : undefined,
+        urgency: form.urgency,
+        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
+        coverImageUrl: form.coverImageUrl || undefined,
+        galleryImageUrls:
+          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
+      };
+
+      return draftId ? updateCampaignDraft(draftId, payload) : saveCampaignDraft(payload);
+    },
+    onSuccess: async (campaign) => {
+      queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
+      toast.success("Campaign draft saved.");
+
+      if (!draftId) {
+        await nav({
+          to: "/create",
+          search: { draftId: campaign.id },
+          replace: true,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const submitDraftMutation = useMutation({
+    mutationFn: async () => {
+      if (!draftId) {
+        throw new Error("No campaign draft selected.");
+      }
+
+      await updateCampaignDraft(draftId, {
+        mode: form.mode || undefined,
+        type: form.type || undefined,
+        title: form.title,
+        story: form.story,
+        faithCategory: form.faithCategory
+          ? (form.faithCategory as
+              | "CHURCH_BUILDING"
+              | "MISSIONS_OUTREACH"
+              | "ORPHANAGE"
+              | "EDUCATION"
+              | "FOOD_RELIEF"
+              | "MEDICAL_MISSION"
+              | "EMERGENCY"
+              | "COMMUNITY_DEVELOPMENT")
+          : undefined,
+        organizationId: form.organizationId || undefined,
+        location: form.location,
+        goalAmount:
+          form.mode === "ONE_TIME" && form.type === "MONEY"
+            ? parseAmountInput(form.goalAmount) || undefined
+            : undefined,
+        urgency: form.urgency,
+        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
+        coverImageUrl: form.coverImageUrl || undefined,
+        galleryImageUrls:
+          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
+      });
+
+      return submitCampaignDraft(draftId);
+    },
+    onSuccess: (campaign) => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", campaign.id] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      toast.success("Campaign submitted for review.");
+      nav({ to: "/campaign/$id", params: { id: campaign.id } });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const isOngoing = form.mode === "ONGOING";
   const stepLabels = isOngoing
     ? ["Mode", "Type", "Story", "Details", "Support", "Preview"]
@@ -195,8 +339,14 @@ function AzarFaithCreate() {
     if (step === 2) {
       if (form.title.trim().length < 8)
         nextErrors.title = "Title must be at least 8 characters";
-      if (form.story.trim().length < 30)
-        nextErrors.story = "Story must be at least 30 characters";
+      if (form.title.trim().length > 150)
+        nextErrors.title = "Title cannot exceed 150 characters";
+      if (countWords(form.story) < 100)
+        nextErrors.story = "Story must be at least 100 words";
+      if (!form.coverImageUrl) nextErrors.coverImageUrl = "Upload a cover image";
+      if (form.galleryImageUrls.length < 1) {
+        nextErrors.galleryImageUrls = "Add at least one gallery image";
+      }
     }
     if (step === 3) {
       if (!form.faithCategory) nextErrors.faithCategory = "Select a category";
@@ -204,9 +354,9 @@ function AzarFaithCreate() {
       if (
         !isOngoing &&
         form.type === "MONEY" &&
-        (!form.goalAmount || parseAmountInput(form.goalAmount) < 1000)
+        (!form.goalAmount || parseAmountInput(form.goalAmount) < 5000)
       ) {
-        nextErrors.goalAmount = "Goal must be at least ₦1,000";
+        nextErrors.goalAmount = "Goal must be at least ₦5,000";
       }
     }
     if (step === 4 && isOngoing && form.frequencies.length === 0) {
@@ -234,6 +384,12 @@ function AzarFaithCreate() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="mx-auto max-w-xl px-5 py-10">
+        {draftId ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            You are editing a saved campaign draft. Save as you go, then submit when everything is ready.
+          </div>
+        ) : null}
+
         <div className="mb-8 flex items-center gap-2">
           {stepLabels.map((label, index) => (
             <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
@@ -365,6 +521,7 @@ function AzarFaithCreate() {
                 {errors.story ? <p className="text-xs text-destructive">{errors.story}</p> : <span />}
                 <span className="text-xs text-muted-foreground">{form.story.length} chars</span>
               </div>
+              <p className="mt-1 text-xs text-muted-foreground">{countWords(form.story)} words</p>
             </div>
 
             <input
@@ -431,13 +588,16 @@ function AzarFaithCreate() {
                     ? "Replace cover"
                     : "Choose cover"}
               </button>
+              {errors.coverImageUrl ? (
+                <p className="mt-3 text-xs text-destructive">{errors.coverImageUrl}</p>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border-2 border-dashed border-border py-8 text-center">
               <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium">Upload campaign gallery</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Add more context photos for the campaign detail page.
+                Add more context photos for the campaign detail page. At least one is required before submission.
               </p>
               <button
                 type="button"
@@ -455,6 +615,9 @@ function AzarFaithCreate() {
                 )}
                 {uploadGalleryMutation.isPending ? "Uploading..." : "Choose gallery images"}
               </button>
+              {errors.galleryImageUrls ? (
+                <p className="mt-3 text-xs text-destructive">{errors.galleryImageUrls}</p>
+              ) : null}
             </div>
 
             {form.galleryImageUrls.length > 0 && (
@@ -675,26 +838,55 @@ function AzarFaithCreate() {
           ) : (
             <span />
           )}
-          {step < stepLabels.length - 1 ? (
+          <div className="flex items-center gap-3">
             <button
-              onClick={next}
-              className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              onClick={() => createCampaignMutation.mutate()}
+              onClick={() => saveDraftMutation.mutate()}
               disabled={
+                saveDraftMutation.isPending ||
+                submitDraftMutation.isPending ||
                 createCampaignMutation.isPending ||
                 uploadCoverMutation.isPending ||
                 uploadGalleryMutation.isPending
               }
-              className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
             >
-              {createCampaignMutation.isPending ? "Publishing…" : "Publish campaign"}
+              {saveDraftMutation.isPending ? "Saving draft..." : "Save draft"}
             </button>
-          )}
+            {step < stepLabels.length - 1 ? (
+              <button
+                onClick={next}
+                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  if (draftId) {
+                    submitDraftMutation.mutate();
+                    return;
+                  }
+
+                  createCampaignMutation.mutate();
+                }}
+                disabled={
+                  createCampaignMutation.isPending ||
+                  submitDraftMutation.isPending ||
+                  uploadCoverMutation.isPending ||
+                  uploadGalleryMutation.isPending
+                }
+                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+              >
+                {draftId
+                  ? submitDraftMutation.isPending
+                    ? "Submitting..."
+                    : "Submit for review"
+                  : createCampaignMutation.isPending
+                    ? "Submitting..."
+                    : "Submit for review"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

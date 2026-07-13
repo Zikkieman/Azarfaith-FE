@@ -45,6 +45,16 @@ export type OrganizationDraftSummary = {
   hasMinimumSubmissionData: boolean;
 };
 
+export type CampaignDraftSummary = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  draftSavedAt: string;
+  mode: CampaignMode;
+  type: CampaignType;
+  hasMinimumSubmissionData: boolean;
+};
+
 export type OrganizationDashboard = {
   organization: Org;
   overview: {
@@ -99,7 +109,13 @@ export type Campaign = {
   location: string;
   urgency: CampaignUrgency;
   createdAt: string;
+  isDraft: boolean;
+  submittedAt?: string | null;
+  draftSavedAt?: string | null;
+  nextReapplicationAt?: string | null;
   verificationStatus: VerificationStatus;
+  reviewAction?: "approved" | "rejected" | "more_info_requested" | "changes_requested" | null;
+  reviewReason?: string | null;
   updates: Update[];
   comments: Comment[];
   donations: Donation[];
