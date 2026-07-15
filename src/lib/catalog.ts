@@ -5,7 +5,7 @@ export type VerificationStatus = "unverified" | "pending" | "verified";
 export type OrgCategory = "church" | "mission" | "orphanage" | "school" | "other";
 export type CampaignFrequency = "weekly" | "monthly" | "quarterly";
 export type RecurringGiftMode = "auto" | "pledge";
-export type RecurringGiftStatus = "on_track" | "missed" | "completed" | "cancelled";
+export type RecurringGiftStatus = "on_track" | "paused" | "missed" | "completed" | "cancelled";
 
 export type Update = { id: string; date: string; title: string; body: string };
 export type Comment = { id: string; author: string; avatar: string; date: string; body: string };
@@ -121,6 +121,7 @@ export type Campaign = {
   donations: Donation[];
   needs?: string[];
   frequencies?: CampaignFrequency[];
+  viewerDonationTotal?: number;
 };
 
 export type RecurringDonation = {
@@ -230,6 +231,31 @@ export type Profile = {
   ownedCampaigns: Array<{ id: string; title: string; verificationStatus: VerificationStatus }>;
   donationHistory: Array<{ id: string; amount: number; date: string; status: string }>;
   verifications: string[];
+};
+
+export type UserNotification = {
+  id: string;
+  type: "donation_received" | "campaign_update" | "comment" | "system";
+  title: string;
+  message: string;
+  link?: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export type UserNotificationsPage = {
+  page: number;
+  pageSize: number;
+  total: number;
+  unreadCount: number;
+  items: UserNotification[];
+};
+
+export type NotificationPreferences = {
+  donationsReceived: boolean;
+  campaignUpdates: boolean;
+  comments: boolean;
+  systemMessages: boolean;
 };
 
 export const faithCategoryOptions = [

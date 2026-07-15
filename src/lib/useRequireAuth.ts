@@ -9,7 +9,7 @@ export function useRequireAuth() {
 
   useEffect(() => {
     if (!hydrated || user) return;
-    navigate({ to: "/login", replace: true });
+    navigate({ to: "/", replace: true });
   }, [hydrated, user, navigate]);
 
   return hydrated && Boolean(user);

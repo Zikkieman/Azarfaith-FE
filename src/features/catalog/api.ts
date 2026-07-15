@@ -6,10 +6,12 @@ import type {
   Campaign,
   DonationDetail,
   DonationHistoryItem,
+  NotificationPreferences,
   Org,
   Profile,
   RecurringDonation,
   SavedPaymentMethod,
+  UserNotificationsPage,
 } from "@/lib/catalog";
 
 const MAX_MEDIA_SIZE_BYTES = 5 * 1024 * 1024;
@@ -405,9 +407,50 @@ export const getDonationDetail = (id: string) =>
 export const getPaymentMethods = () =>
   apiFetch<SavedPaymentMethod[]>("/me/payment-methods");
 
+export const getNotifications = (params?: { page?: number; pageSize?: number }) =>
+  apiFetch<UserNotificationsPage>(`/me/notifications${toQuery({
+    page: params?.page ? String(params.page) : undefined,
+    pageSize: params?.pageSize ? String(params.pageSize) : undefined,
+  })}`);
+
+export const markNotificationAsRead = (id: string) =>
+  apiFetch<{ message: string }>(`/me/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+
+export const markAllNotificationsAsRead = () =>
+  apiFetch<{ message: string }>("/me/notifications/read-all", {
+    method: "PATCH",
+  });
+
+export const getNotificationPreferences = () =>
+  apiFetch<NotificationPreferences>("/me/notification-preferences");
+
+export const updateNotificationPreferences = (payload: Partial<NotificationPreferences>) =>
+  apiFetch<NotificationPreferences>("/me/notification-preferences", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
 export const cancelRecurringGift = (id: string) =>
   apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/cancel`, {
     method: "PATCH",
+  });
+
+export const pauseRecurringGift = (id: string) =>
+  apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/pause`, {
+    method: "PATCH",
+  });
+
+export const resumeRecurringGift = (id: string) =>
+  apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/resume`, {
+    method: "PATCH",
+  });
+
+export const cancelRecurringGiftWithReason = (id: string, payload?: { reason?: string }) =>
+  apiFetch<{ message: string }>(`/me/recurring-gifts/${id}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify(payload ?? {}),
   });
 
 export const updateRecurringGiftPaymentMethod = (

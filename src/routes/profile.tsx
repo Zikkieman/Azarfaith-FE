@@ -7,7 +7,14 @@ import { toast } from "sonner";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { PageSpinner } from "@/components/PageSpinner";
-import { getCloudinaryStatus, getProfile, updateProfile, uploadMedia } from "@/features/catalog/api";
+import {
+  getCloudinaryStatus,
+  getNotificationPreferences,
+  getProfile,
+  updateNotificationPreferences,
+  updateProfile,
+  uploadMedia,
+} from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
@@ -29,6 +36,11 @@ function Profile() {
   } = useQuery({
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
+    enabled: isAuthed,
+  });
+  const { data: notificationPreferences } = useQuery({
+    queryKey: ["notification-preferences"],
+    queryFn: getNotificationPreferences,
     enabled: isAuthed,
   });
   const [editing, setEditing] = useState(false);
@@ -70,6 +82,18 @@ function Profile() {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       setEditing(false);
       toast.success("Profile updated.");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const updateNotificationPreferencesMutation = useMutation({
+    mutationFn: updateNotificationPreferences,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Notification preferences updated.");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -237,6 +261,55 @@ function Profile() {
           </div>
         </div>
 
+        <div className="mt-8 rounded-2xl border border-border bg-card p-4">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+              Notification preferences
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose which in-app notifications AzarFaith should store and show in your account.
+            </p>
+          </div>
+          <div className="mt-4 space-y-3">
+            <PreferenceToggle
+              label="Donations received"
+              description="For creators when someone supports your campaign."
+              checked={notificationPreferences?.donationsReceived ?? true}
+              onChange={(checked) =>
+                updateNotificationPreferencesMutation.mutate({ donationsReceived: checked })
+              }
+              disabled={updateNotificationPreferencesMutation.isPending}
+            />
+            <PreferenceToggle
+              label="Campaign updates"
+              description="When a campaign you supported posts a new update."
+              checked={notificationPreferences?.campaignUpdates ?? true}
+              onChange={(checked) =>
+                updateNotificationPreferencesMutation.mutate({ campaignUpdates: checked })
+              }
+              disabled={updateNotificationPreferencesMutation.isPending}
+            />
+            <PreferenceToggle
+              label="Comments"
+              description="When someone comments on a campaign you created."
+              checked={notificationPreferences?.comments ?? true}
+              onChange={(checked) =>
+                updateNotificationPreferencesMutation.mutate({ comments: checked })
+              }
+              disabled={updateNotificationPreferencesMutation.isPending}
+            />
+            <PreferenceToggle
+              label="System messages"
+              description="Review outcomes, recurring failures, and other platform alerts."
+              checked={notificationPreferences?.systemMessages ?? true}
+              onChange={(checked) =>
+                updateNotificationPreferencesMutation.mutate({ systemMessages: checked })
+              }
+              disabled={updateNotificationPreferencesMutation.isPending}
+            />
+          </div>
+        </div>
+
         <div className="mt-8">
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent donations</h2>
           <div className="space-y-3">
@@ -337,5 +410,35 @@ function Profile() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+function PreferenceToggle({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-2xl border border-border px-4 py-3">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+        className="mt-1 h-4 w-4 rounded border-border text-amber-500 focus:ring-amber-400"
+      />
+    </label>
   );
 }

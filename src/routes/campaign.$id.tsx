@@ -327,6 +327,11 @@ function CampaignRoute() {
         ) : null}
 
         <div className="rounded-3xl border border-border bg-card p-6">
+          {campaign.viewerDonationTotal && campaign.viewerDonationTotal > 0 ? (
+            <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              You&apos;ve given <strong>{formatMoney(campaign.viewerDonationTotal)}</strong> to this campaign.
+            </div>
+          ) : null}
           {isOngoing ? (
             <div>
               <h2 className="mb-1 font-display text-lg">Support this ministry</h2>
