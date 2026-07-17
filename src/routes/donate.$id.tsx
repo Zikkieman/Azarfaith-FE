@@ -49,6 +49,8 @@ function AzarFaithDonate() {
   const [done, setDone] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [recurringSetupActive, setRecurringSetupActive] = useState(true);
+  const [confirmedAmount, setConfirmedAmount] = useState<number | null>(null);
+  const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
   const [verificationAttempted, setVerificationAttempted] = useState(false);
 
   const isRecurring = Boolean(freq && freq !== "once");
@@ -90,6 +92,8 @@ function AzarFaithDonate() {
       queryClient.invalidateQueries({ queryKey: ["recurring-gifts"] });
       setCompletionMessage(result.message);
       setRecurringSetupActive(result.recurringSetupActive ?? true);
+      setConfirmedAmount(result.amount);
+      setConfirmedTotal(result.totalCharged);
       if (result.recurringSetupActive === false) {
         toast.warning(result.message);
       } else {
@@ -142,10 +146,15 @@ function AzarFaithDonate() {
           <p className="mt-2 max-w-sm text-muted-foreground">
             {isRecurring
               ? recurringSetupActive
-                ? `Your ${frequencyLabel[freq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(finalAmount)} is set up.`
-                : `Your first gift of ${formatMoney(finalAmount)} was received, but automatic recurring charging is not active yet.`
-              : `Your gift of ${formatMoney(finalAmount)} has been confirmed.`}
+                ? `Your ${frequencyLabel[freq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(confirmedAmount ?? finalAmount)} is set up.`
+                : `Your first gift of ${formatMoney(confirmedAmount ?? finalAmount)} was received, but automatic recurring charging is not active yet.`
+              : `Your gift of ${formatMoney(confirmedAmount ?? finalAmount)} has been confirmed.`}
           </p>
+          {confirmedTotal && confirmedTotal !== (confirmedAmount ?? finalAmount) ? (
+            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+              Total charged including platform fees and tip: {formatMoney(confirmedTotal)}
+            </p>
+          ) : null}
           {completionMessage ? (
             <div
               className={`mt-4 max-w-md rounded-2xl border px-4 py-3 text-sm ${

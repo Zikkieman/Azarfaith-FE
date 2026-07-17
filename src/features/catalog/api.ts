@@ -362,6 +362,8 @@ export const verifyDonation = (campaignId: string, reference: string) =>
     donationId: string;
     recurringGiftId: string | null;
     recurringSetupActive?: boolean;
+    amount: number;
+    totalCharged: number;
   }>(
     `/campaigns/${campaignId}/donations/verify`,
     {
