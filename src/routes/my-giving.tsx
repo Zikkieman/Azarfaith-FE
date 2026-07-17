@@ -118,8 +118,16 @@ function MyGiving() {
     (gift) => gift.status !== "cancelled" && gift.status !== "completed",
   );
   const cancelledRecurring = recurringDonations.filter((gift) => gift.status === "cancelled");
-  const completedOneTime = donations.filter(
-    (donation) => donation.status === "succeeded" && !donation.recurringMode,
+  const cancelledRecurringIds = new Set(cancelledRecurring.map((gift) => gift.id));
+  const completedDonations = donations.filter((donation) => {
+    if (donation.status !== "succeeded") return false;
+    if (!donation.recurringMode) return true;
+    return Boolean(
+      donation.recurringGiftId && cancelledRecurringIds.has(donation.recurringGiftId),
+    );
+  });
+  const recurringSetupIssues = cancelledRecurring.filter((gift) =>
+    gift.cancellationReason?.includes("reusable card authorization"),
   );
 
   const summary = useMemo(() => {
@@ -232,7 +240,7 @@ function MyGiving() {
       "Status",
       "Reference",
     ];
-    const rows = completedOneTime.map((donation) => [
+    const rows = completedDonations.map((donation) => [
       donation.createdAt.slice(0, 10),
       donation.campaignTitle,
       donation.organizationName ?? "",
@@ -272,6 +280,27 @@ function MyGiving() {
             muted="Detailed lives-impacted metrics are coming soon."
           />
         </section>
+
+        {recurringSetupIssues.length > 0 ? (
+          <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-800">
+              Recurring setup needs attention
+            </h2>
+            <div className="mt-3 space-y-3 text-sm text-amber-950">
+              {recurringSetupIssues.map((gift) => (
+                <div key={gift.id} className="rounded-2xl border border-amber-200 bg-white/70 p-4">
+                  <p className="font-medium">{gift.targetName}</p>
+                  <p className="mt-1 text-amber-900">
+                    Your first donation succeeded, but automatic recurring charging was not activated because Paystack did not return a reusable authorization for this payment.
+                  </p>
+                  <p className="mt-2 text-xs text-amber-800">
+                    Donate again with a reusable card if you want automatic charges, or choose Reminder / Pledge instead.
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-8 rounded-3xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -443,7 +472,7 @@ function MyGiving() {
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-amber-600" />
               <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Completed one-time
+                Completed donations
               </h2>
             </div>
             <button
@@ -455,18 +484,18 @@ function MyGiving() {
             </button>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            Every completed one-time gift with its receipt details.
+            Successful one-time donations and recurring setups that completed an initial charge but are no longer active.
           </p>
 
           <div className="mt-4 space-y-3">
             {donationsLoading ? (
               <PageSpinner label="Loading donation history..." fullScreen={false} />
-            ) : completedOneTime.length === 0 ? (
+            ) : completedDonations.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No completed one-time donations yet.
+                No completed donations yet.
               </div>
             ) : (
-              completedOneTime.map((donation) => (
+              completedDonations.map((donation) => (
                 <button
                   key={donation.id}
                   onClick={() =>
@@ -479,6 +508,9 @@ function MyGiving() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       {donation.createdAt.slice(0, 10)} · {donation.organizationName ?? "Independent campaign"}
                     </p>
+                    {donation.recurringGiftStatus === "cancelled" && donation.recurringCancellationReason ? (
+                      <p className="mt-1 text-xs text-amber-700">{donation.recurringCancellationReason}</p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">{formatMoney(donation.totalCharged)}</p>

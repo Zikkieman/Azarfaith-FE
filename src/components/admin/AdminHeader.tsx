@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Bell, Search, ChevronDown, LogOut, User, Menu } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
@@ -19,6 +20,7 @@ type AdminHeaderProps = {
 
 export function AdminHeader({ title }: AdminHeaderProps) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const { setOpen } = useSidebar();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -27,7 +29,9 @@ export function AdminHeader({ title }: AdminHeaderProps) {
     queryFn: getAdminNotifications,
   });
 
-  const notificationCount = adminNotifications.length;
+  const notificationCount = adminNotifications.filter(
+    (item) => item.kind === "organization_review" || item.kind === "campaign_review",
+  ).length;
   const displayName = user?.fullName ?? "Platform Admin";
   const initials =
     displayName
@@ -117,7 +121,12 @@ export function AdminHeader({ title }: AdminHeaderProps) {
             <ChevronDown className="hidden h-3.5 w-3.5 text-gray-400 sm:block" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem className="gap-2">
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => {
+                navigate({ to: "/admin/profile" });
+              }}
+            >
               <User className="h-4 w-4" />
               Profile
             </DropdownMenuItem>

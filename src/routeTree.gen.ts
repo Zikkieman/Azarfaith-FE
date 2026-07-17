@@ -27,6 +27,7 @@ import { Route as DonateIdRouteImport } from './routes/donate.$id'
 import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminProfileRouteImport } from './routes/admin/profile'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
@@ -125,6 +126,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminProfileRoute = AdminProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOrgsRoute = AdminOrgsRouteImport.update({
   id: '/orgs',
   path: '/orgs',
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
   '/campaign/$id': typeof CampaignIdRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
     | '/campaign/$id'
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
     | '/campaign/$id'
@@ -313,6 +324,7 @@ export interface FileRouteTypes {
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
     | '/campaign/$id'
@@ -471,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/profile': {
+      id: '/admin/profile'
+      path: '/profile'
+      fullPath: '/admin/profile'
+      preLoaderRoute: typeof AdminProfileRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/orgs': {
       id: '/admin/orgs'
       path: '/orgs'
@@ -563,6 +582,7 @@ interface AdminRouteChildren {
   AdminCampaignsRoute: typeof AdminCampaignsRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
   AdminOrgsRoute: typeof AdminOrgsRouteWithChildren
+  AdminProfileRoute: typeof AdminProfileRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
@@ -572,6 +592,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCampaignsRoute: AdminCampaignsRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
   AdminOrgsRoute: AdminOrgsRouteWithChildren,
+  AdminProfileRoute: AdminProfileRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,

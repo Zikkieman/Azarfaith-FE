@@ -177,6 +177,10 @@ export type DonationHistoryItem = {
   isAnonymous: boolean;
   frequency?: CampaignFrequency | null;
   recurringMode?: RecurringGiftMode | null;
+  recurringGiftId?: string | null;
+  recurringGiftStatus?: string | null;
+  recurringGiftActive?: boolean | null;
+  recurringCancellationReason?: string | null;
   reference: string;
   failureMessage?: string | null;
   paidAt?: string | null;
@@ -199,6 +203,10 @@ export type DonationDetail = {
   isAnonymous: boolean;
   frequency?: CampaignFrequency | null;
   recurringMode?: RecurringGiftMode | null;
+  recurringGiftId?: string | null;
+  recurringGiftStatus?: string | null;
+  recurringGiftActive?: boolean | null;
+  recurringCancellationReason?: string | null;
   reference: string;
   paymentMethod: string;
   failureMessage?: string | null;

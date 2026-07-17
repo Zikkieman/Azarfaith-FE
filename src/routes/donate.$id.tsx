@@ -47,6 +47,8 @@ function AzarFaithDonate() {
   const [customTip, setCustomTip] = useState("");
   const [autoChargeConsent, setAutoChargeConsent] = useState(false);
   const [done, setDone] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState("");
+  const [recurringSetupActive, setRecurringSetupActive] = useState(true);
   const [verificationAttempted, setVerificationAttempted] = useState(false);
 
   const isRecurring = Boolean(freq && freq !== "once");
@@ -86,7 +88,13 @@ function AzarFaithDonate() {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["recurring-gifts"] });
-      toast.success(result.message);
+      setCompletionMessage(result.message);
+      setRecurringSetupActive(result.recurringSetupActive ?? true);
+      if (result.recurringSetupActive === false) {
+        toast.warning(result.message);
+      } else {
+        toast.success(result.message);
+      }
       setDone(true);
     },
     onError: (error: Error) => {
@@ -133,9 +141,22 @@ function AzarFaithDonate() {
           <h1 className="font-display text-3xl">Thank you</h1>
           <p className="mt-2 max-w-sm text-muted-foreground">
             {isRecurring
-              ? `Your ${frequencyLabel[freq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(finalAmount)} is set up.`
+              ? recurringSetupActive
+                ? `Your ${frequencyLabel[freq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(finalAmount)} is set up.`
+                : `Your first gift of ${formatMoney(finalAmount)} was received, but automatic recurring charging is not active yet.`
               : `Your gift of ${formatMoney(finalAmount)} has been confirmed.`}
           </p>
+          {completionMessage ? (
+            <div
+              className={`mt-4 max-w-md rounded-2xl border px-4 py-3 text-sm ${
+                recurringSetupActive
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  : "border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              {completionMessage}
+            </div>
+          ) : null}
           <div className="mt-8 w-full max-w-xs space-y-3">
             <Link to="/campaign/$id" params={{ id: campaign.id }} className="block w-full rounded-2xl bg-amber-500 py-3.5 text-center font-semibold text-white transition hover:bg-amber-600">
               Back to campaign

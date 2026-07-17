@@ -357,7 +357,12 @@ export const createDonation = (campaignId: string, payload: CreateDonationPayloa
   });
 
 export const verifyDonation = (campaignId: string, reference: string) =>
-  apiFetch<{ message: string; donationId: string; recurringGiftId: string | null }>(
+  apiFetch<{
+    message: string;
+    donationId: string;
+    recurringGiftId: string | null;
+    recurringSetupActive?: boolean;
+  }>(
     `/campaigns/${campaignId}/donations/verify`,
     {
       method: "POST",
