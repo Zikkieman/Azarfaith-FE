@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -33,9 +33,13 @@ export function GoogleSignInButton({
   onCredential,
   disabled = false,
 }: GoogleSignInButtonProps) {
-  const buttonId = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onCredentialRef = useRef(onCredential);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+
+  useEffect(() => {
+    onCredentialRef.current = onCredential;
+  }, [onCredential]);
 
   useEffect(() => {
     if (!clientId || disabled) return;
@@ -52,7 +56,7 @@ export function GoogleSignInButton({
           client_id: clientId,
           callback: ({ credential }) => {
             if (credential) {
-              onCredential(credential);
+              onCredentialRef.current(credential);
             }
           },
         });
@@ -91,7 +95,7 @@ export function GoogleSignInButton({
     document.head.appendChild(script);
 
     return () => script.removeEventListener("load", render);
-  }, [buttonId, clientId, disabled, onCredential]);
+  }, [clientId, disabled]);
 
   if (!clientId) {
     return (

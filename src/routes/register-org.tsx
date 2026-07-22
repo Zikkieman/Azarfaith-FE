@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Baby, Check, Church, Globe, GraduationCap, ImagePlus, Loader2, Users } from "lucide-react";
+import { Baby, Check, Church, FileText, Globe, GraduationCap, ImagePlus, Link2, Loader2, Trash2, Users } from "lucide-react";
 
 import { Navbar } from "@/components/Navbar";
 import {
@@ -29,6 +29,15 @@ const orgIcons = {
   OTHER: Users,
 } as const;
 
+function isValidPublicUrl(value: string) {
+  try {
+    const parsed = new URL(value.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function RegisterOrg() {
   const isAuthed = useRequireAuth();
   const nav = useNavigate();
@@ -38,6 +47,7 @@ function RegisterOrg() {
       : undefined;
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
   const {
     data: mediaStatus,
     isLoading: mediaStatusLoading,
@@ -57,14 +67,42 @@ function RegisterOrg() {
   const [form, setForm] = useState({
     name: "",
     category: "" as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER" | "",
+    otherCategoryLabel: "",
     denomination: "",
     foundedYear: "",
     location: "",
     tagline: "",
     bio: "",
     photoUrls: [] as string[],
-    videoUrls: [] as string[],
+    externalLinks: [] as string[],
+    registrationDocumentUrls: [] as string[],
   });
+  const [externalLinkInput, setExternalLinkInput] = useState("");
+
+  const addExternalLink = () => {
+    const next = externalLinkInput.trim();
+    if (!next) {
+      return;
+    }
+    if (!isValidPublicUrl(next)) {
+      toast.error("Paste a valid public link starting with http:// or https://.");
+      return;
+    }
+    if (form.externalLinks.includes(next)) {
+      toast.error("That public link has already been added.");
+      return;
+    }
+    if (form.externalLinks.length >= 10) {
+      toast.error("You can add up to 10 public links.");
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      externalLinks: [...current.externalLinks, next],
+    }));
+    setExternalLinkInput("");
+  };
 
   const countWords = (value: string) =>
     value.trim().split(/\s+/).filter(Boolean).length;
@@ -74,13 +112,15 @@ function RegisterOrg() {
     setForm({
       name: draft.name,
       category: draft.category.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER",
+      otherCategoryLabel: draft.otherCategoryLabel || "",
       denomination: draft.denomination,
       foundedYear: draft.founded || "",
       location: draft.location,
       tagline: draft.tagline,
       bio: draft.bio,
       photoUrls: draft.photos,
-      videoUrls: draft.videos,
+      externalLinks: draft.links,
+      registrationDocumentUrls: draft.registrationDocuments,
     });
   }, [draft]);
 
@@ -116,12 +156,15 @@ function RegisterOrg() {
         name: form.name,
         tagline: form.tagline,
         category: form.category || "OTHER",
+        otherCategoryLabel:
+          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
         denomination: form.denomination,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
         location: form.location,
         bio: form.bio,
         photoUrls: form.photoUrls,
-        videoUrls: form.videoUrls,
+        externalLinks: form.externalLinks,
+        registrationDocumentUrls: form.registrationDocumentUrls,
       }),
     onSuccess: (organization) => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
@@ -140,12 +183,15 @@ function RegisterOrg() {
         name: form.name,
         tagline: form.tagline,
         category: form.category || undefined,
+        otherCategoryLabel:
+          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
         denomination: form.denomination,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
         location: form.location,
         bio: form.bio,
         photoUrls: form.photoUrls,
-        videoUrls: form.videoUrls,
+        externalLinks: form.externalLinks,
+        registrationDocumentUrls: form.registrationDocumentUrls,
       };
 
       return draftId
@@ -179,12 +225,15 @@ function RegisterOrg() {
         name: form.name,
         tagline: form.tagline,
         category: form.category || undefined,
+        otherCategoryLabel:
+          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
         denomination: form.denomination,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
         location: form.location,
         bio: form.bio,
         photoUrls: form.photoUrls,
-        videoUrls: form.videoUrls,
+        externalLinks: form.externalLinks,
+        registrationDocumentUrls: form.registrationDocumentUrls,
       });
 
       return submitOrganizationDraft(draftId);
@@ -202,8 +251,34 @@ function RegisterOrg() {
 
   const steps = ["Details", "Mission", "Media", "Preview"];
 
+  const uploadDocumentsMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const uploads = await Promise.all(
+        files.map((file) =>
+          uploadMedia({
+            file,
+            folder: "organization-document",
+            entityId: form.name.trim() || undefined,
+          }),
+        ),
+      );
+
+      return uploads.map((upload) => upload.url);
+    },
+    onSuccess: (urls) => {
+      setForm((current) => ({
+        ...current,
+        registrationDocumentUrls: [...current.registrationDocumentUrls, ...urls],
+      }));
+      toast.success(`${urls.length} document${urls.length > 1 ? "s" : ""} uploaded.`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const openPhotoPicker = () => {
-    if (uploadPhotosMutation.isPending) return;
+    if (uploadPhotosMutation.isPending || uploadDocumentsMutation.isPending) return;
 
     if (!mediaStatus?.enabled) {
       if (mediaStatusLoading) {
@@ -228,13 +303,45 @@ function RegisterOrg() {
     photoInputRef.current?.click();
   };
 
+  const openDocumentPicker = () => {
+    if (uploadPhotosMutation.isPending || uploadDocumentsMutation.isPending) return;
+
+    if (!mediaStatus?.enabled) {
+      if (mediaStatusLoading) {
+        toast.error("Checking media upload connection. Try again in a moment.");
+        return;
+      }
+
+      if (mediaStatusError) {
+        toast.error("Could not confirm media upload setup. Refresh and try again.");
+        return;
+      }
+
+      const missing = mediaStatus?.missing?.join(", ");
+      toast.error(
+        missing
+          ? `Media upload is not configured yet: ${missing}`
+          : "Media upload is not configured yet.",
+      );
+      return;
+    }
+
+    documentInputRef.current?.click();
+  };
+
   const validate = () => {
     const nextErrors: Record<string, string> = {};
     if (step === 0) {
       if (!form.name.trim()) nextErrors.name = "Organisation name is required";
       if (form.name.trim().length > 120) nextErrors.name = "Organisation name cannot exceed 120 characters";
       if (!form.category) nextErrors.category = "Select a category";
+      if (form.category === "OTHER" && form.otherCategoryLabel.trim().length < 2) {
+        nextErrors.otherCategoryLabel = "Specify the ministry type";
+      }
       if (!form.denomination.trim()) nextErrors.denomination = "Denomination or tradition is required";
+      if (form.foundedYear && !/^\d{4}$/.test(form.foundedYear)) {
+        nextErrors.foundedYear = "Enter a valid 4-digit year";
+      }
       if (!form.location.trim()) nextErrors.location = "Location is required";
     }
     if (step === 1) {
@@ -244,6 +351,10 @@ function RegisterOrg() {
     }
     if (step === 2) {
       if (form.photoUrls.length < 3) nextErrors.photoUrls = "Upload at least 3 organization photos";
+      if (form.registrationDocumentUrls.length < 1) {
+        nextErrors.registrationDocumentUrls =
+          "Upload a CAC registration document or recommendation letter";
+      }
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -318,6 +429,22 @@ function RegisterOrg() {
               </div>
               {errors.category && <p className="mt-1 text-xs text-destructive">{errors.category}</p>}
             </div>
+            {form.category === "OTHER" && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Specify ministry type</label>
+                <input
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="e.g. Prayer ministry, campus fellowship, outreach hub"
+                  value={form.otherCategoryLabel}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, otherCategoryLabel: event.target.value }))
+                  }
+                />
+                {errors.otherCategoryLabel && (
+                  <p className="mt-1 text-xs text-destructive">{errors.otherCategoryLabel}</p>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Denomination / tradition</label>
@@ -326,7 +453,20 @@ function RegisterOrg() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Year founded</label>
-                <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.foundedYear} onChange={(event) => setForm((current) => ({ ...current, foundedYear: event.target.value }))} />
+                <input
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  value={form.foundedYear}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      foundedYear: event.target.value.replace(/\D/g, "").slice(0, 4),
+                    }))
+                  }
+                />
+                {errors.foundedYear && <p className="mt-1 text-xs text-destructive">{errors.foundedYear}</p>}
               </div>
             </div>
             <div>
@@ -365,8 +505,8 @@ function RegisterOrg() {
         {step === 2 && (
           <div className="space-y-5">
             <div>
-              <h1 className="font-display text-2xl">Add photos &amp; videos</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Show donors the work. This is the most convincing thing you can do.</p>
+              <h1 className="font-display text-2xl">Add photos, links &amp; proof</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Show donors the work, share relevant public links, and upload registration evidence for admin review.</p>
             </div>
             <input
               ref={photoInputRef}
@@ -378,6 +518,20 @@ function RegisterOrg() {
                 const files = Array.from(event.target.files ?? []);
                 if (files.length > 0) {
                   uploadPhotosMutation.mutate(files);
+                }
+                event.target.value = "";
+              }}
+            />
+            <input
+              ref={documentInputRef}
+              type="file"
+              accept="image/*,.pdf,application/pdf"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) {
+                  uploadDocumentsMutation.mutate(files);
                 }
                 event.target.value = "";
               }}
@@ -405,7 +559,54 @@ function RegisterOrg() {
               </button>
               {errors.photoUrls && <p className="mt-3 text-xs text-destructive">{errors.photoUrls}</p>}
             </div>
-            {(form.videoUrls.length > 0 || form.photoUrls.length > 0) && (
+            <div className="rounded-2xl border border-border p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Registration evidence</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Upload a CAC registration document or a recommendation letter from a recognized parent ministry.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openDocumentPicker}
+                  disabled={uploadDocumentsMutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {uploadDocumentsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  {uploadDocumentsMutation.isPending ? "Uploading..." : "Add document"}
+                </button>
+              </div>
+              {errors.registrationDocumentUrls && (
+                <p className="mt-3 text-xs text-destructive">{errors.registrationDocumentUrls}</p>
+              )}
+              {form.registrationDocumentUrls.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {form.registrationDocumentUrls.map((url) => (
+                    <div key={url} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs">
+                      <a href={url} target="_blank" rel="noreferrer" className="truncate text-amber-700 hover:underline">
+                        {url}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((current) => ({
+                            ...current,
+                            registrationDocumentUrls: current.registrationDocumentUrls.filter((item) => item !== url),
+                          }))
+                        }
+                        className="text-muted-foreground transition hover:text-foreground"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-xs text-muted-foreground">No registration or recommendation documents uploaded yet.</p>
+              )}
+            </div>
+            {(form.externalLinks.length > 0 || form.photoUrls.length > 0) && (
               <div className="space-y-3">
                 {form.photoUrls.length > 0 && (
                   <div>
@@ -417,25 +618,59 @@ function RegisterOrg() {
                     </div>
                   </div>
                 )}
-                {form.videoUrls.length > 0 && (
+                {form.externalLinks.length > 0 && (
                   <div className="space-y-1">
-                    {form.videoUrls.map((url) => <div key={url} className="truncate rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">{url}</div>)}
+                    {form.externalLinks.map((url) => <div key={url} className="truncate rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">{url}</div>)}
                   </div>
                 )}
               </div>
             )}
             <div>
-              <label className="mb-1.5 block text-sm font-medium">YouTube or Vimeo links</label>
-              <input
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                placeholder="https://youtube.com/watch?v=..."
-                onBlur={(event) => {
-                  if (event.target.value.trim()) {
-                    setForm((current) => ({ ...current, videoUrls: [...current.videoUrls, event.target.value.trim()] }));
-                    event.target.value = "";
-                  }
-                }}
-              />
+              <label className="mb-1.5 block text-sm font-medium">Relevant public links</label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="https://your-website-or-social-link"
+                  value={externalLinkInput}
+                  onChange={(event) => setExternalLinkInput(event.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={addExternalLink}
+                  className="rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
+                >
+                  Add link
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Add one real public URL at a time, then use Add link for another one or remove any you no longer want.
+              </p>
+              {form.externalLinks.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {form.externalLinks.map((url, index) => (
+                    <div
+                      key={url}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs"
+                    >
+                      <span className="truncate text-muted-foreground">
+                        Link {index + 1}: {url}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((current) => ({
+                            ...current,
+                            externalLinks: current.externalLinks.filter((item) => item !== url),
+                          }))
+                        }
+                        className="text-amber-700 transition hover:text-amber-800"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -449,7 +684,11 @@ function RegisterOrg() {
             <div className="space-y-3 rounded-2xl border border-border bg-card p-5 text-sm">
               <div className="flex items-center justify-between">
                 <span className="font-display text-xl">{form.name}</span>
-                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">{form.category || "other"}</span>
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
+                  {form.category === "OTHER"
+                    ? form.otherCategoryLabel || "other"
+                    : form.category || "other"}
+                </span>
               </div>
               <p className="italic text-muted-foreground">{form.tagline}</p>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -460,6 +699,22 @@ function RegisterOrg() {
               </div>
               <p className="leading-relaxed">{form.bio}</p>
               {form.photoUrls[0] && <img src={form.photoUrls[0]} alt="" className="h-52 w-full rounded-2xl object-cover" />}
+              {form.externalLinks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Public links</p>
+                  <div className="flex flex-wrap gap-2">
+                    {form.externalLinks.map((url) => (
+                      <span key={url} className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                        <Link2 className="h-3 w-3" />
+                        {url}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {form.registrationDocumentUrls.length} verification document{form.registrationDocumentUrls.length === 1 ? "" : "s"} attached for admin review.
+              </p>
             </div>
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Once submitted, your organization page will show a <strong>pending review</strong> label until the AzarFaith team verifies it.
@@ -480,7 +735,8 @@ function RegisterOrg() {
                 saveDraftMutation.isPending ||
                 submitDraftMutation.isPending ||
                 createOrgMutation.isPending ||
-                uploadPhotosMutation.isPending
+                uploadPhotosMutation.isPending ||
+                uploadDocumentsMutation.isPending
               }
               className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
             >
@@ -503,7 +759,8 @@ function RegisterOrg() {
                 disabled={
                   createOrgMutation.isPending ||
                   submitDraftMutation.isPending ||
-                  uploadPhotosMutation.isPending
+                  uploadPhotosMutation.isPending ||
+                  uploadDocumentsMutation.isPending
                 }
                 className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
               >

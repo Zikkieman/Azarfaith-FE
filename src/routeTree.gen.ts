@@ -28,9 +28,11 @@ import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminProfileRouteImport } from './routes/admin/profile'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
+import { Route as OrgRouteImport } from './routes/org.'
 import { Route as ManageOrgIdRouteImport } from './routes/manage.org.$id'
 import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
 import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
@@ -131,6 +133,11 @@ const AdminProfileRoute = AdminProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOrgsRoute = AdminOrgsRouteImport.update({
   id: '/orgs',
   path: '/orgs',
@@ -145,6 +152,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
   getParentRoute: () => AdminRoute,
+} as any)
+const OrgRoute = OrgRouteImport.update({
+  id: '/org/',
+  path: '/org/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ManageOrgIdRoute = ManageOrgIdRouteImport.update({
   id: '/org/$id',
@@ -180,9 +192,11 @@ export interface FileRoutesByFullPath {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/org/': typeof OrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -207,9 +221,11 @@ export interface FileRoutesByTo {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/org': typeof OrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -236,9 +252,11 @@ export interface FileRoutesById {
   '/register-org': typeof RegisterOrgRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/org/': typeof OrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/login': typeof AdminLoginRoute
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/profile': typeof AdminProfileRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -266,9 +284,11 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/org/'
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/payouts'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
@@ -293,9 +313,11 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/org'
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/payouts'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
@@ -321,9 +343,11 @@ export interface FileRouteTypes {
     | '/register-org'
     | '/reset-password'
     | '/signup'
+    | '/org/'
     | '/admin/campaigns'
     | '/admin/login'
     | '/admin/orgs'
+    | '/admin/payouts'
     | '/admin/profile'
     | '/admin/settings'
     | '/admin/users'
@@ -350,6 +374,7 @@ export interface RootRouteChildren {
   RegisterOrgRoute: typeof RegisterOrgRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  OrgRoute: typeof OrgRoute
   CampaignIdRoute: typeof CampaignIdRoute
   DonateIdRoute: typeof DonateIdRoute
   OrgIdRoute: typeof OrgIdRoute
@@ -490,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProfileRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/orgs': {
       id: '/admin/orgs'
       path: '/orgs'
@@ -510,6 +542,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/campaigns'
       preLoaderRoute: typeof AdminCampaignsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/org/': {
+      id: '/org/'
+      path: '/org'
+      fullPath: '/org/'
+      preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/manage/org/$id': {
       id: '/manage/org/$id'
@@ -582,6 +621,7 @@ interface AdminRouteChildren {
   AdminCampaignsRoute: typeof AdminCampaignsRouteWithChildren
   AdminLoginRoute: typeof AdminLoginRoute
   AdminOrgsRoute: typeof AdminOrgsRouteWithChildren
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminProfileRoute: typeof AdminProfileRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
@@ -592,6 +632,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminCampaignsRoute: AdminCampaignsRouteWithChildren,
   AdminLoginRoute: AdminLoginRoute,
   AdminOrgsRoute: AdminOrgsRouteWithChildren,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   AdminProfileRoute: AdminProfileRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,
@@ -624,6 +665,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterOrgRoute: RegisterOrgRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  OrgRoute: OrgRoute,
   CampaignIdRoute: CampaignIdRoute,
   DonateIdRoute: DonateIdRoute,
   OrgIdRoute: OrgIdRoute,

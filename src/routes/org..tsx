@@ -21,7 +21,7 @@ import {
 } from "@/features/catalog/api";
 import { formatMoney, orgCategoryOptions } from "@/lib/catalog";
 
-export const Route = createFileRoute("/org/$id")({
+export const Route = createFileRoute("/org/")({
   component: OrgProfile,
 });
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Building2, FileClock, FolderKanban } from "lucide-react";
 
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/manage")({
 
 function ManageWorkspace() {
   const isAuthed = useRequireAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", "manage"],
     queryFn: getProfile,
@@ -56,6 +57,10 @@ function ManageWorkspace() {
         <Footer />
       </div>
     );
+  }
+
+  if (pathname !== "/manage") {
+    return <Outlet />;
   }
 
   return (
@@ -172,7 +177,7 @@ function ManageWorkspace() {
                 profile.ownedOrganizations.map((organization) => (
                   <Link
                     key={organization.id}
-                    to="/org/$id"
+                    to="/manage/org/$id"
                     params={{ id: organization.id }}
                     className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
                   >
