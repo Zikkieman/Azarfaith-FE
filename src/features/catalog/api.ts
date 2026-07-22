@@ -1,5 +1,7 @@
 import { adminApiFetch, apiFetch } from "@/lib/api";
 import type {
+  AdminPayoutHistoryItem,
+  AdminPayoutItem,
   CampaignDraftSummary,
   OrganizationDashboard,
   OrganizationDraftSummary,
@@ -8,6 +10,10 @@ import type {
   DonationHistoryItem,
   NotificationPreferences,
   Org,
+  PayoutAccount,
+  PayoutBank,
+  PayoutSummary,
+  PayoutTransfer,
   Profile,
   RecurringDonation,
   SavedPaymentMethod,
@@ -20,12 +26,14 @@ export type CreateOrganizationPayload = {
   name: string;
   tagline: string;
   category: "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER";
+  otherCategoryLabel?: string;
   denomination: string;
   foundedYear?: number;
   location: string;
   bio: string;
   photoUrls?: string[];
-  videoUrls?: string[];
+  externalLinks?: string[];
+  registrationDocumentUrls?: string[];
 };
 
 export type CreateCampaignPayload = {
@@ -67,7 +75,12 @@ export type CreateDonationPayload = {
 
 export type UploadMediaPayload = {
   file: File;
-  folder: "user-avatar" | "organization-photo" | "campaign-cover" | "campaign-gallery";
+  folder:
+    | "user-avatar"
+    | "organization-photo"
+    | "organization-document"
+    | "campaign-cover"
+    | "campaign-gallery";
   entityId?: string;
 };
 
@@ -75,6 +88,16 @@ export type UpdateProfilePayload = {
   fullName?: string;
   phone?: string;
   avatarUrl?: string;
+};
+
+export type ResolvePayoutAccountPayload = {
+  bankCode: string;
+  accountNumber: string;
+};
+
+export type UpsertPayoutAccountPayload = ResolvePayoutAccountPayload & {
+  accountHolderName: string;
+  accountName?: string;
 };
 
 export type SaveOrganizationDraftPayload = Partial<CreateOrganizationPayload>;
@@ -124,6 +147,7 @@ export type AdminOrganization = {
   name: string;
   tagline: string;
   category: "church" | "mission" | "orphanage" | "school" | "other";
+  otherCategoryLabel?: string;
   verificationStatus: "verified" | "pending" | "unverified";
   owner: { id: string; fullName: string; email: string; phone: string };
   location: string;
@@ -131,7 +155,8 @@ export type AdminOrganization = {
   founded: string;
   bio: string;
   photos: string[];
-  videos: string[];
+  links: string[];
+  registrationDocuments: string[];
   campaignIds: string[];
   totalReceived: number;
   supporters: number;
@@ -222,6 +247,11 @@ export type AdminPlatformSettings = {
   smsNotifications: boolean;
   adminNotificationEmail: string;
   updatedAt: string;
+};
+
+export type AdminPayoutsResponse = {
+  items: AdminPayoutItem[];
+  history: AdminPayoutHistoryItem[];
 };
 
 const toQuery = (params: Record<string, string | undefined>) => {
@@ -404,6 +434,33 @@ export const updateProfile = (payload: UpdateProfilePayload) =>
     body: JSON.stringify(payload),
   });
 
+export const getPayoutBanks = () => apiFetch<PayoutBank[]>("/me/payout-banks");
+
+export const resolvePayoutAccount = (payload: ResolvePayoutAccountPayload) =>
+  apiFetch<{
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+  }>("/me/payout-account/resolve", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const getPersonalPayoutAccount = () =>
+  apiFetch<PayoutAccount | null>("/me/payout-account");
+
+export const upsertPersonalPayoutAccount = (payload: UpsertPayoutAccountPayload) =>
+  apiFetch<PayoutAccount>("/me/payout-account", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const getPersonalPayoutSummary = () =>
+  apiFetch<PayoutSummary>("/me/payout-summary");
+
+export const getPersonalPayoutTransfers = () =>
+  apiFetch<PayoutTransfer[]>("/me/payout-transfers");
+
 export const getRecurringGifts = () => apiFetch<RecurringDonation[]>("/me/recurring-gifts");
 
 export const getDonationHistory = () => apiFetch<DonationHistoryItem[]>("/me/donations");
@@ -479,6 +536,21 @@ export const getCloudinaryStatus = () =>
   apiFetch<{ provider: string; enabled: boolean; missing: string[] }>(
     "/media/cloudinary/status",
   );
+
+export const getOrganizationPayoutAccount = (id: string) =>
+  apiFetch<PayoutAccount | null>(`/organizations/${id}/payout-account`);
+
+export const getOrganizationPayoutSummary = (id: string) =>
+  apiFetch<PayoutSummary>(`/organizations/${id}/payout-summary`);
+
+export const upsertOrganizationPayoutAccount = (
+  id: string,
+  payload: UpsertPayoutAccountPayload,
+) =>
+  apiFetch<PayoutAccount>(`/organizations/${id}/payout-account`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 
 export const getAdminDashboard = () =>
   adminApiFetch<AdminDashboard>("/admin/review/dashboard");
@@ -568,6 +640,26 @@ export const updateAdminPlatformSettings = (
   payload: Partial<Omit<AdminPlatformSettings, "id" | "updatedAt">>,
 ) =>
   adminApiFetch<AdminPlatformSettings>("/admin/review/settings", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const getAdminPayouts = () =>
+  adminApiFetch<AdminPayoutsResponse>("/admin/review/payouts");
+
+export const releaseAdminPayout = (payload: {
+  ownerType: "USER" | "ORGANIZATION";
+  ownerId: string;
+  amount?: number;
+  reason?: string;
+}) =>
+  adminApiFetch<PayoutTransfer>("/admin/review/payouts/release", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const finalizeAdminPayout = (id: string, payload: { otp: string }) =>
+  adminApiFetch<PayoutTransfer>(`/admin/review/payouts/${id}/finalize`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

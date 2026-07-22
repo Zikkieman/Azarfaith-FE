@@ -6,6 +6,9 @@ export type OrgCategory = "church" | "mission" | "orphanage" | "school" | "other
 export type CampaignFrequency = "weekly" | "monthly" | "quarterly";
 export type RecurringGiftMode = "auto" | "pledge";
 export type RecurringGiftStatus = "on_track" | "paused" | "missed" | "completed" | "cancelled";
+export type PayoutOwnerType = "user" | "organization";
+export type PayoutAccountStatus = "pending" | "verified" | "inactive";
+export type PayoutTransferStatus = "otp" | "pending" | "success" | "failed" | "reversed";
 
 export type Update = { id: string; date: string; title: string; body: string };
 export type Comment = { id: string; author: string; avatar: string; date: string; body: string };
@@ -17,12 +20,14 @@ export type Org = {
   name: string;
   tagline: string;
   category: OrgCategory;
+  otherCategoryLabel?: string;
   location: string;
   denomination: string;
   founded: string;
   bio: string;
   photos: string[];
-  videos: string[];
+  links: string[];
+  registrationDocuments: string[];
   isDraft: boolean;
   submittedAt?: string | null;
   draftSavedAt?: string | null;
@@ -34,6 +39,73 @@ export type Org = {
   totalReceived: number;
   supporters: number;
   campaignCount: number;
+};
+
+export type PayoutBank = {
+  name: string;
+  code: string;
+};
+
+export type PayoutAccount = {
+  id: string;
+  ownerType: PayoutOwnerType;
+  accountHolderName: string;
+  bankCode: string;
+  bankName: string;
+  accountNumberMasked: string;
+  accountName: string;
+  recipientCode: string;
+  currency: string;
+  status: PayoutAccountStatus;
+  active: boolean;
+  lastResolvedAt?: string | null;
+  lastVerifiedAt?: string | null;
+  updatedAt: string;
+};
+
+export type PayoutTransfer = {
+  id: string;
+  ownerType: PayoutOwnerType;
+  amount: number;
+  currency: string;
+  status: PayoutTransferStatus;
+  reason?: string | null;
+  reference: string;
+  transferCode?: string | null;
+  failureMessage?: string | null;
+  releasedAt: string;
+  updatedAt: string;
+};
+
+export type PayoutSummary = {
+  ownerType: PayoutOwnerType;
+  ownerId?: string;
+  ownerName?: string;
+  payoutAccount: PayoutAccount | null;
+  campaignCount: number;
+  totalCollected: number;
+  totalReleased: number;
+  availableBalance: number;
+  lastPayoutAt?: string | null;
+  recentTransfers: PayoutTransfer[];
+};
+
+export type AdminPayoutItem = {
+  ownerType: PayoutOwnerType;
+  ownerId: string;
+  ownerName: string;
+  verificationStatus: string;
+  payoutAccount: PayoutAccount | null;
+  campaignCount: number;
+  totalCollected: number;
+  totalReleased: number;
+  availableBalance: number;
+  lastPayoutAt?: string | null;
+};
+
+export type AdminPayoutHistoryItem = PayoutTransfer & {
+  ownerName: string;
+  releasedByEmail: string;
 };
 
 export type OrganizationDraftSummary = {

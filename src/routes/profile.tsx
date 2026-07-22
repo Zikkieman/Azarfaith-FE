@@ -8,11 +8,16 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { PageSpinner } from "@/components/PageSpinner";
 import {
+  getPayoutBanks,
+  getPersonalPayoutAccount,
+  getPersonalPayoutSummary,
   getCloudinaryStatus,
   getNotificationPreferences,
   getProfile,
+  resolvePayoutAccount,
   updateNotificationPreferences,
   updateProfile,
+  upsertPersonalPayoutAccount,
   uploadMedia,
 } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
@@ -43,10 +48,30 @@ function Profile() {
     queryFn: getNotificationPreferences,
     enabled: isAuthed,
   });
+  const { data: payoutBanks } = useQuery({
+    queryKey: ["payout-banks"],
+    queryFn: getPayoutBanks,
+    enabled: isAuthed,
+  });
+  const { data: payoutAccount } = useQuery({
+    queryKey: ["payout-account", "personal"],
+    queryFn: getPersonalPayoutAccount,
+    enabled: isAuthed,
+  });
+  const { data: payoutSummary } = useQuery({
+    queryKey: ["payout-summary", "personal"],
+    queryFn: getPersonalPayoutSummary,
+    enabled: isAuthed,
+  });
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [payoutBankCode, setPayoutBankCode] = useState("");
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
+  const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
+  const [resolvedAccountName, setResolvedAccountName] = useState("");
+  const [resolveError, setResolveError] = useState("");
 
   useEffect(() => {
     if (!profile) return;
@@ -54,6 +79,26 @@ function Profile() {
     setPhone(profile.phone ?? "");
     setAvatarUrl(profile.avatarUrl ?? "");
   }, [profile]);
+
+  useEffect(() => {
+    if (!payoutAccount) return;
+    setPayoutBankCode(payoutAccount.bankCode);
+    setPayoutAccountHolderName(payoutAccount.accountHolderName);
+    setResolvedAccountName(payoutAccount.accountName);
+  }, [payoutAccount]);
+
+  useEffect(() => {
+    if (!payoutBankCode || payoutAccountNumber.length !== 10) {
+      setResolveError("");
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      resolvePayoutMutation.mutate();
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [payoutBankCode, payoutAccountNumber]);
 
   const uploadAvatarMutation = useMutation({
     mutationFn: async (file: File) =>
@@ -100,11 +145,52 @@ function Profile() {
     },
   });
 
+  const resolvePayoutMutation = useMutation({
+    mutationFn: () =>
+      resolvePayoutAccount({
+        bankCode: payoutBankCode,
+        accountNumber: payoutAccountNumber,
+      }),
+    onSuccess: (response) => {
+      setResolvedAccountName(response.accountName);
+      setResolveError("");
+    },
+    onError: (error: Error) => {
+      setResolveError(
+        error.message ||
+          "Paystack could not confirm this account right now. You can still save it manually as pending.",
+      );
+    },
+  });
+
+  const savePayoutMutation = useMutation({
+    mutationFn: () =>
+      upsertPersonalPayoutAccount({
+        accountHolderName: payoutAccountHolderName.trim(),
+        bankCode: payoutBankCode,
+        accountNumber: payoutAccountNumber,
+        accountName: resolvedAccountName.trim() || payoutAccountHolderName.trim(),
+      }),
+    onSuccess: (response) => {
+      setResolvedAccountName(response.accountName);
+      queryClient.invalidateQueries({ queryKey: ["payout-account", "personal"] });
+      queryClient.invalidateQueries({ queryKey: ["payout-summary", "personal"] });
+      toast.success(
+        response.status === "verified"
+          ? "Personal payout account saved and verified."
+          : "Payout account saved. It is pending verification before payouts can be released.",
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   if (!isAuthed) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-2xl px-5 py-12 md:px-8">
+        <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
           <PageSpinner label="Redirecting to login..." />
         </main>
         <Footer />
@@ -116,7 +202,7 @@ function Profile() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-2xl px-5 py-12 text-muted-foreground md:px-8">
+        <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 text-muted-foreground md:px-8">
           {isLoading ? <PageSpinner label="Loading profile..." /> : "Log in to view your profile."}
         </main>
         <Footer />
@@ -141,7 +227,7 @@ function Profile() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
-      <main className="mx-auto flex-1 w-full max-w-2xl px-5 py-12 md:px-8">
+      <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
         <div className="flex items-center gap-4">
           {profile.avatarUrl ? (
             <img src={profile.avatarUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
@@ -258,6 +344,164 @@ function Profile() {
           <div className="rounded-2xl border border-border bg-card p-4">
             <p className="font-display text-2xl">{profile.activeRecurringGiftCount}</p>
             <p className="mt-1 text-xs text-muted-foreground">Active recurring gifts</p>
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
+                Personal payout account
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Set the bank account AzarFaith should use when an admin releases money from your personal campaigns.
+              </p>
+            </div>
+            {payoutAccount ? (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                {payoutAccount.bankName} · {payoutAccount.accountNumberMasked}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Bank</label>
+              <select
+                value={payoutBankCode}
+                onChange={(event) => setPayoutBankCode(event.target.value)}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="">Select a bank</option>
+                {(payoutBanks ?? []).map((bank) => (
+                  <option key={bank.code} value={bank.code}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Account number</label>
+              <input
+                value={payoutAccountNumber}
+                onChange={(event) =>
+                  setPayoutAccountNumber(event.target.value.replace(/\D/g, "").slice(0, 10))
+                }
+                placeholder="10-digit account number"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Account holder name</label>
+              <input
+                value={payoutAccountHolderName}
+                onChange={(event) => setPayoutAccountHolderName(event.target.value)}
+                placeholder="Legal account holder name"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Beneficiary name</label>
+              <input
+                value={resolvedAccountName}
+                onChange={(event) => setResolvedAccountName(event.target.value)}
+                placeholder="Beneficiary account name"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                AzarFaith will try to confirm this automatically. If Paystack is unavailable, you can still save it manually and it will stay pending.
+              </p>
+            </div>
+          </div>
+
+          {resolvePayoutMutation.isPending ? (
+            <p className="mt-3 text-xs text-muted-foreground">Checking account details with Paystack...</p>
+          ) : null}
+          {resolveError ? (
+            <p className="mt-3 text-xs text-amber-700">{resolveError}</p>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (!payoutBankCode || payoutAccountNumber.length !== 10) {
+                  toast.error("Select a bank and enter a valid 10-digit account number.");
+                  return;
+                }
+                resolvePayoutMutation.mutate();
+              }}
+              disabled={resolvePayoutMutation.isPending}
+              className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
+            >
+              {resolvePayoutMutation.isPending ? "Checking..." : "Retry account check"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  !payoutBankCode ||
+                  payoutAccountNumber.length !== 10 ||
+                  !payoutAccountHolderName.trim() ||
+                  !resolvedAccountName.trim()
+                ) {
+                  toast.error("Complete the payout account form before saving.");
+                  return;
+                }
+                savePayoutMutation.mutate();
+              }}
+              disabled={savePayoutMutation.isPending}
+              className="rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+            >
+              {savePayoutMutation.isPending ? "Saving..." : "Save payout account"}
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="font-display text-2xl">
+                {formatMoney(payoutSummary?.totalCollected ?? 0)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Collected on personal campaigns</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="font-display text-2xl">
+                {formatMoney(payoutSummary?.totalReleased ?? 0)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Already released</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-background p-4">
+              <p className="font-display text-2xl">
+                {formatMoney(payoutSummary?.availableBalance ?? 0)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">Available for admin release</p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <h3 className="text-sm font-medium text-muted-foreground">Recent payout releases</h3>
+            <div className="mt-3 space-y-3">
+              {(payoutSummary?.recentTransfers ?? []).length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-border px-4 py-4 text-sm text-muted-foreground">
+                  No payout has been released to your personal account yet.
+                </p>
+              ) : (
+                payoutSummary!.recentTransfers.map((transfer) => (
+                  <div
+                    key={transfer.id}
+                    className="flex flex-col gap-2 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{formatMoney(transfer.amount)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(transfer.releasedAt).toLocaleString()} · {transfer.status.replaceAll("_", " ")}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{transfer.reference}</p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 

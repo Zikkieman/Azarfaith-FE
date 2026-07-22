@@ -8,6 +8,7 @@ import {
   Settings,
   ArrowLeft,
   Shield,
+  Wallet,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const navItems = [
   { label: "Organizations", icon: Building2, to: "/admin/orgs" as const },
   { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns" as const },
   { label: "Users", icon: Users, to: "/admin/users" as const },
+  { label: "Payouts", icon: Wallet, to: "/admin/payouts" as const },
   { label: "Settings", icon: Settings, to: "/admin/settings" as const },
 ];
 

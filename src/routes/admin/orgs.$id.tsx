@@ -3,12 +3,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  FileText,
+  Link2,
   ShieldCheck,
   ShieldAlert,
-  Clock,
   MapPin,
   Calendar,
-  Users,
   Megaphone,
 } from "lucide-react";
 import {
@@ -243,12 +243,56 @@ function AdminOrgDetail() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Megaphone className="h-4 w-4 text-gray-400" />
-                  {org.denomination}
+                  {org.category === "other" && org.otherCategoryLabel ? org.otherCategoryLabel : org.denomination}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-400" />
                   Founded {org.founded}
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h3 className="mb-4 text-sm font-semibold text-gray-900">Public Links</h3>
+              <div className="space-y-2">
+                {org.links.length > 0 ? (
+                  org.links.map((url) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm text-amber-700 transition hover:bg-gray-50"
+                    >
+                      <Link2 className="h-4 w-4" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No public links were added.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h3 className="mb-4 text-sm font-semibold text-gray-900">Registration Evidence</h3>
+              <div className="space-y-2">
+                {org.registrationDocuments.length > 0 ? (
+                  org.registrationDocuments.map((url) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm text-amber-700 transition hover:bg-gray-50"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span className="truncate">{url}</span>
+                    </a>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">No registration evidence uploaded yet.</p>
+                )}
               </div>
             </div>
 
