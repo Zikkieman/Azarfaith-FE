@@ -348,6 +348,7 @@ function RegisterOrg() {
       if (form.tagline.trim().length < 10) nextErrors.tagline = "Add a short tagline (at least 10 characters)";
       if (form.tagline.trim().length > 200) nextErrors.tagline = "Tagline cannot exceed 200 characters";
       if (countWords(form.bio) < 100) nextErrors.bio = "Tell us more about your org in at least 100 words";
+      if (countWords(form.bio) > 200) nextErrors.bio = "About your org cannot exceed 200 words";
     }
     if (step === 2) {
       if (form.photoUrls.length < 3) nextErrors.photoUrls = "Upload at least 3 organization photos";
@@ -496,7 +497,7 @@ function RegisterOrg() {
               <textarea rows={6} className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} />
               <div className="mt-1 flex items-center justify-between">
                 {errors.bio ? <p className="text-xs text-destructive">{errors.bio}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{countWords(form.bio)} words</span>
+                <span className="text-xs text-muted-foreground">{countWords(form.bio)} / 200 words</span>
               </div>
             </div>
           </div>

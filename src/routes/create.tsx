@@ -343,6 +343,8 @@ function AzarFaithCreate() {
         nextErrors.title = "Title cannot exceed 150 characters";
       if (countWords(form.story) < 100)
         nextErrors.story = "Story must be at least 100 words";
+      if (countWords(form.story) > 200)
+        nextErrors.story = "Story cannot exceed 200 words";
       if (!form.coverImageUrl) nextErrors.coverImageUrl = "Upload a cover image";
       if (form.galleryImageUrls.length < 1) {
         nextErrors.galleryImageUrls = "Add at least one gallery image";
@@ -519,9 +521,8 @@ function AzarFaithCreate() {
               />
               <div className="mt-1 flex items-center justify-between">
                 {errors.story ? <p className="text-xs text-destructive">{errors.story}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{form.story.length} chars</span>
+                <span className="text-xs text-muted-foreground">{countWords(form.story)} / 200 words</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{countWords(form.story)} words</p>
             </div>
 
             <input
