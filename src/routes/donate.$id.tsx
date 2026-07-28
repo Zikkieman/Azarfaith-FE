@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Building2, Check, ChevronLeft, CreditCard, Info, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
 import { createDonation, getCampaign, verifyDonation } from "@/features/catalog/api";
@@ -27,6 +28,7 @@ function AzarFaithDonate() {
   const { freq, reference, trxref, amount: amountPrefill, recurringGiftId } = Route.useSearch();
   const nav = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAppSelector((state) => state.auth);
   const { data: campaign, isLoading } = useQuery({
     queryKey: ["campaign", id],
     queryFn: () => getCampaign(id),
@@ -40,7 +42,8 @@ function AzarFaithDonate() {
   const [customAmount, setCustomAmount] = useState(hasPresetMatch || !prefilledAmount ? "" : formatAmountInput(String(prefilledAmount)));
   const [payMethod, setPayMethod] = useState<"CARD" | "BANK">("CARD");
   const [recurringMode, setRecurringMode] = useState<"AUTO" | "PLEDGE">("AUTO");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(user?.fullName ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
   const [anonymous, setAnonymous] = useState(false);
   const [note, setNote] = useState("");
   const [tip, setTip] = useState(0);
@@ -53,23 +56,37 @@ function AzarFaithDonate() {
   const [confirmedTotal, setConfirmedTotal] = useState<number | null>(null);
   const [verificationAttempted, setVerificationAttempted] = useState(false);
 
-  const isRecurring = Boolean(freq && freq !== "once");
+  const guestRecurringBlocked = Boolean(freq && freq !== "once" && !user);
+  const effectiveFreq = guestRecurringBlocked ? "once" : freq;
+  const isRecurring = Boolean(effectiveFreq && effectiveFreq !== "once");
   const paystackReference = reference || trxref;
   const finalAmount = customAmount ? parseAmountInput(customAmount) : amount;
   const finalTip = customTip ? parseAmountInput(customTip) : tip;
   const platformFee = Math.round(finalAmount * 0.025);
   const total = finalAmount + platformFee + finalTip;
   const steps = isRecurring ? ["Amount", "How to give", "Payment", "Review"] : ["Amount", "Payment", "Review"];
+  const paymentStep = isRecurring ? 2 : 1;
+  const reviewStep = isRecurring ? 3 : 2;
+
+  useEffect(() => {
+    if (user?.fullName && !name.trim()) {
+      setName(user.fullName);
+    }
+    if (user?.email && !email.trim()) {
+      setEmail(user.email);
+    }
+  }, [email, name, user]);
 
   const donationMutation = useMutation({
     mutationFn: () =>
       createDonation(id, {
         amount: finalAmount,
         paymentMethod: payMethod,
-        frequency: isRecurring ? (freq.toUpperCase() as "WEEKLY" | "MONTHLY" | "QUARTERLY") : undefined,
+        frequency: isRecurring ? (effectiveFreq.toUpperCase() as "WEEKLY" | "MONTHLY" | "QUARTERLY") : undefined,
         recurringMode: isRecurring ? recurringMode : undefined,
         autoChargeConsent: isRecurring && recurringMode === "AUTO" ? autoChargeConsent : undefined,
-        donorName: anonymous ? undefined : name || undefined,
+        donorName: name.trim() || user?.fullName || undefined,
+        donorEmail: email.trim() || user?.email || undefined,
         isAnonymous: anonymous,
         note: note || undefined,
         tipAmount: finalTip,
@@ -112,6 +129,11 @@ function AzarFaithDonate() {
     verifyDonationMutation.mutate(paystackReference);
   }, [paystackReference, verificationAttempted, verifyDonationMutation]);
 
+  useEffect(() => {
+    if (!guestRecurringBlocked) return;
+    toast.message("Recurring giving requires an account right now. You can still complete a one-time donation as a guest.");
+  }, [guestRecurringBlocked]);
+
   if (!isLoading && !campaign) throw notFound();
   if (!campaign) {
     return (
@@ -131,6 +153,16 @@ function AzarFaithDonate() {
       toast.error("Please confirm the automatic charge consent before continuing.");
       return;
     }
+    if (step === paymentStep) {
+      if (!name.trim()) {
+        toast.error("Enter your full name so AzarFaith can issue your receipt correctly.");
+        return;
+      }
+      if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        toast.error("Enter a valid email address for your receipt.");
+        return;
+      }
+    }
     setStep((value) => value + 1);
   };
 
@@ -146,7 +178,7 @@ function AzarFaithDonate() {
           <p className="mt-2 max-w-sm text-muted-foreground">
             {isRecurring
               ? recurringSetupActive
-                ? `Your ${frequencyLabel[freq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(confirmedAmount ?? finalAmount)} is set up.`
+                ? `Your ${frequencyLabel[effectiveFreq as keyof typeof frequencyLabel].toLowerCase()} gift of ${formatMoney(confirmedAmount ?? finalAmount)} is set up.`
                 : `Your first gift of ${formatMoney(confirmedAmount ?? finalAmount)} was received, but automatic recurring charging is not active yet.`
               : `Your gift of ${formatMoney(confirmedAmount ?? finalAmount)} has been confirmed.`}
           </p>
@@ -192,7 +224,7 @@ function AzarFaithDonate() {
           <div className="min-w-0">
             <p className="text-xs font-medium text-amber-600">{campaign.faithCategory}</p>
             <p className="line-clamp-1 text-sm font-medium">{campaign.title}</p>
-            {freq && <p className="mt-0.5 text-xs text-muted-foreground">{frequencyLabel[freq as keyof typeof frequencyLabel] ?? "One time"}</p>}
+            {effectiveFreq && <p className="mt-0.5 text-xs text-muted-foreground">{frequencyLabel[effectiveFreq as keyof typeof frequencyLabel] ?? "One time"}</p>}
           </div>
         </div>
 
@@ -211,6 +243,11 @@ function AzarFaithDonate() {
         {step === 0 && (
           <div className="space-y-5">
             <h2 className="font-display text-xl">How much?</h2>
+            {guestRecurringBlocked ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Recurring giving still requires an AzarFaith account so donors can manage it later. This shared link is continuing as a one-time gift for now.
+              </div>
+            ) : null}
             <div className="grid grid-cols-3 gap-2">
               {presets.map((preset) => (
                 <button key={preset} onClick={() => { setAmount(preset); setCustomAmount(""); }} className={`rounded-xl border py-3 text-sm font-medium transition ${amount === preset && !customAmount ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border hover:border-amber-200"}`}>
@@ -258,7 +295,7 @@ function AzarFaithDonate() {
           </div>
         )}
 
-        {step === (isRecurring ? 2 : 1) && (
+        {step === paymentStep && (
           <div className="space-y-4">
             <h2 className="font-display text-xl">Payment method</h2>
             {[
@@ -299,7 +336,24 @@ function AzarFaithDonate() {
                 <input type="checkbox" id="anon" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} className="h-4 w-4 rounded accent-amber-500" />
                 <label htmlFor="anon" className="text-sm">Give anonymously</label>
               </div>
-              {!anonymous && <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="Your name (optional)" value={name} onChange={(event) => setName(event.target.value)} />}
+              <input
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="Your full name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <input
+                type="email"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="Your email address"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              {anonymous ? (
+                <p className="text-xs text-muted-foreground">
+                  Your real name is still used for receipts and internal records, but the public donation feed will show Anonymous Donor.
+                </p>
+              ) : null}
               <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" placeholder="Leave a message (optional)" value={note} onChange={(event) => setNote(event.target.value)} />
             </div>
             <div className="rounded-2xl border border-border bg-card/60 p-4">
@@ -339,7 +393,7 @@ function AzarFaithDonate() {
           </div>
         )}
 
-        {step === (isRecurring ? 3 : 2) && (
+        {step === reviewStep && (
           <div className="space-y-4">
             <h2 className="font-display text-xl">Review</h2>
             <div className="divide-y divide-border rounded-2xl border border-border bg-card text-sm">
@@ -357,11 +411,13 @@ function AzarFaithDonate() {
             </div>
             <div className="divide-y divide-border rounded-2xl border border-border bg-card text-sm">
               <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">To</span><span className="font-medium">{campaign.title}</span></div>
-              <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">From</span><span>{anonymous ? "Anonymous" : name || "You"}</span></div>
+              <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">From</span><span>{name || user?.fullName || "You"}</span></div>
+              <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Receipt email</span><span>{email || user?.email || "-"}</span></div>
+              <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Public donor name</span><span>{anonymous ? "Anonymous Donor" : name || user?.fullName || "You"}</span></div>
               <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Payment</span><span>{payMethod === "CARD" ? "Card" : "Bank transfer"}</span></div>
               {isRecurring && (
                 <>
-                  <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Frequency</span><span>{frequencyLabel[freq as keyof typeof frequencyLabel]}</span></div>
+                  <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Frequency</span><span>{frequencyLabel[effectiveFreq as keyof typeof frequencyLabel]}</span></div>
                   <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Mode</span><span>{recurringMode === "AUTO" ? "Automatic" : "Reminder"}</span></div>
                   {recurringMode === "AUTO" ? (
                     <div className="flex items-center justify-between px-4 py-3"><span className="text-muted-foreground">Consent</span><span>{autoChargeConsent ? "Granted" : "Not granted"}</span></div>

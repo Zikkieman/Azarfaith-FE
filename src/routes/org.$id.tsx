@@ -252,6 +252,17 @@ function OrgProfile() {
 
   const ongoing = org.campaigns.filter((campaign) => campaign.mode === "ongoing");
   const oneTime = org.campaigns.filter((campaign) => campaign.mode === "one-time");
+  const donationReadyCampaigns = org.campaigns.filter(
+    (campaign) => campaign.verificationStatus === "verified" && !campaign.isDraft,
+  );
+  const primarySupportCampaign =
+    donationReadyCampaigns.find((campaign) => campaign.mode === "ongoing") ??
+    donationReadyCampaigns[0];
+  const publicOrgUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/org/${org.id}` : "";
+  const whatsappShareUrl = publicOrgUrl
+    ? `https://wa.me/?text=${encodeURIComponent(`Support ${org.name} on AzarFaith: ${publicOrgUrl}`)}`
+    : "#";
   const isRejected =
     org.verificationStatus === "unverified" && org.reviewAction === "rejected";
   const canResubmitNow =
@@ -312,6 +323,25 @@ function OrgProfile() {
     }
     return true;
   };
+  const copyOrganizationLink = async () => {
+    if (!publicOrgUrl || typeof navigator === "undefined" || !navigator.clipboard) {
+      toast.error("Copy link is not available on this device.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(publicOrgUrl);
+      toast.success("Organization link copied. You can now share it with donors.");
+    } catch {
+      toast.error("Could not copy the organization link.");
+    }
+  };
+  const scrollToSupport = () => {
+    if (typeof document === "undefined") return;
+    document.getElementById("organization-campaign-support")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -351,16 +381,25 @@ function OrgProfile() {
               </div>
             </div>
             <div className="flex gap-3">
-              {ongoing[0] && (
-                <Link to="/campaign/$id" params={{ id: ongoing[0].id }} className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600">
-                  <Repeat2 className="h-4 w-4" /> Give monthly
+              {donationReadyCampaigns.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={scrollToSupport}
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                >
+                  <Heart className="h-4 w-4" /> Support this organization
+                </button>
+              ) : null}
+              {primarySupportCampaign ? (
+                <Link
+                  to="/donate/$id"
+                  params={{ id: primarySupportCampaign.id }}
+                  search={{ freq: primarySupportCampaign.mode === "ongoing" ? "monthly" : "once" }}
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
+                >
+                  Donate now
                 </Link>
-              )}
-              {oneTime[0] && (
-                <Link to="/campaign/$id" params={{ id: oneTime[0].id }} className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted">
-                  Give once
-                </Link>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -376,6 +415,24 @@ function OrgProfile() {
                 <div className="mt-0.5 text-xs text-muted-foreground">{item.label}</div>
               </div>
             ))}
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={copyOrganizationLink}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+            >
+              <Link2 className="h-4 w-4" />
+              Copy organization link
+            </button>
+            <a
+              href={whatsappShareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+            >
+              Share via WhatsApp
+            </a>
           </div>
         </div>
       </div>
@@ -841,6 +898,37 @@ function OrgProfile() {
             </div>
           </section>
         )}
+
+        {donationReadyCampaigns.length > 0 ? (
+          <section
+            id="organization-campaign-support"
+            className="rounded-3xl border border-border bg-card p-6"
+          >
+            <h2 className="font-display text-xl">Ways to support this organization</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Shared organization links bring donors here first. They can then choose an approved campaign and donate without creating an account.
+            </p>
+            {primarySupportCampaign ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  to="/donate/$id"
+                  params={{ id: primarySupportCampaign.id }}
+                  search={{ freq: primarySupportCampaign.mode === "ongoing" ? "monthly" : "once" }}
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                >
+                  Donate to featured campaign
+                </Link>
+                <button
+                  type="button"
+                  onClick={scrollToSupport}
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
+                >
+                  Browse support options below
+                </button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {ongoing.length > 0 && (
           <section>

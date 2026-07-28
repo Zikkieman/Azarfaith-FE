@@ -7,6 +7,7 @@ import {
   ChevronUp,
   Flame,
   ImagePlus,
+  Link2,
   Loader2,
   MapPin,
   MessageSquare,
@@ -220,6 +221,13 @@ function CampaignRoute() {
   const visibleUpdates = showAllUpdates ? campaign.updates : campaign.updates.slice(0, 1);
   const donateFreq = selectedFreq ?? (isOngoing ? "monthly" : "once");
   const isOwner = viewer?.id === campaign.ownerId;
+  const publicCampaignUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/campaign/${campaign.id}`
+      : "";
+  const whatsappShareUrl = publicCampaignUrl
+    ? `https://wa.me/?text=${encodeURIComponent(`Support ${campaign.title} on AzarFaith: ${publicCampaignUrl}`)}`
+    : "#";
   const canResubmit =
     isOwner &&
     (campaign.isDraft ||
@@ -237,6 +245,18 @@ function CampaignRoute() {
     }
     toast.error("Media upload is not configured yet.");
     return false;
+  };
+  const copyCampaignLink = async () => {
+    if (!publicCampaignUrl || typeof navigator === "undefined" || !navigator.clipboard) {
+      toast.error("Copy link is not available on this device.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(publicCampaignUrl);
+      toast.success("Campaign link copied. You can now share it with donors.");
+    } catch {
+      toast.error("Could not copy the campaign link.");
+    }
   };
 
   return (
@@ -268,6 +288,24 @@ function CampaignRoute() {
           <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <div>{campaign.raiser.name}</div>
             <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {campaign.location}</div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={copyCampaignLink}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+            >
+              <Link2 className="h-4 w-4" />
+              Copy campaign link
+            </button>
+            <a
+              href={whatsappShareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+            >
+              Share via WhatsApp
+            </a>
           </div>
           {campaign.orgId && (
             <Link to="/org/$id" params={{ id: campaign.orgId }} className="mt-3 inline-flex items-center gap-2 text-sm text-amber-600 transition hover:text-amber-700">
@@ -336,6 +374,11 @@ function CampaignRoute() {
             <div>
               <h2 className="mb-1 font-display text-lg">Support this ministry</h2>
               <p className="mb-4 text-sm text-muted-foreground">Choose how you'd like to give. You can change or cancel anytime.</p>
+              {!user ? (
+                <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Guest donors can give once without an account. Recurring support still requires sign-in so it can be managed later.
+                </div>
+              ) : null}
               <div className="mb-4 flex flex-wrap gap-2">
                 {(campaign.frequencies ?? ["monthly"]).map((freq) => (
                   <button key={freq} onClick={() => setSelectedFreq(freq)} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedFreq === freq ? "bg-amber-500 text-white" : "border border-border hover:border-amber-300"}`}>

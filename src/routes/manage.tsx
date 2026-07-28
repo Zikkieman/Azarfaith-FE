@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Building2, FileClock, FolderKanban } from "lucide-react";
+import { ArrowRight, Building2, FileClock, FolderKanban, Link2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -62,6 +63,26 @@ function ManageWorkspace() {
   if (pathname !== "/manage") {
     return <Outlet />;
   }
+
+  const copyPublicLink = async (path: string, label: string) => {
+    if (typeof window === "undefined" || !navigator.clipboard) {
+      toast.error("Copy link is not available on this device.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      toast.success(`${label} link copied.`);
+    } catch {
+      toast.error(`Could not copy the ${label.toLowerCase()} link.`);
+    }
+  };
+
+  const publicUrl = (path: string) =>
+    typeof window === "undefined" ? path : `${window.location.origin}${path}`;
+
+  const whatsappShareUrl = (label: string, path: string) =>
+    `https://wa.me/?text=${encodeURIComponent(`Support this ${label.toLowerCase()} on AzarFaith: ${publicUrl(path)}`)}`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -175,22 +196,52 @@ function ManageWorkspace() {
                 </div>
               ) : (
                 profile.ownedOrganizations.map((organization) => (
-                  <Link
+                  <div
                     key={organization.id}
-                    to="/manage/org/$id"
-                    params={{ id: organization.id }}
-                    className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
+                    className="rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{organization.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {organization.verificationStatus.replaceAll("_", " ")}
-                      </p>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-6">{organization.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {organization.verificationStatus.replaceAll("_", " ")}
+                        </p>
+                      </div>
+                      <Link
+                        to="/manage/org/$id"
+                        params={{ id: organization.id }}
+                        className="inline-flex shrink-0 items-center gap-1 self-start text-xs font-medium text-amber-700"
+                      >
+                        Open <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
-                      Open <ArrowRight className="h-3.5 w-3.5" />
-                    </span>
-                  </Link>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyPublicLink(`/org/${organization.id}`, "Organization")}
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Copy link
+                      </button>
+                      <a
+                        href={whatsappShareUrl("Organization", `/org/${organization.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        WhatsApp
+                      </a>
+                      <a
+                        href={publicUrl(`/org/${organization.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        Preview
+                      </a>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -210,22 +261,52 @@ function ManageWorkspace() {
                 </div>
               ) : (
                 profile.ownedCampaigns.map((campaign) => (
-                  <Link
+                  <div
                     key={campaign.id}
-                    to="/campaign/$id"
-                    params={{ id: campaign.id }}
-                    className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
+                    className="rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{campaign.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {campaign.verificationStatus.replaceAll("_", " ")}
-                      </p>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-6">{campaign.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {campaign.verificationStatus.replaceAll("_", " ")}
+                        </p>
+                      </div>
+                      <Link
+                        to="/campaign/$id"
+                        params={{ id: campaign.id }}
+                        className="inline-flex shrink-0 items-center gap-1 self-start text-xs font-medium text-amber-700"
+                      >
+                        Open <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
-                      Open <ArrowRight className="h-3.5 w-3.5" />
-                    </span>
-                  </Link>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyPublicLink(`/campaign/${campaign.id}`, "Campaign")}
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Copy link
+                      </button>
+                      <a
+                        href={whatsappShareUrl("Campaign", `/campaign/${campaign.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        WhatsApp
+                      </a>
+                      <a
+                        href={publicUrl(`/campaign/${campaign.id}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
+                      >
+                        Preview
+                      </a>
+                    </div>
+                  </div>
                 ))
               )}
             </div>

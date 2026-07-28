@@ -67,6 +67,7 @@ export type CreateDonationPayload = {
   recurringMode?: "AUTO" | "PLEDGE";
   autoChargeConsent?: boolean;
   donorName?: string;
+  donorEmail?: string;
   isAnonymous?: boolean;
   note?: string;
   tipAmount?: number;
