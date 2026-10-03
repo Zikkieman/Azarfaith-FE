@@ -157,6 +157,11 @@ function AzarFaithCreate() {
       </aside>
 
       <div className="flex flex-1 flex-col">
+        <div className="px-6 pt-6 lg:hidden">
+          <Link to="/">
+            <AuthLogo />
+          </Link>
+        </div>
         <div className="flex items-center justify-between px-6 py-4 md:px-12">
           {step > 0 ? (
             <button

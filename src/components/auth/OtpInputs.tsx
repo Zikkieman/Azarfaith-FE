@@ -29,7 +29,7 @@ export function OtpInputs({
               document.getElementById(`otp-${i - 1}`)?.focus();
             }
           }}
-          className="font-display h-full flex-1 rounded-[8px] border border-[#d0d5dd] text-center text-2xl shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+          className="font-display h-full w-0 min-w-0 flex-1 rounded-[8px] border border-[#d0d5dd] text-center text-2xl shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
         />
       ))}
     </div>
