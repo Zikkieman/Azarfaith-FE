@@ -1,57 +1,33 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
+import { AuthLogo } from "@/components/auth/AuthLogo";
+import { AuthField } from "@/components/auth/AuthField";
 import { useApp } from "@/lib/store";
 import { categories, type Campaign } from "@/lib/mock";
 import { toast } from "sonner";
 import {
-  Target,
   Repeat2,
-  Banknote,
-  Gift,
-  Users,
-  Briefcase,
-  Siren,
   Check,
   ImagePlus,
   Flame,
+  ChevronLeft,
+  ArrowRight,
+  PartyPopper,
 } from "lucide-react";
+import modeOnetime from "@/assets/create/mode-onetime.png";
+import modeOngoing from "@/assets/create/mode-ongoing.png";
+import typeSticker from "@/assets/create/type-sticker.png";
 
 export const Route = createFileRoute("/create")({
   component: AzarFaithCreate,
 });
 
 const campaignTypes = [
-  {
-    v: "money",
-    icon: Banknote,
-    label: "Raise funds",
-    desc: "Money for a specific need or ongoing ministry",
-  },
-  {
-    v: "item",
-    icon: Gift,
-    label: "Request items",
-    desc: "Beds, bibles, equipment, school materials…",
-  },
-  {
-    v: "volunteer",
-    icon: Users,
-    label: "Find volunteers",
-    desc: "Hands to help, teachers, builders, drivers…",
-  },
-  {
-    v: "professional",
-    icon: Briefcase,
-    label: "Professional help",
-    desc: "Lawyers, accountants, engineers, doctors…",
-  },
-  {
-    v: "emergency",
-    icon: Siren,
-    label: "Emergency",
-    desc: "Urgent crisis needing immediate response",
-  },
+  { v: "money", label: "Raise Funds" },
+  { v: "item", label: "Request Items" },
+  { v: "volunteer", label: "Find Volunteers" },
+  { v: "professional", label: "Professional Help" },
+  { v: "emergency", label: "Emergency" },
 ] as const;
 
 const urgencyOptions = [
@@ -73,11 +49,21 @@ function AzarFaithCreate() {
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [publishing, setPublishing] = useState(false);
+  const [done, setDone] = useState<Campaign | null>(null);
 
   const isOngoing = draft.mode === "ongoing";
   const stepLabels = isOngoing
-    ? ["Mode", "Type", "Story", "Details", "Support", "Preview"]
-    : ["Mode", "Type", "Story", "Details", "Preview"];
+    ? [
+        "Mode",
+        "Select Campaign Type",
+        "Enter Story",
+        "Campaign Details",
+        "Giving Frequencies",
+        "Preview and Publish",
+      ]
+    : ["Mode", "Select Campaign Type", "Enter Story", "Campaign Details", "Preview and Publish"];
+  const totalSteps = stepLabels.length;
+  const isPreview = step === totalSteps - 1;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -144,427 +130,593 @@ function AzarFaithCreate() {
         frequencies: isOngoing ? (draft.frequencies ?? ["monthly"]) : undefined,
       };
       addCampaign(campaign);
-      resetDraft();
-      toast("Campaign is live on AzarFaith");
-      nav({ to: "/campaign/$id", params: { id: campaign.id } });
+      setPublishing(false);
+      setDone(campaign);
     }, 900);
   };
 
-  const totalSteps = stepLabels.length;
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="mx-auto max-w-xl px-5 py-10">
-        {/* Steps */}
-        <div className="flex items-center gap-2 mb-8">
+    <div className="flex min-h-screen bg-white">
+      <aside className="hidden w-[310px] shrink-0 bg-black px-10 py-14 lg:block">
+        <Link to="/">
+          <AuthLogo className="flex items-center gap-[3px] [&_img:last-child]:brightness-0 [&_img:last-child]:invert" />
+        </Link>
+        <nav className="mt-14 flex flex-col gap-4">
           {stepLabels.map((label, i) => (
-            <div key={label} className="flex items-center gap-2 flex-1 last:flex-none">
-              <div
-                className={`w-7 h-7 rounded-full text-xs font-semibold grid place-items-center shrink-0 ${i < step ? "bg-amber-500 text-white" : i === step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
-              >
-                {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
-              </div>
-              <span
-                className={`text-xs hidden sm:block ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}
-              >
-                {label}
-              </span>
-              {i < totalSteps - 1 && (
-                <div className={`h-px flex-1 ${i < step ? "bg-amber-400" : "bg-border"}`} />
-              )}
+            <div
+              key={label}
+              className={`flex items-center gap-1.5 text-sm font-bold ${
+                i === step ? "text-white" : "text-white/70"
+              }`}
+            >
+              {i === step && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[#fe5102]" />}
+              {label}
             </div>
           ))}
-        </div>
+        </nav>
+      </aside>
 
-        {/* Step 0: Mode */}
-        {step === 0 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">What kind of campaign?</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Choose based on what your cause actually needs.
-              </p>
-            </div>
-            <div className="grid gap-3">
-              <button
-                type="button"
-                onClick={() => setDraft({ mode: "one-time" })}
-                className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition ${draft.mode === "one-time" ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5 ${draft.mode === "one-time" ? "bg-amber-200" : "bg-muted"}`}
-                >
-                  <Target
-                    className={`w-5 h-5 ${draft.mode === "one-time" ? "text-amber-700" : "text-muted-foreground"}`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-sm flex items-center justify-between">
-                    One-time campaign
-                    {draft.mode === "one-time" && <Check className="w-4 h-4 text-amber-600" />}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    You have a specific target and a need to close. Building a hall, buying
-                    equipment, emergency relief, items needed.
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDraft({ mode: "ongoing" })}
-                className={`flex items-start gap-4 p-5 rounded-2xl border text-left transition ${draft.mode === "ongoing" ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 mt-0.5 ${draft.mode === "ongoing" ? "bg-amber-200" : "bg-muted"}`}
-                >
-                  <Repeat2
-                    className={`w-5 h-5 ${draft.mode === "ongoing" ? "text-amber-700" : "text-muted-foreground"}`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-sm flex items-center justify-between">
-                    Ongoing support
-                    {draft.mode === "ongoing" && <Check className="w-4 h-4 text-amber-600" />}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    No specific target. Your ministry is continuous — you just need a faithful
-                    community giving weekly, monthly, or quarterly.
-                  </p>
-                </div>
-              </button>
-            </div>
-            {errors.mode && <p className="text-xs text-destructive">{errors.mode}</p>}
-          </div>
-        )}
-
-        {/* Step 1: Type */}
-        {step === 1 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">What are you asking for?</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Even ongoing ministries can request more than just money.
-              </p>
-            </div>
-            <div className="space-y-2">
-              {campaignTypes.map(({ v, icon: Icon, label, desc }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setDraft({ type: v })}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition ${draft.type === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${draft.type === v ? "bg-amber-100" : "bg-muted"}`}
-                  >
-                    <Icon
-                      className={`w-4.5 h-4.5 ${draft.type === v ? "text-amber-600" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{label}</div>
-                    <div className="text-xs text-muted-foreground">{desc}</div>
-                  </div>
-                  {draft.type === v && <Check className="w-4 h-4 text-amber-600" />}
-                </button>
-              ))}
-            </div>
-            {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
-          </div>
-        )}
-
-        {/* Step 2: Story */}
-        {step === 2 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Tell your story</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Be specific. Real details build trust.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Campaign title</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder={
-                  isOngoing
-                    ? "e.g. Support ECWA Missionaries in Borno"
-                    : "e.g. Build a church hall for ECWA Kano"
-                }
-                value={draft.title ?? ""}
-                onChange={(e) => setDraft({ title: e.target.value })}
-              />
-              {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {isOngoing ? "Describe your ministry" : "What's the need?"}
-              </label>
-              <textarea
-                rows={6}
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background resize-none"
-                placeholder={
-                  isOngoing
-                    ? "Tell donors about your ministry — who you serve, what you do, why it matters. Share real stories and impact."
-                    : "Explain the specific need. Include amounts, why they're needed, and how donations will be used."
-                }
-                value={draft.story ?? ""}
-                onChange={(e) => setDraft({ story: e.target.value })}
-              />
-              <div className="flex items-center justify-between mt-1">
-                {errors.story ? (
-                  <p className="text-xs text-destructive">{errors.story}</p>
-                ) : (
-                  <span />
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {draft.story?.length ?? 0} chars
-                </span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Cover image <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => toast("Image upload coming soon")}
-                className="w-full border-2 border-dashed border-border rounded-2xl py-8 text-center hover:border-amber-300 transition"
-              >
-                <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm font-medium">Add a cover photo</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  A real photo of your work makes a huge difference
-                </p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Details */}
-        {step === 3 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Campaign details</h1>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Faith category</label>
-              <div className="grid grid-cols-2 gap-2">
-                {categories.map(({ label, icon }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setDraft({ faithCategory: label })}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-sm transition ${draft.faithCategory === label ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border hover:border-amber-200"}`}
-                  >
-                    <span>{icon}</span> {label}
-                  </button>
-                ))}
-              </div>
-              {errors.faithCategory && (
-                <p className="text-xs text-destructive mt-1">{errors.faithCategory}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Location</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Kano, Nigeria"
-                value={draft.location ?? ""}
-                onChange={(e) => setDraft({ location: e.target.value })}
-              />
-              {errors.location && (
-                <p className="text-xs text-destructive mt-1">{errors.location}</p>
-              )}
-            </div>
-            {!isOngoing && draft.type === "money" && (
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Fundraising goal (₦)</label>
-                <input
-                  type="number"
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. 8500000"
-                  value={draft.goal ?? ""}
-                  onChange={(e) => setDraft({ goal: parseInt(e.target.value) || 0 })}
-                />
-                {errors.goal && <p className="text-xs text-destructive mt-1">{errors.goal}</p>}
-              </div>
-            )}
-            {!isOngoing && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Urgency</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {urgencyOptions.map(({ v, label, desc }) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setDraft({ urgency: v })}
-                      className={`flex flex-col p-3 rounded-xl border text-left transition ${draft.urgency === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                    >
-                      <span className="text-sm font-medium">{label}</span>
-                      <span className="text-xs text-muted-foreground mt-0.5">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Link to an org <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <select
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                value={draft.orgId ?? ""}
-                onChange={(e) => setDraft({ orgId: e.target.value || undefined })}
-              >
-                <option value="">No org — individual campaign</option>
-                {orgs.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4 (ongoing only): Support options */}
-        {step === 4 && isOngoing && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Giving frequencies</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Which frequencies do you want donors to be able to give at?
-              </p>
-            </div>
-            <div className="space-y-3">
-              {frequencyOptions.map(({ v, label }) => {
-                const selected = draft.frequencies?.includes(v) ?? false;
-                return (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => {
-                      const current = draft.frequencies ?? [];
-                      setDraft({
-                        frequencies: selected ? current.filter((f) => f !== v) : [...current, v],
-                      });
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition ${selected ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Repeat2
-                        className={`w-4 h-4 ${selected ? "text-amber-600" : "text-muted-foreground"}`}
-                      />
-                      <span className="text-sm font-medium">{label}</span>
-                    </div>
-                    {selected && <Check className="w-4 h-4 text-amber-600" />}
-                  </button>
-                );
-              })}
-            </div>
-            {errors.frequencies && <p className="text-xs text-destructive">{errors.frequencies}</p>}
-            <p className="text-xs text-muted-foreground">
-              Donors can choose their preferred frequency when they give. Selecting all three gives
-              donors maximum flexibility.
-            </p>
-          </div>
-        )}
-
-        {/* Preview step */}
-        {((isOngoing && step === 5) || (!isOngoing && step === 4)) && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Preview &amp; publish</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Your campaign goes live immediately.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="aspect-[16/9] bg-muted flex items-center justify-center">
-                {draft.cover ? (
-                  <img src={draft.cover} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <ImagePlus className="w-10 h-10 text-muted-foreground" />
-                )}
-              </div>
-              <div className="p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${isOngoing ? "bg-amber-100 text-amber-700" : "bg-muted text-foreground"}`}
-                  >
-                    {isOngoing ? "Ongoing" : "One-time"}
-                  </span>
-                  {draft.faithCategory && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground">
-                      {draft.faithCategory}
-                    </span>
-                  )}
-                </div>
-                <h2 className="font-display text-xl">{draft.title}</h2>
-                <p className="text-sm text-muted-foreground line-clamp-3">{draft.story}</p>
-                {!isOngoing && draft.goal && (
-                  <div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full w-0" />
-                    </div>
-                    <div className="mt-1.5 text-sm">
-                      Goal: <span className="font-semibold">₦{draft.goal.toLocaleString()}</span>
-                    </div>
-                  </div>
-                )}
-                {isOngoing && draft.frequencies && (
-                  <div className="text-xs text-muted-foreground">
-                    Give: {draft.frequencies.join(" · ")}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
-              Your campaign goes live with an <strong>unverified</strong> badge. You can request
-              verification from the campaign page after publishing.
-            </div>
-            {draft.type === "emergency" && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-urgent/10 border border-urgent/20 text-sm">
-                <Flame className="w-4 h-4 text-urgent shrink-0" />
-                <span>
-                  This will be marked as an emergency campaign and shown with an urgent badge.
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Navigation */}
-        <div className="mt-8 flex items-center justify-between">
+      <div className="flex flex-1 flex-col">
+        <div className="flex items-center justify-between px-6 py-4 md:px-12">
           {step > 0 ? (
             <button
+              type="button"
               onClick={() => setStep((s) => s - 1)}
-              className="px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
+              aria-label="Back"
+              className="text-[#232323]"
             >
-              Back
+              <ChevronLeft className="h-6 w-6" />
             </button>
           ) : (
             <span />
           )}
-          {(isOngoing && step < 5) || (!isOngoing && step < 4) ? (
+          <div className="flex items-center gap-2 text-sm text-[#232323]">
             <button
-              onClick={next}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition"
+              type="button"
+              onClick={() => toast("Draft saved")}
+              className="font-bold underline underline-offset-2"
             >
-              Continue
+              Save as Draft
             </button>
-          ) : (
-            <button
-              onClick={publish}
-              disabled={publishing}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-60"
-            >
-              {publishing ? "Publishing…" : "Publish campaign"}
-            </button>
+            <Link to="/dashboard">Close</Link>
+          </div>
+        </div>
+
+        <div className="mx-auto w-full max-w-2xl flex-1 px-6 pb-16 md:px-12">
+          {step === 0 && (
+            <ModeStep
+              mode={draft.mode}
+              onSelect={(mode) => setDraft({ mode })}
+              error={errors.mode}
+            />
+          )}
+          {step === 1 && (
+            <TypeStep
+              type={draft.type}
+              onSelect={(type) => setDraft({ type })}
+              error={errors.type}
+            />
+          )}
+          {step === 2 && (
+            <StoryStep
+              isOngoing={isOngoing}
+              title={draft.title}
+              story={draft.story}
+              cover={draft.cover}
+              errors={errors}
+              onChange={setDraft}
+            />
+          )}
+          {step === 3 && (
+            <DetailsStep
+              isOngoing={isOngoing}
+              type={draft.type}
+              faithCategory={draft.faithCategory}
+              location={draft.location}
+              goal={draft.goal}
+              urgency={draft.urgency}
+              orgId={draft.orgId}
+              orgs={orgs}
+              errors={errors}
+              onChange={setDraft}
+            />
+          )}
+          {step === 4 && isOngoing && (
+            <FrequenciesStep
+              frequencies={draft.frequencies}
+              error={errors.frequencies}
+              onChange={(frequencies) => setDraft({ frequencies })}
+            />
+          )}
+          {isPreview && (
+            <PreviewStep
+              isOngoing={isOngoing}
+              draft={draft}
+              publishing={publishing}
+              onSaveDraft={() => toast("Draft saved")}
+              onPublish={publish}
+            />
+          )}
+
+          {!isPreview && (
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={next}
+                className="rounded-[8px] bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-black/90"
+              >
+                Sign Up
+              </button>
+            </div>
           )}
         </div>
+      </div>
+
+      {done && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5">
+          <div className="flex w-full max-w-[460px] flex-col items-center gap-8 bg-white p-8 text-center">
+            <PartyPopper className="h-12 w-12 text-[#fe5102]" />
+            <div className="flex flex-col gap-2.5">
+              <p className="font-display text-3xl text-[#232323]">Completed.</p>
+              <p className="text-sm text-[#232323]">
+                Your campaign has been submitted for review. We will notify you once it has been
+                approved or if further action is needed. Thank you for your support!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                resetDraft();
+                nav({ to: "/campaign/$id", params: { id: done.id } });
+              }}
+              className="w-full rounded-[8px] bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="flex flex-col gap-3 pb-10 pt-6">
+      <h1 className="font-display text-4xl tracking-tight text-[#232323] sm:text-5xl">{title}</h1>
+      <p className="text-sm text-[#232323]">{subtitle}</p>
+    </div>
+  );
+}
+
+function ModeStep({
+  mode,
+  onSelect,
+  error,
+}: {
+  mode?: Campaign["mode"];
+  onSelect: (mode: Campaign["mode"]) => void;
+  error?: string;
+}) {
+  return (
+    <div>
+      <StepHeading
+        title="What kind of campaign?"
+        subtitle="Choose based on what your cause actually needs."
+      />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <ModeCard
+          sticker={modeOnetime}
+          label="One-time campaign"
+          desc="You have a clear target in mind and are determined to close the deal successfully."
+          selected={mode === "one-time"}
+          onClick={() => onSelect("one-time")}
+        />
+        <ModeCard
+          sticker={modeOngoing}
+          label="One-time campaign"
+          desc="You have a clear target in mind and are determined to close the deal successfully."
+          selected={mode === "ongoing"}
+          onClick={() => onSelect("ongoing")}
+        />
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function ModeCard({
+  sticker,
+  label,
+  desc,
+  selected,
+  onClick,
+}: {
+  sticker: string;
+  label: string;
+  desc: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-3 rounded-lg px-7 py-8 text-center transition ${
+        selected ? "bg-[#fff6f2] ring-1 ring-[#fe5102]" : "bg-[#fafafa] hover:bg-[#f2f2f2]"
+      }`}
+    >
+      <img src={sticker} alt="" className="h-[99px] w-auto object-contain" />
+      <div className="flex items-center gap-1.5 text-sm font-bold text-[#232323]">
+        {label}
+        {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
+      </div>
+      <p className="text-sm text-[#232323]">{desc}</p>
+    </button>
+  );
+}
+
+function TypeStep({
+  type,
+  onSelect,
+  error,
+}: {
+  type?: Campaign["type"];
+  onSelect: (type: Campaign["type"]) => void;
+  error?: string;
+}) {
+  return (
+    <div>
+      <StepHeading
+        title="What are you asking for?"
+        subtitle="Even ongoing ministries can request more than just money."
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {campaignTypes.map(({ v, label }) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onSelect(v)}
+            className={`flex items-center gap-3.5 rounded-lg px-7 py-3 text-left transition ${
+              type === v ? "bg-[#fff6f2] ring-1 ring-[#fe5102]" : "bg-[#f7f7f7] hover:bg-[#f0f0f0]"
+            }`}
+          >
+            <img src={typeSticker} alt="" className="h-[63px] w-auto shrink-0 object-contain" />
+            <div className="flex-1 text-sm font-bold text-[#232323]">{label}</div>
+            {type === v && <Check className="h-4 w-4 shrink-0 text-[#fe5102]" />}
+          </button>
+        ))}
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function StoryStep({
+  isOngoing,
+  title,
+  story,
+  cover,
+  errors,
+  onChange,
+}: {
+  isOngoing: boolean;
+  title?: string;
+  story?: string;
+  cover?: string;
+  errors: Record<string, string>;
+  onChange: (d: { title?: string; story?: string; cover?: string }) => void;
+}) {
+  return (
+    <div>
+      <StepHeading title="Tell your story" subtitle="Be specific. Real details build trust." />
+      <div className="flex flex-col gap-4">
+        <UploadBox label="Upload campaign cover" hint="Click to upload (max 5MB)" />
+        <AuthField
+          label="Campaign title"
+          placeholder={
+            isOngoing
+              ? "e.g. Support ECWA Missionaries in Borno"
+              : "e.g. Build a church hall for ECWA Kano"
+          }
+          value={title ?? ""}
+          onChange={(e) => onChange({ title: e.target.value })}
+          error={errors.title}
+        />
+        <div className="flex w-full flex-col items-start gap-[2px]">
+          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+            {isOngoing ? "Describe your ministry" : "What's the need?"}
+          </label>
+          <textarea
+            rows={5}
+            className="w-full resize-none rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={
+              isOngoing
+                ? "Tell donors about your ministry — who you serve, what you do, why it matters."
+                : "Explain the specific need. Include amounts, why they're needed, and how donations will be used."
+            }
+            value={story ?? ""}
+            onChange={(e) => onChange({ story: e.target.value })}
+          />
+          {errors.story && <p className="text-xs text-destructive">{errors.story}</p>}
+        </div>
+        <UploadBox label="Upload campaign gallery" hint="Click to upload (max 5MB)" tall />
+      </div>
+    </div>
+  );
+}
+
+function UploadBox({ label, hint, tall }: { label: string; hint: string; tall?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => toast("Image upload coming soon")}
+      className="flex w-full flex-col items-start gap-[3px]"
+    >
+      <span className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">{label}</span>
+      <span
+        className={`flex w-full items-center justify-center rounded-[8px] border border-dashed border-[#d0d5dd] px-3 text-sm text-[#232323]/35 ${tall ? "h-[120px]" : "h-[72px]"}`}
+      >
+        {hint}
+      </span>
+    </button>
+  );
+}
+
+function DetailsStep({
+  isOngoing,
+  type,
+  faithCategory,
+  location,
+  goal,
+  urgency,
+  orgId,
+  orgs,
+  errors,
+  onChange,
+}: {
+  isOngoing: boolean;
+  type?: Campaign["type"];
+  faithCategory?: Campaign["faithCategory"];
+  location?: string;
+  goal?: number;
+  urgency?: Campaign["urgency"];
+  orgId?: string;
+  orgs: { id: string; name: string }[];
+  errors: Record<string, string>;
+  onChange: (d: Partial<Campaign> & { orgId?: string }) => void;
+}) {
+  return (
+    <div>
+      <StepHeading
+        title="Campaign details"
+        subtitle="A few more details so donors know what to expect."
+      />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+            Faith category
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {categories.map(({ label, icon }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => onChange({ faithCategory: label })}
+                className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
+                  faithCategory === label
+                    ? "bg-[#fef3c6] text-[#bb4d00]"
+                    : "bg-[#f0f4f5] text-[#4e5a62]"
+                }`}
+              >
+                <span>{icon}</span> {label}
+              </button>
+            ))}
+          </div>
+          {errors.faithCategory && (
+            <p className="text-xs text-destructive">{errors.faithCategory}</p>
+          )}
+        </div>
+
+        <AuthField
+          label="Location"
+          placeholder="e.g. Kano, Nigeria"
+          value={location ?? ""}
+          onChange={(e) => onChange({ location: e.target.value })}
+          error={errors.location}
+        />
+
+        {!isOngoing && type === "money" && (
+          <AuthField
+            label="Fundraising goal (₦)"
+            type="number"
+            placeholder="e.g. 8500000"
+            value={goal ?? ""}
+            onChange={(e) => onChange({ goal: parseInt(e.target.value) || 0 })}
+            error={errors.goal}
+          />
+        )}
+
+        {!isOngoing && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+              Urgency
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {urgencyOptions.map(({ v, label, desc }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onChange({ urgency: v })}
+                  className={`flex flex-col rounded-[8px] border px-3 py-2.5 text-left transition ${
+                    urgency === v
+                      ? "border-[#fe5102] bg-[#fff6f2]"
+                      : "border-[#d0d5dd] hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-sm font-medium text-[#232323]">{label}</span>
+                  <span className="text-xs text-[#667085]">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+            Link to an org <span className="font-normal text-[#667085]">(optional)</span>
+          </label>
+          <select
+            className="w-full rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+            value={orgId ?? ""}
+            onChange={(e) => onChange({ orgId: e.target.value || undefined })}
+          >
+            <option value="">No org — individual campaign</option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FrequenciesStep({
+  frequencies,
+  error,
+  onChange,
+}: {
+  frequencies?: Campaign["frequencies"];
+  error?: string;
+  onChange: (f: NonNullable<Campaign["frequencies"]>) => void;
+}) {
+  return (
+    <div>
+      <StepHeading
+        title="Giving frequencies"
+        subtitle="Which frequencies do you want donors to be able to give at?"
+      />
+      <div className="flex flex-col gap-3">
+        {frequencyOptions.map(({ v, label }) => {
+          const selected = frequencies?.includes(v) ?? false;
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => {
+                const current = frequencies ?? [];
+                onChange(selected ? current.filter((f) => f !== v) : [...current, v]);
+              }}
+              className={`flex items-center justify-between rounded-[8px] border px-4 py-3.5 transition ${
+                selected ? "border-[#fe5102] bg-[#fff6f2]" : "border-[#d0d5dd] hover:bg-muted"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Repeat2 className={`h-4 w-4 ${selected ? "text-[#fe5102]" : "text-[#667085]"}`} />
+                <span className="text-sm font-medium text-[#232323]">{label}</span>
+              </div>
+              {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+function PreviewStep({
+  isOngoing,
+  draft,
+  publishing,
+  onSaveDraft,
+  onPublish,
+}: {
+  isOngoing: boolean;
+  draft: {
+    title?: string;
+    story?: string;
+    cover?: string;
+    goal?: number;
+    faithCategory?: Campaign["faithCategory"];
+    frequencies?: Campaign["frequencies"];
+    type?: Campaign["type"];
+  };
+  publishing: boolean;
+  onSaveDraft: () => void;
+  onPublish: () => void;
+}) {
+  return (
+    <div>
+      <h1 className="pt-6 text-4xl font-semibold tracking-tight text-[#232323] sm:text-[40px]">
+        {draft.title || "Your campaign title"}
+      </h1>
+
+      <div className="mt-6 overflow-hidden rounded-3xl bg-muted">
+        <div className="flex aspect-[16/9] items-center justify-center bg-muted">
+          {draft.cover ? (
+            <img src={draft.cover} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <ImagePlus className="h-10 w-10 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center gap-2">
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-[#fef3c6] text-[#bb4d00]" : "bg-muted text-foreground"}`}
+        >
+          {isOngoing ? "Ongoing" : "One-time"}
+        </span>
+        {draft.faithCategory && (
+          <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+            {draft.faithCategory}
+          </span>
+        )}
+      </div>
+
+      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#232323]">
+        {draft.story}
+      </p>
+
+      {!isOngoing && draft.goal && (
+        <p className="mt-4 text-sm text-[#232323]">
+          Goal: <span className="font-semibold">₦{draft.goal.toLocaleString()}</span>
+        </p>
+      )}
+      {isOngoing && draft.frequencies && (
+        <p className="mt-4 text-xs text-[#667085]">Give: {draft.frequencies.join(" · ")}</p>
+      )}
+
+      <div className="mt-6 rounded-2xl border border-[#fde3cd] bg-[#fff6f2] p-4 text-sm text-[#bb4d00]">
+        Your campaign goes live with an <strong>unverified</strong> badge. You can request
+        verification from the campaign page after publishing.
+      </div>
+
+      {draft.type === "emergency" && (
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-urgent/20 bg-urgent/10 p-3 text-sm">
+          <Flame className="h-4 w-4 shrink-0 text-urgent" />
+          <span>This will be marked as an emergency campaign and shown with an urgent badge.</span>
+        </div>
+      )}
+
+      <div className="mt-8 flex gap-2.5">
+        <button
+          type="button"
+          onClick={onSaveDraft}
+          className="flex flex-1 items-center justify-center rounded-[8px] border border-[#ebebeb] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
+        >
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          disabled={publishing}
+          onClick={onPublish}
+          className="flex flex-1 items-center justify-center rounded-[8px] bg-gradient-to-r from-[#fe5102] to-[#cc04b1] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {publishing ? "Submitting…" : "Submit for Review"}
+        </button>
       </div>
     </div>
   );

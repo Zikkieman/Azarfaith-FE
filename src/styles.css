@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Coustard:wght@400;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -6,7 +6,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Coustard", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 2px);
@@ -49,7 +49,7 @@
   --card-foreground: oklch(0.17 0.02 240);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.17 0.02 240);
-  --primary: oklch(0.55 0.11 195);
+  --primary: oklch(0.67 0.219 37.8);
   --primary-foreground: oklch(0.99 0.005 200);
   --secondary: oklch(0.95 0.02 195);
   --secondary-foreground: oklch(0.3 0.06 195);
@@ -61,7 +61,7 @@
   --destructive-foreground: oklch(0.99 0.005 200);
   --border: oklch(0.92 0.01 240);
   --input: oklch(0.94 0.01 240);
-  --ring: oklch(0.55 0.11 195);
+  --ring: oklch(0.67 0.219 37.8);
   --trust: oklch(0.5 0.15 260);
   --trust-foreground: oklch(0.99 0 0);
   --urgent: oklch(0.62 0.21 28);
@@ -91,7 +91,7 @@
   .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
-    font-weight: 600;
+    font-weight: 400;
   }
 }
 
