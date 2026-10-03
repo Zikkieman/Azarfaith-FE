@@ -21,7 +21,10 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
 
       <div className="flex flex-col pt-5">
         <h3 className="line-clamp-1 text-lg font-semibold text-[#0b0e0d]">{c.title}</h3>
-        <p className="mt-1 text-sm text-[#667085]">Ends in 10 months</p>
+        <p className="mt-1 text-sm text-[#667085]">
+          {c.mode === "ongoing" ? "Ongoing" : "One-time"} campaign · {c.donors.toLocaleString()}{" "}
+          donors
+        </p>
       </div>
 
       <div className="flex flex-col pt-5">
@@ -48,14 +51,14 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
           search={{ freq: "" }}
           className="flex w-full items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90"
         >
-          Continue with Email
+          Donate now
         </Link>
         <Link
           to="/campaign/$id"
           params={{ id: c.id }}
           className="flex w-full items-center justify-center rounded-lg border border-[#ededed] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
         >
-          Continue with Email
+          View campaign
         </Link>
       </div>
     </div>
