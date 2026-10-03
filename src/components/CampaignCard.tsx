@@ -26,17 +26,19 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
 
       <div className="flex flex-col pt-5">
         <div className="flex items-start justify-between text-sm">
-          <p className="text-black">Goal</p>
+          <p className="text-black">{c.goal ? "Goal" : "Raised"}</p>
           <p className="font-mono text-[#667085]">
-            {formatMoney(c.raised)}/{formatMoney(c.goal ?? 0)}
+            {c.goal ? `${formatMoney(c.raised)}/${formatMoney(c.goal)}` : formatMoney(c.raised)}
           </p>
         </div>
-        <div className="flex items-center gap-3 pt-1">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#ebecec]">
-            <div className="h-2 rounded-full bg-[#fe5102]" style={{ width: `${pct}%` }} />
+        {c.goal && (
+          <div className="flex items-center gap-3 pt-1">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#ebecec]">
+              <div className="h-2 rounded-full bg-[#fe5102]" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="shrink-0 text-sm text-[#344054]">{pct}%</p>
           </div>
-          <p className="shrink-0 text-sm text-[#344054]">{pct}%</p>
-        </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 pt-4">
