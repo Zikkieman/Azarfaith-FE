@@ -156,11 +156,7 @@ function AdminCampaigns() {
                       <AdminBadge
                         variant={
                           campaign.type as
-                            | "money"
-                            | "item"
-                            | "volunteer"
-                            | "professional"
-                            | "emergency"
+                            "money" | "item" | "volunteer" | "professional" | "emergency"
                         }
                       >
                         {campaign.type.charAt(0).toUpperCase() + campaign.type.slice(1)}
