@@ -22,11 +22,12 @@ function HeroCopy() {
   return (
     <>
       <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.03em] text-ink">
-        Stop wondering. Start seeing.
+        <span className="block">You give in faith.</span>
+        <span className="block">See the fruit.</span>
       </h1>
-      <p className="max-w-[620px] font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">
-        AzarFaith connects you to verified churches, missions and orphanages across Nigeria, and
-        shows you what every gift becomes.
+      <p className="max-w-[640px] text-pretty font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">
+        Give to verified churches, missions and orphanages across Nigeria, and get the receipt, the
+        update and the photos for every gift.
       </p>
       <div className="flex flex-wrap justify-center gap-3 pt-1">
         <Link
