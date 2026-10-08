@@ -1,13 +1,14 @@
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useId } from "react";
+import { FieldError, inputClass, labelClass } from "@/components/app/AppShell";
 import { cn } from "@/lib/utils";
 
 type AuthFieldProps = {
   label: string;
   error?: string;
   containerClassName?: string;
-} & React.InputHTMLAttributes<HTMLInputElement>;
+} & React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> };
 
+/** Labelled input built from the app kit, so auth forms match every other form. */
 export function AuthField({
   label,
   error,
@@ -16,20 +17,20 @@ export function AuthField({
   id,
   ...props
 }: AuthFieldProps) {
+  const fallbackId = useId();
+  const inputId = id ?? fallbackId;
   return (
-    <div className={cn("flex w-full flex-col items-start gap-[2px]", containerClassName)}>
-      <Label htmlFor={id} className="text-[14px] font-semibold leading-[26.25px] text-heading">
+    <div className={cn("flex w-full flex-col gap-1.5", containerClassName)}>
+      <label htmlFor={inputId} className={labelClass}>
         {label}
-      </Label>
-      <Input
-        id={id}
-        className={cn(
-          "h-auto rounded-[8px] border-line-input px-[12px] py-[8px] text-[14px] leading-[26.25px] shadow-[0px_1px_1px_rgba(16,24,40,0.05)]",
-          className,
-        )}
+      </label>
+      <input
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        className={cn(inputClass, error && "border-danger", className)}
         {...props}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      <FieldError>{error}</FieldError>
     </div>
   );
 }

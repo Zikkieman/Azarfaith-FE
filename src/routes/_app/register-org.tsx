@@ -229,7 +229,7 @@ function RegisterOrg() {
                   title="Add photos and videos"
                   sub="Show givers the work. Nothing builds trust faster."
                 />
-                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-input bg-panel px-6 py-12 text-center">
+                <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-line-input bg-panel px-6 py-12 text-center">
                   <span className="grid h-12 w-12 place-items-center rounded-full bg-paper text-ink">
                     <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
                   </span>
@@ -275,7 +275,7 @@ function RegisterOrg() {
                     {(orgDraft.videos ?? []).map((v, i) => (
                       <li
                         key={i}
-                        className="truncate rounded-xl bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
+                        className="truncate rounded-field bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
                       >
                         {v}
                       </li>
@@ -327,7 +327,7 @@ function RegisterOrg() {
           >
             <p className={`${smallHeadingClass} pb-3`}>Preview</p>
             <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-              <div className="grid h-[180px] w-full place-items-center rounded-xl bg-panel text-muted-ink">
+              <div className="grid h-[180px] w-full place-items-center rounded-field bg-panel text-muted-ink">
                 <ImagePlus className="h-8 w-8" strokeWidth={1.5} />
               </div>
               <div className="flex flex-wrap items-center gap-2">

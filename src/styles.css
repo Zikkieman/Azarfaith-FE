@@ -16,6 +16,9 @@
   --radius-xl: calc(var(--radius) + 6px);
   --radius-2xl: calc(var(--radius) + 14px);
   --radius-3xl: calc(var(--radius) + 22px);
+  /* App kit radii (the xl/2xl names above are inflated by --radius). */
+  --radius-card: 20px;
+  --radius-field: 12px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

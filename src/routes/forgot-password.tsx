@@ -4,7 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { MailCheck } from "lucide-react";
-import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthCard, AuthHeading } from "@/components/auth/AuthCard";
+import { btn } from "@/components/app/btn";
+import { cn } from "@/lib/utils";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialButton } from "@/components/auth/SocialButton";
@@ -39,23 +41,15 @@ function ForgotPassword() {
       <AuthCard>
         {sentTo ? (
           <>
-            <span className="grid h-12 w-12 place-items-center rounded-full bg-peach text-[#fe5102]">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-panel text-ink">
               <MailCheck className="h-6 w-6" strokeWidth={1.5} />
             </span>
-            <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-medium leading-[0.98] tracking-[-0.03em]">
-                Check your inbox
-              </h1>
-              <p className="w-full text-[14px] leading-[26.25px]">
-                If an account exists for <span className="font-bold">{sentTo}</span>, a reset link
-                is on its way. It expires in 30 minutes.
-              </p>
-            </div>
-            <div className="flex w-full flex-col gap-[9px]">
-              <Link
-                to="/login"
-                className="flex w-full items-center justify-center rounded-[8px] bg-btn px-4 py-3 text-sm font-semibold leading-5 text-btn-fg hover:bg-btn/90"
-              >
+            <AuthHeading title="Check your inbox">
+              If an account exists for <span className="font-semibold text-ink">{sentTo}</span>, a
+              reset link is on its way. It expires in 30 minutes.
+            </AuthHeading>
+            <div className="flex flex-col gap-3">
+              <Link to="/login" className={cn(btn("primary", "lg"), "w-full")}>
                 Back to sign in
               </Link>
               <SocialButton onClick={() => setSentTo(null)}>Use a different email</SocialButton>
@@ -63,17 +57,11 @@ function ForgotPassword() {
           </>
         ) : (
           <>
-            <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-              <p className="w-full text-[14px] font-medium leading-[26.25px]">Account help</p>
-              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-medium leading-[0.98] tracking-[-0.03em]">
-                Reset your password
-              </h1>
-              <p className="w-full text-[14px] leading-[26.25px]">
-                Enter the email you signed up with and we&rsquo;ll send you a link to choose a new
-                password.
-              </p>
-            </div>
-            <form onSubmit={submit} className="flex w-full flex-col items-start gap-[11px]">
+            <AuthHeading title="Reset your password">
+              Enter the email you signed up with and we&rsquo;ll send you a link to choose a new
+              password.
+            </AuthHeading>
+            <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
               <AuthField
                 id="email"
                 label="Email"
@@ -83,7 +71,7 @@ function ForgotPassword() {
                 {...register("email")}
                 error={errors.email?.message}
               />
-              <SocialButton variant="solid" type="submit" disabled={loading} className="mt-[21px]">
+              <SocialButton variant="solid" type="submit" disabled={loading} className="mt-2">
                 {loading ? "Sending…" : "Send reset link"}
               </SocialButton>
             </form>

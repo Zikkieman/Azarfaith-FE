@@ -207,7 +207,7 @@ function Gallery({ campaign }: { campaign: Campaign }) {
   const [index, setIndex] = useState(0);
   const step = (d: number) => setIndex((i) => (i + d + photos.length) % photos.length);
   return (
-    <div className="relative -mx-6 aspect-[4/3] overflow-hidden bg-panel sm:mx-0 sm:aspect-[16/9] sm:rounded-2xl">
+    <div className="relative -mx-6 aspect-[4/3] overflow-hidden bg-panel sm:mx-0 sm:aspect-[16/9] sm:rounded-card">
       <Photo key={photos[index]} src={photos[index]} loading="eager" className="absolute inset-0" />
       {photos.length > 1 ? (
         <div className="absolute bottom-4 right-4 flex items-center gap-2">

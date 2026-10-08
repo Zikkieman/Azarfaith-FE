@@ -46,7 +46,7 @@ export function CampaignCard({
   };
 
   return (
-    <article className="group @container flex h-full w-full flex-col overflow-hidden rounded-2xl border border-line-soft bg-paper font-gsf transition-colors hover:border-line">
+    <article className="group @container flex h-full w-full flex-col overflow-hidden rounded-card border border-line-soft bg-paper font-gsf transition-colors hover:border-line">
       <Link
         to="/campaign/$id"
         params={{ id: c.id }}

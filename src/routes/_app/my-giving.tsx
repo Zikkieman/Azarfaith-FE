@@ -108,7 +108,7 @@ function MyGiving() {
                   <img
                     src={r.targetCover}
                     alt=""
-                    className="h-14 w-14 shrink-0 rounded-xl object-cover sm:h-[72px] sm:w-[72px]"
+                    className="h-14 w-14 shrink-0 rounded-field object-cover sm:h-[72px] sm:w-[72px]"
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <Link
@@ -158,7 +158,7 @@ function MyGiving() {
                   <img
                     src={r.targetCover}
                     alt=""
-                    className="h-11 w-11 shrink-0 rounded-xl object-cover opacity-60 grayscale"
+                    className="h-11 w-11 shrink-0 rounded-field object-cover opacity-60 grayscale"
                   />
                   <p className="min-w-0 flex-1 truncate text-base">{r.targetName}</p>
                   <p className="shrink-0 text-sm">

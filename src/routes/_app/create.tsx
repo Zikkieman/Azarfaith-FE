@@ -417,7 +417,7 @@ function CreateCampaign() {
             {isPreview ? (
               <Step title="Check it over" sub="This is what givers will see.">
                 <div className="flex flex-col gap-4">
-                  <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-2xl bg-panel text-muted-ink">
+                  <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-card bg-panel text-muted-ink">
                     {draft.cover ? (
                       <img src={draft.cover} alt="" className="h-full w-full object-cover" />
                     ) : (
@@ -553,7 +553,7 @@ function UploadBox({ label, hint, tall }: { label: string; hint: string; tall?: 
         type="button"
         onClick={() => toast("Photo upload is coming soon")}
         className={cn(
-          "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-line-input bg-panel px-4 text-sm text-muted-ink transition-colors hover:border-ink hover:text-ink",
+          "flex w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-input bg-panel px-4 text-sm text-muted-ink transition-colors hover:border-ink hover:text-ink",
           tall ? "h-[140px]" : "h-[96px]",
         )}
       >

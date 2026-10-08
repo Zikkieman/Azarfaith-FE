@@ -21,7 +21,7 @@ const navLinks = [
 ];
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 font-gsf text-sm text-ink focus:bg-panel";
+  "flex cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2.5 font-gsf text-sm text-ink focus:bg-panel";
 
 /** Signed-in app nav. `active` overrides the link highlighted from the current route. */
 export function AppNav({ active }: { active?: string }) {
@@ -85,7 +85,7 @@ export function AppNav({ active }: { active?: string }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-60 rounded-xl border border-line-soft bg-paper p-1.5 shadow-none"
+                className="w-60 rounded-field border border-line-soft bg-paper p-1.5 shadow-none"
               >
                 <div className="px-3 pb-2 pt-1.5">
                   <p className="font-gsf text-sm font-semibold text-ink">{me.name}</p>

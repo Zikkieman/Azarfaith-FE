@@ -118,7 +118,7 @@ function OrgProfile() {
             <Photo
               src={cover}
               loading="eager"
-              className="aspect-[4/3] w-full rounded-2xl lg:aspect-[520/440]"
+              className="aspect-[4/3] w-full rounded-card lg:aspect-[520/440]"
             />
           ) : null}
         </Container>
@@ -144,7 +144,7 @@ function OrgProfile() {
             <SectionHeading>From the field</SectionHeading>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               {org.photos.map((photo, i) => (
-                <Photo key={i} src={photo} className="aspect-square w-full rounded-2xl" />
+                <Photo key={i} src={photo} className="aspect-square w-full rounded-card" />
               ))}
             </div>
           </section>

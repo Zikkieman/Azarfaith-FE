@@ -206,7 +206,7 @@ function Profile() {
                     <img
                       src={o.photos[0]}
                       alt=""
-                      className="h-10 w-10 shrink-0 rounded-xl object-cover"
+                      className="h-10 w-10 shrink-0 rounded-field object-cover"
                     />
                     <span className="min-w-0 truncate text-base">{o.name}</span>
                   </Link>
@@ -216,7 +216,7 @@ function Profile() {
           </div>
 
           <div className={`${panelClass} flex flex-col gap-3 p-6`}>
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-paper text-ink">
+            <span className="grid h-10 w-10 place-items-center rounded-field bg-paper text-ink">
               <Building2 className="h-5 w-5" strokeWidth={1.5} />
             </span>
             <h2 className={smallHeadingClass}>Lead a church or ministry?</h2>

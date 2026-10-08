@@ -77,7 +77,7 @@ function Manage() {
                 className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6"
               >
                 <span className="flex items-center gap-4 sm:contents">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-panel text-ink">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-field bg-panel text-ink">
                     <s.icon className="h-5 w-5" strokeWidth={1.5} />
                   </span>
                   <span className="min-w-0 flex-1">

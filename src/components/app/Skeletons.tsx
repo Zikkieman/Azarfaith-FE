@@ -19,7 +19,7 @@ function Loading({ children, label }: { children: React.ReactNode; label: string
 
 export function CampaignCardSkeleton() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-line-soft bg-paper">
+    <div className="flex flex-col overflow-hidden rounded-card border border-line-soft bg-paper">
       <Bone className="aspect-[4/3] w-full rounded-none" />
       <div className="flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-2">
@@ -84,10 +84,10 @@ export function DashboardSkeleton() {
       <HeaderSkeleton />
       <Container className="flex flex-col gap-6 py-10 md:py-14">
         <Bone className="h-8 w-64" />
-        <div className="flex flex-col divide-y divide-line-soft rounded-2xl border border-line-soft">
+        <div className="flex flex-col divide-y divide-line-soft rounded-card border border-line-soft">
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex items-center gap-4 p-5 sm:p-6">
-              <Bone className="h-11 w-11 shrink-0 rounded-xl" />
+              <Bone className="h-11 w-11 shrink-0 rounded-field" />
               <div className="flex flex-1 flex-col gap-2">
                 <Bone className="h-4 w-2/5" />
                 <Bone className="h-4 w-4/5" />
@@ -108,8 +108,8 @@ export function ListPageSkeleton({ label }: { label: string }) {
       <Container className="flex flex-col gap-4 py-12">
         <Bone className="h-8 w-56" />
         {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-4 rounded-2xl border border-line-soft p-5">
-            <Bone className="h-14 w-14 shrink-0 rounded-xl sm:h-[72px] sm:w-[72px]" />
+          <div key={i} className="flex items-center gap-4 rounded-card border border-line-soft p-5">
+            <Bone className="h-14 w-14 shrink-0 rounded-field sm:h-[72px] sm:w-[72px]" />
             <div className="flex flex-1 flex-col gap-2">
               <Bone className="h-5 w-3/5" />
               <Bone className="h-4 w-2/5" />
@@ -129,7 +129,7 @@ export function CampaignDetailSkeleton() {
         <div className="flex flex-col gap-6">
           <Bone className="h-4 w-20" />
           <Bone className="h-10 w-4/5" />
-          <Bone className="-mx-6 aspect-[4/3] w-[calc(100%+48px)] rounded-none sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-2xl" />
+          <Bone className="-mx-6 aspect-[4/3] w-[calc(100%+48px)] rounded-none sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-card" />
           <Bone className="h-5 w-1/2" />
           <div className="flex flex-col gap-2">
             <Bone className="h-4 w-full" />
@@ -137,7 +137,7 @@ export function CampaignDetailSkeleton() {
             <Bone className="h-4 w-3/4" />
           </div>
         </div>
-        <div className="hidden flex-col gap-4 self-start rounded-2xl border border-line-soft p-6 lg:flex">
+        <div className="hidden flex-col gap-4 self-start rounded-card border border-line-soft p-6 lg:flex">
           <Bone className="h-8 w-40" />
           <Bone className="h-4 w-24" />
           <Bone className="h-2 w-full" />

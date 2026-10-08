@@ -180,7 +180,7 @@ function OrgCard({ org }: { org: Org }) {
     <Link
       to="/org/$id"
       params={{ id: org.id }}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-line-soft bg-paper font-gsf transition-colors hover:border-line"
+      className="group flex h-full flex-col overflow-hidden rounded-card border border-line-soft bg-paper font-gsf transition-colors hover:border-line"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <Photo

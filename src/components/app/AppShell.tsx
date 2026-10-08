@@ -10,8 +10,8 @@ import { btn } from "@/components/app/btn";
  * The app kit. Every signed-in page is built from these pieces so buttons, titles, cards and
  * progress look the same everywhere (see skills/branding/SKILL.md §4).
  *
- * Radius scale: rounded-full for buttons, tags and avatars; rounded-2xl for cards, panels and
- * photos; rounded-xl for inputs, options and thumbnails. Nothing else.
+ * Radius scale: rounded-full for buttons, tags and avatars; rounded-card for cards, panels and
+ * photos; rounded-field for inputs, options and thumbnails. Nothing else.
  */
 
 /* ─── Class recipes ─── */
@@ -27,10 +27,10 @@ export const smallHeadingClass = "font-gsf text-[15px] font-semibold leading-[22
 
 export const labelClass = "font-gsf text-sm font-semibold leading-[21px] text-ink";
 export const inputClass =
-  "w-full rounded-xl border border-line-input bg-paper px-3.5 py-3 font-gsf text-[15px] leading-6 text-ink placeholder:text-subtle focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+  "w-full rounded-field border border-line-input bg-paper px-3.5 py-3 font-gsf text-[15px] leading-6 text-ink placeholder:text-subtle focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
-export const cardClass = "rounded-2xl border border-line-soft bg-paper";
-export const panelClass = "rounded-2xl bg-panel";
+export const cardClass = "rounded-card border border-line-soft bg-paper";
+export const panelClass = "rounded-card bg-panel";
 
 /* ─── Layout ─── */
 
@@ -210,7 +210,7 @@ export function OptionButton({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 font-gsf text-[15px] font-medium transition-colors",
+        "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-field border px-4 py-2.5 font-gsf text-[15px] font-medium transition-colors",
         selected
           ? "border-ink bg-ink text-ink-contrast"
           : "border-line-input bg-paper text-ink hover:border-ink",
@@ -242,14 +242,14 @@ export function ChoiceCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-colors",
+        "flex w-full items-center gap-4 rounded-card border p-4 text-left transition-colors",
         selected ? "border-ink bg-panel" : "border-line-soft bg-paper hover:border-line-input",
       )}
     >
       {icon ? (
         <span
           className={cn(
-            "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+            "grid h-10 w-10 shrink-0 place-items-center rounded-field",
             selected ? "bg-ink text-ink-contrast" : "bg-panel text-ink-soft",
           )}
         >
@@ -399,7 +399,7 @@ export function EmptyState({
 
 export function Notice({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-xl bg-panel px-4 py-3.5 font-gsf text-sm leading-[21px] text-ink-soft">
+    <div className="rounded-field bg-panel px-4 py-3.5 font-gsf text-sm leading-[21px] text-ink-soft">
       {children}
     </div>
   );

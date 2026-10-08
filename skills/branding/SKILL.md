@@ -86,7 +86,7 @@ No gradients, no glass, no colored shadows.
 - **Dark solid CTA** (hero): `rounded-[18px] bg-black px-8 py-[23px] text-[17px] font-semibold`, white text;
   outlined sibling uses `border-2 border-white`.
 - **Eyebrow**: website section labels only (`14px/600 uppercase tracking-[0.1em]`). Never in the app.
-- **Card (content)**: `rounded-2xl border border-line-soft bg-paper`, hover lifts border.
+- **Card (content)**: `rounded-card border border-line-soft bg-paper`, hover lifts border.
 - **FAQ row**: `border-t border-[#D9DDBC]`, `py-[17px]`, question `16px` `#130E30`, chevron `18px` right.
 - **Rating**: five `28px` square tiles in `#00B67A` with white stars (empty `#DCDCE6`), the last tile
   filled to the decimal, then "4.7 out of 5 from givers". No seal or badge boxes.
@@ -168,12 +168,13 @@ or button classes:
   `ChoiceCard`, `Stepper` (the one stepper for every flow; it prints "Step 2 of 4" on phones).
 - Status: `Tag` (`neutral` | `brand` | `verified`), `VerifiedBadge` (green tick), `FieldError`.
 - Data: `ProgressBar` / `Segments` (the perforated goal bar, the only progress style), `StatTile`.
-- Surfaces: `cardClass` (white, hairline, `rounded-2xl`), `panelClass` (tinted `bg-panel`,
-  `rounded-2xl`), `EmptyState`, `Notice`. No peach, olive or yellow boxes inside the app.
+- Surfaces: `cardClass` (white, hairline, `rounded-card`), `panelClass` (tinted `bg-panel`,
+  `rounded-card`), `EmptyState`, `Notice`. No peach, olive or yellow boxes inside the app.
 - Type: `pageTitleClass`, `flowTitleClass`, `sectionTitleClass`, `smallHeadingClass`, `labelClass`,
   `inputClass`. Small headings are sentence case, never all caps.
-- Radius scale: `rounded-full` (buttons, tags, avatars), `rounded-2xl` (cards, panels, photos),
-  `rounded-xl` (inputs, options, thumbnails). Nothing else.
+- Radius scale: `rounded-full` (buttons, tags, avatars), `rounded-card` = 20px (cards, panels,
+  photos), `rounded-field` = 12px (inputs, options, thumbnails). Nothing else. Avoid Tailwind's
+  `rounded-xl/2xl/3xl` in the app: the shadcn `--radius` inflates them to 22/30/38px.
 Campaign tiles always use `src/components/CampaignCard.tsx`. Auth screens (`signup`, `login`,
 `forgot-password`) share `components/auth/AuthLayout.tsx`. Selection state is ink (`#130E30`), never
 orange; category icons are lucide (from `categories` in `lib/mock.ts`), never emoji.

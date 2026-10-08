@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthCard, AuthDivider, AuthHeading } from "@/components/auth/AuthCard";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { OtpInputs } from "@/components/auth/OtpInputs";
 import { SocialButton } from "@/components/auth/SocialButton";
+import { BackLink } from "@/components/app/AppShell";
 import { useApp } from "@/lib/store";
-import { ChevronLeft } from "lucide-react";
 import googleIcon from "@/assets/signup/google-icon.svg";
 import facebookIcon from "@/assets/signup/facebook-icon.svg";
 
@@ -19,10 +19,10 @@ export const Route = createFileRoute("/signup")({
 });
 
 const signUpSchema = z.object({
-  firstName: z.string().min(1, "Required"),
-  lastName: z.string().min(1, "Required"),
+  firstName: z.string().min(1, "Enter your first name"),
+  lastName: z.string().min(1, "Enter your last name"),
   email: z.string().email("Enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(8, "Use at least 8 characters"),
 });
 type SignUpForm = z.infer<typeof signUpSchema>;
 
@@ -41,53 +41,61 @@ function Signup() {
 
   return (
     <AuthLayout prompt="Already have an account?" linkLabel="Sign in" linkTo="/login">
-      {step === "choose" && <ChooseStep onEmail={() => setStep("form")} onOAuth={authenticate} />}
-      {step === "form" && (
+      {step === "choose" ? (
+        <ChooseStep onEmail={() => setStep("form")} onOAuth={authenticate} />
+      ) : null}
+      {step === "form" ? (
         <FormStep
+          onBack={() => setStep("choose")}
           onSubmit={(data) => {
             setEmail(data.email);
             setStep("otp");
           }}
         />
-      )}
-      {step === "otp" && (
+      ) : null}
+      {step === "otp" ? (
         <OtpStep email={email} onBack={() => setStep("form")} onVerified={authenticate} />
-      )}
+      ) : null}
     </AuthLayout>
   );
 }
 
+const intro =
+  "Give to verified churches, missions and orphanages across Nigeria, and see what every gift did.";
+
 function ChooseStep({ onEmail, onOAuth }: { onEmail: () => void; onOAuth: () => void }) {
   return (
     <AuthCard>
-      <HeadingBlock />
+      <AuthHeading title="Create your account">{intro}</AuthHeading>
 
-      <div className="flex w-full flex-col items-start gap-[11px]">
-        <div className="flex w-full flex-col items-center justify-center gap-[9px]">
-          <SocialButton
-            icon={<img src={googleIcon} alt="" className="h-5 w-5" />}
-            onClick={onOAuth}
-          >
-            Continue with Google
-          </SocialButton>
-          <SocialButton
-            icon={<img src={facebookIcon} alt="" className="h-5 w-5" />}
-            onClick={onOAuth}
-          >
-            Continue with Facebook
-          </SocialButton>
-        </div>
+      <div className="flex flex-col gap-3">
+        <SocialButton icon={<img src={googleIcon} alt="" className="h-5 w-5" />} onClick={onOAuth}>
+          Continue with Google
+        </SocialButton>
+        <SocialButton
+          icon={<img src={facebookIcon} alt="" className="h-5 w-5" />}
+          onClick={onOAuth}
+        >
+          Continue with Facebook
+        </SocialButton>
+        <AuthDivider>or</AuthDivider>
         <SocialButton variant="solid" onClick={onEmail}>
-          Continue with Email
+          Continue with email
         </SocialButton>
       </div>
 
-      <AuthFootnotes />
+      <Terms />
     </AuthCard>
   );
 }
 
-function FormStep({ onSubmit }: { onSubmit: (data: SignUpForm) => void }) {
+function FormStep({
+  onBack,
+  onSubmit,
+}: {
+  onBack: () => void;
+  onSubmit: (data: SignUpForm) => void;
+}) {
   const [loading, setLoading] = useState(false);
   const {
     register,
@@ -105,18 +113,23 @@ function FormStep({ onSubmit }: { onSubmit: (data: SignUpForm) => void }) {
 
   return (
     <AuthCard>
-      <HeadingBlock />
+      <div className="flex flex-col gap-6">
+        <BackLink onClick={onBack}>Back</BackLink>
+        <AuthHeading title="Create your account">{intro}</AuthHeading>
+      </div>
 
-      <form onSubmit={submit} className="flex w-full flex-col items-start gap-[11px]">
-        <div className="grid w-full grid-cols-2 gap-[11px]">
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <div className="grid grid-cols-2 gap-3">
           <AuthField
-            label="First Name"
+            label="First name"
+            autoComplete="given-name"
             placeholder="Tunde"
             {...register("firstName")}
             error={errors.firstName?.message}
           />
           <AuthField
-            label="Last Name"
+            label="Last name"
+            autoComplete="family-name"
             placeholder="Adebayo"
             {...register("lastName")}
             error={errors.lastName?.message}
@@ -125,6 +138,7 @@ function FormStep({ onSubmit }: { onSubmit: (data: SignUpForm) => void }) {
         <AuthField
           label="Email"
           type="email"
+          autoComplete="email"
           placeholder="you@email.com"
           {...register("email")}
           error={errors.email?.message}
@@ -132,17 +146,17 @@ function FormStep({ onSubmit }: { onSubmit: (data: SignUpForm) => void }) {
         <AuthField
           label="Password"
           type="password"
+          autoComplete="new-password"
           placeholder="At least 8 characters"
           {...register("password")}
           error={errors.password?.message}
         />
-
-        <SocialButton variant="solid" type="submit" disabled={loading} className="mt-[21px]">
-          {loading ? "Signing up…" : "Sign Up"}
+        <SocialButton variant="solid" type="submit" disabled={loading} className="mt-2">
+          {loading ? "Creating your account…" : "Create account"}
         </SocialButton>
       </form>
 
-      <AuthFootnotes />
+      <Terms />
     </AuthCard>
   );
 }
@@ -167,20 +181,20 @@ function OtpStep({
 
   return (
     <AuthCard>
-      <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-        <button type="button" onClick={onBack} aria-label="Back">
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-        <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
-          Verify your email
-        </p>
-        <p className="w-full text-[14px] leading-[26.25px]">
-          We sent a 4-digits code to <span className="font-bold">{email},</span> please enter the
-          code below to confirm your email address or{" "}
-          <button type="button" onClick={onBack} className="text-[#fe5102] underline">
-            edit email
+      <div className="flex flex-col gap-6">
+        <BackLink onClick={onBack}>Back</BackLink>
+        <AuthHeading title="Check your email">
+          We sent a 4-digit code to <span className="font-semibold text-ink">{email}</span>. Enter
+          it below to confirm your address, or{" "}
+          <button
+            type="button"
+            onClick={onBack}
+            className="font-semibold text-ink underline decoration-1 underline-offset-4"
+          >
+            change your email
           </button>
-        </p>
+          .
+        </AuthHeading>
       </div>
 
       <OtpInputs value={digits} onChange={setDigits} />
@@ -188,42 +202,22 @@ function OtpStep({
   );
 }
 
-function HeadingBlock() {
+function Terms() {
   return (
-    <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-      <p className="w-full text-[14px] font-medium leading-[26.25px]">
-        More than ₦250M given to ministries
-      </p>
-      <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
-        Create an account
-      </p>
-      <p className="w-full text-[14px] font-normal leading-[26.25px]">
-        Create your free account and support churches, missionaries, and faith-based organizations
-        across Nigeria.
-      </p>
-    </div>
+    <p className="text-[13px] leading-[1.6] text-muted-ink">
+      By continuing, you agree to AzarFaith&rsquo;s <TermsLink to="/terms">terms</TermsLink>,{" "}
+      <TermsLink to="/privacy">privacy policy</TermsLink> and{" "}
+      <TermsLink to="/cookies">cookie policy</TermsLink>.
+    </p>
   );
 }
 
-function AuthFootnotes() {
+function TermsLink({ to, children }: { to: string; children: React.ReactNode }) {
   return (
-    <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-      <p className="w-full text-[12px] leading-[26.25px]">
-        Forgot your <FootLink to="/forgot-password">password</FootLink>?
-      </p>
-      <p className="w-full text-[12px] leading-[20px]">
-        By continuing, I agree to AzarFaith&rsquo;s <FootLink to="/terms">terms</FootLink>,{" "}
-        <FootLink to="/privacy">privacy policy</FootLink>, and{" "}
-        <FootLink to="/cookies">cookie policy</FootLink>
-        <span className="text-[#fe5102]">.</span>
-      </p>
-    </div>
-  );
-}
-
-function FootLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return (
-    <Link to={to as "/"} className="text-[#fe5102] underline underline-offset-2">
+    <Link
+      to={to as "/"}
+      className="text-ink-soft underline decoration-1 underline-offset-4 hover:text-ink"
+    >
       {children}
     </Link>
   );

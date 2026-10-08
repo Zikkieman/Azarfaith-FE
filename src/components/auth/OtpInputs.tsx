@@ -6,7 +6,7 @@ export function OtpInputs({
   onChange: (next: string[]) => void;
 }) {
   return (
-    <div className="flex h-[84px] w-full max-w-[312px] items-center gap-[11px]">
+    <div className="flex h-16 w-full max-w-[312px] items-center gap-3">
       {value.map((digit, i) => (
         <input
           key={i}
@@ -29,7 +29,8 @@ export function OtpInputs({
               document.getElementById(`otp-${i - 1}`)?.focus();
             }
           }}
-          className="font-display h-full w-0 min-w-0 flex-1 rounded-[8px] border border-line-input text-center text-2xl shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+          aria-label={`Digit ${i + 1}`}
+          className="h-full w-0 min-w-0 flex-1 rounded-field border border-line-input bg-paper text-center font-display text-2xl text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
         />
       ))}
     </div>

@@ -1,3 +1,4 @@
+import { btn } from "@/components/app/btn";
 import { cn } from "@/lib/utils";
 
 type SocialButtonProps = {
@@ -6,6 +7,7 @@ type SocialButtonProps = {
   variant?: "outline" | "solid";
 } & React.ButtonHTMLAttributes<HTMLButtonElement>;
 
+/** Full-width auth button: outline for Google / Facebook, solid for the main action. */
 export function SocialButton({
   icon,
   children,
@@ -16,13 +18,7 @@ export function SocialButton({
   return (
     <button
       type="button"
-      className={cn(
-        "flex w-full items-center justify-center gap-3 rounded-[8px] px-4 py-3 text-sm font-semibold leading-5 transition-colors",
-        variant === "outline"
-          ? "border border-line-soft bg-paper text-heading hover:bg-muted"
-          : "bg-btn text-btn-fg hover:bg-btn/90",
-        className,
-      )}
+      className={cn(btn(variant === "solid" ? "primary" : "secondary", "lg"), "w-full", className)}
       {...props}
     >
       {icon}

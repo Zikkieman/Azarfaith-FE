@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthCard, AuthDivider, AuthHeading } from "@/components/auth/AuthCard";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialButton } from "@/components/auth/SocialButton";
@@ -52,17 +52,11 @@ function Login() {
   return (
     <AuthLayout prompt="New to AzarFaith?" linkLabel="Create an account" linkTo="/signup">
       <AuthCard>
-        <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-          <p className="w-full text-[14px] font-medium leading-[26.25px]">Welcome back</p>
-          <h1 className="w-full font-display text-[clamp(40px,5vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
-            Sign in
-          </h1>
-          <p className="w-full text-[14px] leading-[26.25px]">
-            Give, manage your recurring support, and follow the causes you care about.
-          </p>
-        </div>
+        <AuthHeading title="Welcome back">
+          Sign in to give, manage your regular gifts and follow the causes you care about.
+        </AuthHeading>
 
-        <div className="flex w-full flex-col gap-[9px]">
+        <div className="flex flex-col gap-3">
           <SocialButton
             icon={<img src={googleIcon} alt="" className="h-5 w-5" />}
             onClick={authenticate}
@@ -77,13 +71,9 @@ function Login() {
           </SocialButton>
         </div>
 
-        <div className="flex w-full items-center gap-3">
-          <span className="h-px flex-1 bg-[#ebebeb]" />
-          <span className="text-xs text-muted-ink">or sign in with email</span>
-          <span className="h-px flex-1 bg-[#ebebeb]" />
-        </div>
+        <AuthDivider>or sign in with email</AuthDivider>
 
-        <form onSubmit={submit} className="flex w-full flex-col items-start gap-[11px]">
+        <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <AuthField
             id="email"
             label="Email"
@@ -93,22 +83,24 @@ function Login() {
             {...register("email")}
             error={errors.email?.message}
           />
-          <AuthField
-            id="password"
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Your password"
-            {...register("password")}
-            error={errors.password?.message}
-          />
-          <Link
-            to="/forgot-password"
-            className="self-end text-[12px] text-[#fe5102] underline underline-offset-2"
-          >
-            Forgot your password?
-          </Link>
-          <SocialButton variant="solid" type="submit" disabled={loading} className="mt-[10px]">
+          <div className="flex flex-col gap-2">
+            <AuthField
+              id="password"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              {...register("password")}
+              error={errors.password?.message}
+            />
+            <Link
+              to="/forgot-password"
+              className="self-end text-[13px] font-medium text-ink-soft underline decoration-1 underline-offset-4 hover:text-ink"
+            >
+              Forgot your password?
+            </Link>
+          </div>
+          <SocialButton variant="solid" type="submit" disabled={loading} className="mt-2">
             {loading ? "Signing in…" : "Sign in"}
           </SocialButton>
         </form>

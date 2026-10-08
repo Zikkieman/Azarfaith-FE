@@ -206,7 +206,7 @@ function AzarFaithDonate() {
               <img
                 src={campaign.cover}
                 alt=""
-                className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                className="h-12 w-12 shrink-0 rounded-field object-cover"
               />
               <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-heading">
                 {campaign.title}
@@ -405,7 +405,7 @@ function AzarFaithDonate() {
                 <img
                   src={campaign.cover}
                   alt=""
-                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                  className="h-16 w-16 shrink-0 rounded-field object-cover"
                 />
                 <div className="min-w-0">
                   <p className="text-[13px] text-muted-ink">{campaign.faithCategory}</p>
