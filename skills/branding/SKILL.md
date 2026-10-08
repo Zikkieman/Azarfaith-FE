@@ -88,20 +88,21 @@ No gradients, no glass, no colored shadows.
 - **Eyebrow**: `14px/600 uppercase tracking-[0.1em]`, color `#130E30` or `#4A4660`.
 - **Card (content)**: `rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-6`, hover lifts border.
 - **FAQ row**: `border-t border-[#D9DDBC]`, `py-[17px]`, question `16px` `#130E30`, chevron `18px` right.
-- **Seal / trust mark**: bordered box (`1px #D9DDBC`, bg `#F7F8F2`), icon + uppercase `11px` label +
-  `12px` caption — use `landing/Seal.tsx`.
+- **Rating**: five `28px` square tiles in `#00B67A` with white stars (empty `#DCDCE6`), the last tile
+  filled to the decimal, then "4.7 out of 5 from givers". No seal or badge boxes.
 - **Newsletter pill**: `rounded-full bg-[#FFEFE7]`, input `h-14` with `border-b border-[#B6BA95]`, submit
   `h-full w-[116.24px] rounded-full border-2 border-black bg-[#130E30]`.
 - **Footer**: white, 5 columns (`13px/600 uppercase tracking-[0.1em]` heads, `14px/21px` links),
-  hairline dividers `#D9DDBC`, trust-badge row with `#B9BE9C` dots, socials in `42px` circles.
+  hairline dividers `#D9DDBC`, trust row with green `Check` icons, the star-tile rating on the right, socials in `42px` circles.
 - Icons: **lucide-react** (`strokeWidth={1.5}`) or the SVGs in `src/assets/landing/`. Never emoji.
 
 ## 5. Imagery
 
 - Photography: warm, human, documentary — people serving, churches, communities. Object-cover in
   `20px` radius frames; hero media fills its column edge-to-edge.
-- Placement: two stacked `500×640` frames for the yellow panel (`-45.55px` / `482.45px` offsets),
-  `20px` radius, no shadows.
+- Collage (`landing/PhotoCollage.tsx`): eight photos scattered around a centred statement, `22px`
+  radius, no shadows. On desktop the stage pins while the statement reads in word by word and the
+  photos settle and drift; phones get two photo columns moving at different speeds.
 - Source assets live in `src/assets/landing/`. Convert Figma PNG exports to JPEG (`sips -s format jpeg`)
   when >200KB; `sips` cannot write WebP. Keep the 12-file set lean — delete assets as soon as they are
   unreferenced.
@@ -177,7 +178,7 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
 - **Motion** (`lib/motion.ts`, `components/motion/Reveal.tsx`, CSS in `styles.css`): one hero load
   sequence; `<Reveal>` (+ `data-stagger` children) for section headings and card rows only;
   `<CountUp>` for stats; `<ProgressFill>` for every progress bar; `.expand` for accordions; `.press` on
-  buttons; the yellow-panel photo `.marquee`; scroll-driven `.ink-on-scroll` / `.steps-line`. Everything
+  buttons; the collage reading reveal (`motion/react`); scroll-driven `.ink-on-scroll` / `.steps-line`. Everything
   is gated by `prefers-reduced-motion: no-preference` and by the `js` class, so content never hides
   without JavaScript. Use `overflow-x-clip`, never `overflow-x-hidden`, on page roots (hidden breaks sticky).
 - **Loading.** App routes declare `loader: () => simulateNetwork()` + a `pendingComponent` from

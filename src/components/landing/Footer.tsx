@@ -1,10 +1,9 @@
-import { Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { AuthLogo } from "@/components/auth/AuthLogo";
 import iconLinkedin from "@/assets/landing/icon-linkedin.svg";
 import iconYoutube from "@/assets/landing/icon-youtube.svg";
 import iconFooterArrow from "@/assets/landing/icon-footer-arrow.svg";
-import { Seal } from "@/components/landing/Seal";
 
 const columns: {
   heading: string;
@@ -82,12 +81,39 @@ const legalLinks = [
 ];
 
 const trustBadges = [
-  { label: "Verified organizations", dot: false },
-  { label: "Secure payments", dot: true },
-  { label: "2.5% platform fee", dot: true },
-  { label: "Community reporting", dot: true },
-  { label: "Registered in Nigeria", dot: true },
+  "Verified organizations",
+  "Secure payments",
+  "2.5% platform fee",
+  "Community reporting",
+  "Registered in Nigeria",
 ];
+
+/** Giver rating drawn as a row of star tiles; the last tile fills to the decimal. */
+function Rating({ value }: { value: number }) {
+  return (
+    <div className="flex shrink-0 flex-col gap-2.5 lg:items-end">
+      <div className="flex gap-[3px]" role="img" aria-label={`Rated ${value} out of 5 by givers`}>
+        {Array.from({ length: 5 }, (_, i) => {
+          const fill = Math.max(0, Math.min(1, value - i)) * 100;
+          return (
+            <span
+              key={i}
+              className="grid h-7 w-7 place-items-center"
+              style={{
+                background: `linear-gradient(90deg, #00B67A ${fill}%, #DCDCE6 ${fill}%)`,
+              }}
+            >
+              <Star className="h-[18px] w-[18px] fill-white text-white" strokeWidth={0} />
+            </span>
+          );
+        })}
+      </div>
+      <p className="font-gsf text-[15px] leading-[21px] tracking-[-0.01em] text-ink-soft">
+        <span className="font-semibold text-ink">{value} out of 5</span> from givers
+      </p>
+    </div>
+  );
+}
 
 export function Footer() {
   return (
@@ -160,18 +186,16 @@ export function Footer() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {trustBadges.map((badge) => (
-                <span key={badge.label} className="flex items-center gap-2">
-                  {badge.dot ? (
-                    <span className="h-1 w-1 shrink-0 rounded-full bg-[#B9BE9C]" />
-                  ) : null}
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              {trustBadges.map((label) => (
+                <li key={label} className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[#00B67A]" strokeWidth={2.5} />
                   <span className="font-gsf text-[13px] leading-[19.5px] tracking-[-0.01em] text-ink-soft">
-                    {badge.label}
+                    {label}
                   </span>
-                </span>
+                </li>
               ))}
-            </div>
+            </ul>
 
             <div className="flex items-center gap-2.5">
               <a
@@ -191,32 +215,7 @@ export function Footer() {
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col gap-3">
-            <div className="flex items-center gap-2.5">
-              <Star className="h-[21px] w-[21px] fill-[#00B67A] text-[#00B67A]" />
-              <p className="font-gsf text-[15px] font-semibold leading-[21px] tracking-[-0.01em] text-ink">
-                4.7/5<span className="font-normal"> from givers</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Seal
-                width="72px"
-                height="72px"
-                className="rounded-lg"
-                icon={<Star className="h-5 w-5 text-ink" strokeWidth={1.5} />}
-                label="Verified"
-                caption="orgs"
-              />
-              <Seal
-                width="65.13px"
-                height="72px"
-                className="rounded-lg"
-                icon={<Star className="h-5 w-5 text-ink" strokeWidth={1.5} />}
-                label="Secure"
-                caption="giving"
-              />
-            </div>
-          </div>
+          <Rating value={4.7} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-3.5">

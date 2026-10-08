@@ -202,15 +202,6 @@
     width: 0 !important;
   }
 
-  /* Yellow panel photo marquee. The list is rendered twice, so -50% loops seamlessly. */
-  .marquee-track {
-    animation: marquee 35s linear infinite;
-  }
-  .marquee:hover .marquee-track,
-  .marquee:focus-within .marquee-track {
-    animation-play-state: paused;
-  }
-
   /* "How giving works": the orange line draws across the steps as they pass. */
   @supports (animation-timeline: view()) {
     .steps-line {
@@ -332,11 +323,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-@keyframes marquee {
-  to {
-    transform: translateX(-50%);
   }
 }
 @keyframes map-pulse {
@@ -468,13 +454,6 @@
 @media (prefers-reduced-motion: reduce) {
   .expand {
     transition: none;
-  }
-  .marquee {
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-  }
-  .marquee-track > li {
-    scroll-snap-align: start;
   }
 }
 

@@ -5,7 +5,7 @@ import { fruitFontsHref } from "@/components/landing/fruit-words";
 import { OpenGivingSection } from "@/components/map/OpenGiving";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FeaturePanel } from "@/components/landing/FeaturePanel";
-import { YellowPanel } from "@/components/landing/YellowPanel";
+import { PhotoCollage } from "@/components/landing/PhotoCollage";
 import { Testimonial } from "@/components/landing/Testimonial";
 import { Campaigns } from "@/components/landing/Campaigns";
 import { Faq } from "@/components/landing/Faq";
@@ -39,7 +39,7 @@ function AzarFaithLanding() {
       <OpenGivingSection className="pt-20 md:pt-28" />
       <HowItWorks />
       <FeaturePanel />
-      <YellowPanel />
+      <PhotoCollage />
       <Testimonial />
       <Campaigns />
       <Faq />
