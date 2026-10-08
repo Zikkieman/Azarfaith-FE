@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
 function AzarFaithLanding() {
   return (
     <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
-      <SiteNav />
+      <SiteNav revealOnScroll />
       <HomeOpening />
       <OpenGivingSection className="pt-20 md:pt-28" />
       <HowItWorks />

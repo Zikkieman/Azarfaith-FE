@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, ArrowRight, BadgeCheck, Lock, Percent, ReceiptText } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
+import { TrustReceipt } from "./TrustReceipt";
 import { reducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -115,13 +116,6 @@ function PhotoCard({ c }: { c: Extract<Card, { kind: "photo" }> }) {
   );
 }
 
-const trust = [
-  { icon: BadgeCheck, text: "Every organisation verified before it can receive gifts" },
-  { icon: Lock, text: "Card and bank payments secured by Paystack" },
-  { icon: ReceiptText, text: "Receipts and updates on every campaign" },
-  { icon: Percent, text: "A flat 2.5% fee, shown before you pay" },
-];
-
 /** Testimonial slider (pattern from Modash): quote cards alternate with photo + result cards. */
 export function Testimonial() {
   const track = useRef<HTMLUListElement>(null);
@@ -210,20 +204,8 @@ export function Testimonial() {
         ))}
       </ul>
 
-      <div className="mx-auto mt-12 w-full max-w-[1446px] px-6 sm:px-10 lg:px-[clamp(40px,6vw,141px)]">
-        <ul className="grid gap-x-8 gap-y-4 border-y border-line py-6 sm:grid-cols-2 xl:grid-cols-4">
-          {trust.map(({ icon: Icon, text }) => (
-            <li
-              key={text}
-              className="flex items-center gap-3 font-gsf text-[15px] leading-[21px] text-heading"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-ink">
-                <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-              </span>
-              {text}
-            </li>
-          ))}
-        </ul>
+      <div className="mx-auto mt-16 w-full max-w-[1446px] px-6 sm:px-10 md:mt-20 lg:px-[clamp(40px,6vw,141px)]">
+        <TrustReceipt />
       </div>
     </section>
   );

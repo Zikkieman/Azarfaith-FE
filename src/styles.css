@@ -246,15 +246,37 @@
     animation: feed-in 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 
-  /* /jos: the receipt gets stamped as it scrolls into view. */
+  /* Trust receipt: the slip prints downward, then the stamp lands (shared .stamp rule). */
+  .js [data-reveal]:not([data-shown]) .receipt-print {
+    clip-path: inset(0 0 100% 0);
+  }
+  .js [data-reveal] .receipt-print {
+    transition: clip-path 900ms cubic-bezier(0.45, 0, 0.2, 1) 150ms;
+  }
+
+  /* Rubber stamp (receipts on / and /jos): drops in large and blurred, slams down with a
+     squash and bounce, leaves an ink ring, and jolts the paper it lands on. Rotation comes
+     from the element's own rotate-* utility, so these keyframes only scale. */
   .js [data-reveal]:not([data-shown]) .stamp {
     opacity: 0;
-    transform: rotate(-12deg) scale(1.8);
   }
-  .js [data-reveal] .stamp {
-    transition:
-      opacity 250ms ease-out 600ms,
-      transform 420ms cubic-bezier(0.3, 1.6, 0.5, 1) 600ms;
+  .js [data-reveal][data-shown] .stamp {
+    animation: stamp-slam 560ms cubic-bezier(0.55, 0, 0.35, 1) 1050ms both;
+  }
+  .stamp::after {
+    content: "";
+    position: absolute;
+    inset: -5px;
+    border: 2px solid currentColor;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .js [data-reveal][data-shown] .stamp::after {
+    animation: stamp-ring 700ms ease-out 1330ms both;
+  }
+  .js [data-reveal][data-shown] .receipt-slip {
+    animation: paper-thud 260ms ease-out 1320ms both;
   }
 
   .press {
@@ -323,6 +345,53 @@
   from {
     opacity: 0;
     transform: translateY(-8px);
+  }
+}
+@keyframes stamp-slam {
+  0% {
+    opacity: 0;
+    transform: scale(3.4);
+    filter: blur(6px);
+  }
+  45% {
+    opacity: 0.9;
+    filter: blur(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(0.86);
+  }
+  68% {
+    transform: scale(1.08);
+  }
+  84% {
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes stamp-ring {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+@keyframes paper-thud {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(3px) scale(0.994);
+  }
+  100% {
+    transform: translateY(0) scale(1);
   }
 }
 @keyframes shimmer {

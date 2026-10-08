@@ -17,9 +17,36 @@ const links: { label: string; to: string; hash?: string; wide?: boolean }[] = [
   { label: "About", to: "/about", wide: true },
 ];
 
-export function SiteNav() {
+/**
+ * `revealOnScroll` (homepage): the nav stays out of the hero until the visitor scrolls, rests on
+ * the hero for a few seconds, or tabs into it. It then behaves normally further down the page.
+ */
+export function SiteNav({ revealOnScroll = false }: { revealOnScroll?: boolean }) {
   const [open, setOpen] = useState(false);
-  const hidden = useScrollDirection();
+  const scrollHidden = useScrollDirection();
+  const [atTop, setAtTop] = useState(revealOnScroll);
+  const [inHero, setInHero] = useState(revealOnScroll);
+  const [rested, setRested] = useState(false);
+
+  useEffect(() => {
+    if (!revealOnScroll) return;
+    const on = () => {
+      setAtTop(window.scrollY < 40);
+      setInHero(window.scrollY < window.innerHeight * 2.6);
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, [revealOnScroll]);
+
+  // Fallback: someone resting on the hero still gets the nav after a moment.
+  useEffect(() => {
+    if (!revealOnScroll || !atTop || rested) return;
+    const t = window.setTimeout(() => setRested(true), 3500);
+    return () => window.clearTimeout(t);
+  }, [revealOnScroll, atTop, rested]);
+
+  const hidden = revealOnScroll ? (atTop && !rested) || (!inHero && scrollHidden) : scrollHidden;
   // The session lives in a cookie only the browser store reads, so switch after hydration.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -30,6 +57,7 @@ export function SiteNav() {
 
   return (
     <header
+      onFocusCapture={() => setRested(true)}
       className={`sticky top-0 z-50 w-full bg-black transition-transform duration-300 ease-out motion-reduce:transition-none ${
         hidden && !open ? "-translate-y-full" : ""
       }`}
