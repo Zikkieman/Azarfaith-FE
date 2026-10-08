@@ -31,19 +31,26 @@ export function Reveal({
   );
 }
 
-/** Counts "₦250M+" / "18k+" / "480+" up from zero when it scrolls into view. */
+/** Counts "₦250M+" / "18k+" / "₦36.6M" up from zero when it scrolls into view (keeps decimals). */
 export function CountUp({ value, className }: { value: string; className?: string }) {
   const m = value.match(/^(\D*)([\d.,]+)([kKM]?)(.*)$/);
   const [ref, inView] = useInView<HTMLSpanElement>();
-  const target = m ? parseFloat(m[2].replace(/,/g, "")) : 0;
+  const decimals = m ? (m[2].split(".")[1] ?? "").length : 0;
+  const scale = 10 ** decimals;
+  const target = m ? Math.round(parseFloat(m[2].replace(/,/g, "")) * scale) : 0;
   const n = useCountUp(target, inView);
   if (!m) return <span className={className}>{value}</span>;
-  const [, prefix, , unit, suffix] = m;
+  const [, prefix, raw, unit, suffix] = m;
+  const shown = decimals
+    ? (n / scale).toFixed(decimals)
+    : raw.includes(",")
+      ? n.toLocaleString()
+      : String(n);
   return (
     <span ref={ref} className={cn("tabular-nums", className)} aria-label={value}>
       <span aria-hidden>
         {prefix}
-        {n.toLocaleString()}
+        {shown}
         {unit}
         {suffix}
       </span>

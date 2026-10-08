@@ -16,7 +16,9 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as JosRouteImport } from './routes/jos'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as MyGivingRouteImport } from './routes/my-giving'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterOrgRouteImport } from './routes/register-org'
@@ -69,9 +71,19 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JosRoute = JosRouteImport.update({
+  id: '/jos',
+  path: '/jos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyGivingRoute = MyGivingRouteImport.update({
@@ -163,7 +175,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/jos': typeof JosRoute
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -188,7 +202,9 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/jos': typeof JosRoute
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -215,7 +231,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/jos': typeof JosRoute
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/my-giving': typeof MyGivingRoute
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
@@ -243,7 +261,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/discover'
     | '/forgot-password'
+    | '/jos'
     | '/login'
+    | '/map'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -268,7 +288,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/discover'
     | '/forgot-password'
+    | '/jos'
     | '/login'
+    | '/map'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -294,7 +316,9 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/discover'
     | '/forgot-password'
+    | '/jos'
     | '/login'
+    | '/map'
     | '/my-giving'
     | '/profile'
     | '/register-org'
@@ -321,7 +345,9 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  JosRoute: typeof JosRoute
   LoginRoute: typeof LoginRoute
+  MapRoute: typeof MapRoute
   MyGivingRoute: typeof MyGivingRoute
   ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
@@ -383,11 +409,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jos': {
+      id: '/jos'
+      path: '/jos'
+      fullPath: '/jos'
+      preLoaderRoute: typeof JosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-giving': {
@@ -567,7 +607,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  JosRoute: JosRoute,
   LoginRoute: LoginRoute,
+  MapRoute: MapRoute,
   MyGivingRoute: MyGivingRoute,
   ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,
