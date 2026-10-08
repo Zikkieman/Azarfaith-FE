@@ -63,8 +63,8 @@ export function DiscoverSkeleton() {
     <Loading label="Loading causes">
       <HeaderSkeleton />
       <Container className="flex gap-2.5 pt-8">
-        {[120, 96, 96, 128].map((w) => (
-          <Bone key={w} className={cn("h-9 shrink-0 rounded-full", w > 110 ? "w-32" : "w-24")} />
+        {["w-32", "w-24", "w-24", "w-32"].map((w, i) => (
+          <Bone key={i} className={cn("h-9 shrink-0 rounded-full", w)} />
         ))}
       </Container>
       <Container className="py-10">

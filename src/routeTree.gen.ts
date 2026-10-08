@@ -21,6 +21,7 @@ import { Route as MyGivingRouteImport } from './routes/my-giving'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RegisterOrgRouteImport } from './routes/register-org'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as StoryRouteImport } from './routes/story'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
@@ -93,6 +94,11 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StoryRoute = StoryRouteImport.update({
+  id: '/story',
+  path: '/story',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
+  '/story': typeof StoryRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
+  '/story': typeof StoryRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
+  '/story': typeof StoryRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/signup'
+    | '/story'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/signup'
+    | '/story'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/signup'
+    | '/story'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
@@ -314,6 +326,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   RegisterOrgRoute: typeof RegisterOrgRoute
   SignupRoute: typeof SignupRoute
+  StoryRoute: typeof StoryRoute
   CampaignIdRoute: typeof CampaignIdRoute
   DonateIdRoute: typeof DonateIdRoute
   OrgIdRoute: typeof OrgIdRoute
@@ -403,6 +416,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/story': {
+      id: '/story'
+      path: '/story'
+      fullPath: '/story'
+      preLoaderRoute: typeof StoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -552,6 +572,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   RegisterOrgRoute: RegisterOrgRoute,
   SignupRoute: SignupRoute,
+  StoryRoute: StoryRoute,
   CampaignIdRoute: CampaignIdRoute,
   DonateIdRoute: DonateIdRoute,
   OrgIdRoute: OrgIdRoute,
