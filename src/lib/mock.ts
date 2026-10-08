@@ -16,19 +16,21 @@ export type Update = { id: string; date: string; title: string; body: string };
 export type Comment = { id: string; author: string; avatar: string; date: string; body: string };
 export type Donation = { id: string; donor: string; amount: number; date: string; note?: string };
 
+// Unsplash (free licence). Index order matters: each slot is reused by the orgs/campaigns below.
 const photos = [
-  "1532635241-17e820acc59f",
-  "1488521787991-ed7bbaae773c",
-  "1517022812141-23620dba5c23",
-  "1509099836639-18ba1795216d",
-  "1517486808906-6ca8b3f04846",
-  "1542838132-92c53300491e",
-  "1593113646773-028c64a8f1b8",
-  "1497375638960-ca368c7231e4",
-  "1593113598332-cd288d649433",
-  "1532634922-8fe0b757fb13",
-  "1576091160550-2173dba999ef",
-  "1559027615-cd4628902d4a",
+  "1632215734180-d8d7eae6164c", // 0 church leaders
+  "1509099836639-18ba1795216d", // 1 children, northern outreach
+  "1609532587710-b00027c0594b", // 2 church building
+  "1604072424771-7300bc5de457", // 3 congregation in pews
+  "1694286068611-d0c24cbc2cd5", // 4 shared meal after service
+  "1648023200358-9dc050df521d", // 5 Lagos cathedral street
+  "1521493959102-bdd6677fdd81", // 6 children at a window
+  "1509099927777-1b8a87bc3b21", // 7 smiling children
+  "1710093072218-0024b8391475", // 8 children on steps
+  "1694286068362-5dcea7ed282a", // 9 food relief
+  "1553775927-a071d5a6a39a", // 10 water and community work
+  "1536064479547-7ee40b74b807", // 11 medical mission
+  "1523396140703-e5bdad4e5dea", // 12 school girl with book
 ];
 
 const p = (i: number) =>
@@ -188,7 +190,7 @@ export const orgs: Org[] = [
     denomination: "Pentecostal",
     founded: "2001",
     bio: "Lifegate Christian Academy provides affordable, quality education to over 400 children in an underserved community in Ibadan. Our teachers are committed Christians who believe education and faith go hand in hand. We subsidize fees for the poorest families and have never turned a child away for inability to pay.",
-    photos: [p(0), p(3), p(6)],
+    photos: [p(12), p(3), p(6)],
     videos: [],
     campaignIds: [],
     verificationStatus: "unverified",
@@ -488,7 +490,8 @@ export const myRecurringDonations: RecurringDonation[] = [
 
 export const me = {
   name: "Tunde Adebayo",
-  avatar: p(4),
+  avatar:
+    "https://images.unsplash.com/photo-1623916439294-c8a1ca6d735c?auto=format&fit=crop&w=400&q=80",
   location: "Lagos, Nigeria",
   joined: "January 2024",
   totalGiven: 480000,

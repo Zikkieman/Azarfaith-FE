@@ -1,5 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import yellowImage from "@/assets/landing/yellow.jpg";
+
+const unsplash = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1000&h=1280&q=80`;
+
+const photos = [
+  { src: unsplash("1604072366376-63d46248927e"), alt: "A congregation standing in worship" },
+  {
+    src: unsplash("1694286068611-d0c24cbc2cd5"),
+    alt: "Church members sharing a meal after service",
+  },
+];
 
 const headingLines = [
   "Your gift, your impact.",
@@ -9,8 +19,8 @@ const headingLines = [
 
 export function YellowPanel() {
   return (
-    <section className="flex w-full flex-col overflow-hidden lg:flex-row lg:items-stretch">
-      <div className="flex w-full flex-col justify-center bg-[#FFE228] px-8 py-16 lg:h-[1059px] lg:w-[868px] lg:shrink-0 lg:py-0 lg:pl-24 lg:pr-8">
+    <section className="grid w-full grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,868fr)_minmax(0,860fr)]">
+      <div className="flex flex-col justify-center bg-[#FFE228] px-6 py-14 sm:px-10 sm:py-16 lg:min-h-[clamp(680px,61.3vw,1059px)] lg:py-20 lg:pl-[clamp(48px,5.6vw,96px)] lg:pr-8">
         <div className="flex flex-col gap-[27.9px]">
           <p className="font-gsf text-sm font-semibold uppercase leading-[21px] tracking-[0.1em] text-[#130E30]">
             The transparency &amp; giving platform
@@ -42,17 +52,18 @@ export function YellowPanel() {
         </div>
       </div>
 
-      <div className="relative hidden h-[1059px] min-w-0 flex-1 lg:block">
-        <img
-          src={yellowImage}
-          alt=""
-          className="absolute left-[-45.55px] top-[221px] h-[640px] w-[500px] rounded-[20px] object-cover"
-        />
-        <img
-          src={yellowImage}
-          alt=""
-          className="absolute left-[482.45px] top-[221px] h-[640px] w-[500px] rounded-[20px] object-cover"
-        />
+      <div className="hidden items-center overflow-hidden lg:flex">
+        <div className="flex shrink-0 -translate-x-[clamp(24px,2.6vw,45px)] gap-[clamp(16px,1.6vw,28px)]">
+          {photos.map((photo) => (
+            <img
+              key={photo.src}
+              src={photo.src}
+              alt={photo.alt}
+              loading="lazy"
+              className="aspect-[500/640] w-[clamp(300px,28.9vw,500px)] rounded-[20px] object-cover"
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

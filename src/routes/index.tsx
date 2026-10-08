@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Nav } from "@/components/landing/Nav";
 import { Hero } from "@/components/landing/Hero";
@@ -25,8 +26,28 @@ export const Route = createFileRoute("/")({
 });
 
 function AzarFaithLanding() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rows = [...el.children].map((c) => ({
+      tag: c.tagName,
+      cls: (c.className || "").toString().slice(0, 30),
+      top: Math.round(c.getBoundingClientRect().top + window.scrollY),
+      h: Math.round(c.getBoundingClientRect().height),
+      kids: [...c.children].map((k) => ({
+        cls: (k.className || "").toString().slice(0, 26),
+        h: Math.round(k.getBoundingClientRect().height),
+        gk: [...k.children].map((g) => ({
+          cls: (g.className || "").toString().slice(0, 24),
+          h: Math.round(g.getBoundingClientRect().height),
+        })),
+      })),
+    }));
+    document.title = JSON.stringify({ total: el.scrollHeight, rows });
+  }, []);
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white font-gsf text-[#232323]">
+    <div ref={ref} className="min-h-screen overflow-x-hidden bg-white font-gsf text-[#232323]">
       <Nav />
       <Hero />
       <Stats />

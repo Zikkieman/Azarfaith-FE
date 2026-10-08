@@ -108,7 +108,7 @@ function MyGiving() {
                     <Link
                       to="/campaign/$id"
                       params={{ id: r.targetId }}
-                      className="truncate text-lg font-semibold leading-[27px] text-[#0B0E0D] hover:underline"
+                      className="line-clamp-2 text-lg font-semibold leading-[24px] text-[#0B0E0D] hover:underline sm:truncate sm:leading-[27px]"
                     >
                       {r.targetName}
                     </Link>

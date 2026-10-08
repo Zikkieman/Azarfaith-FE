@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import iconFaqChevron from "@/assets/landing/icon-faq-chevron.svg";
 
 const questions = [
@@ -36,15 +35,6 @@ export function Faq() {
               </button>
             </div>
           ))}
-        </div>
-
-        <div className="pt-4">
-          <Link
-            to="/discover"
-            className="font-gsf text-sm font-semibold text-[#130E30] underline-offset-4 hover:underline"
-          >
-            Talk to our team →
-          </Link>
         </div>
       </div>
     </section>
