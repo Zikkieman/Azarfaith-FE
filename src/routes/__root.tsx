@@ -24,16 +24,14 @@ function StatusScreen({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6 text-center font-gsf">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-paper px-6 text-center font-gsf">
       {code ? (
-        <p className="font-display text-[clamp(56px,10vw,120px)] leading-none text-[#130E30]">
-          {code}
-        </p>
+        <p className="font-display text-[clamp(56px,10vw,120px)] leading-none text-ink">{code}</p>
       ) : null}
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
         {title}
       </h1>
-      <p className="max-w-md text-base leading-[25.6px] text-[#4A4660]">{body}</p>
+      <p className="max-w-md text-base leading-[25.6px] text-ink-soft">{body}</p>
       <div className="flex flex-wrap items-center justify-center gap-3">{children}</div>
     </div>
   );
@@ -130,8 +128,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }}
+        />
         <HeadContent />
       </head>
       <body>

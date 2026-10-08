@@ -167,7 +167,7 @@ function OtpStep({
 
   return (
     <AuthCard>
-      <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+      <div className="flex w-full flex-col items-start gap-[11px] text-heading">
         <button type="button" onClick={onBack} aria-label="Back">
           <ChevronLeft className="h-6 w-6" />
         </button>
@@ -190,7 +190,7 @@ function OtpStep({
 
 function HeadingBlock() {
   return (
-    <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+    <div className="flex w-full flex-col items-start gap-[11px] text-heading">
       <p className="w-full text-[14px] font-medium leading-[26.25px]">
         More than ₦250M given to ministries
       </p>
@@ -207,7 +207,7 @@ function HeadingBlock() {
 
 function AuthFootnotes() {
   return (
-    <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+    <div className="flex w-full flex-col items-start gap-[11px] text-heading">
       <p className="w-full text-[12px] leading-[26.25px]">
         Forgot your <FootLink to="/forgot-password">password</FootLink>?
       </p>

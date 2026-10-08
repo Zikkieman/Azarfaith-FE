@@ -41,6 +41,45 @@
   --color-urgent-foreground: var(--urgent-foreground);
   --color-warm: var(--warm);
   --color-warm-foreground: var(--warm-foreground);
+
+  /* AzarFaith colour tokens (values on :root below) */
+  --color-paper: var(--af-paper);
+  --color-panel: var(--af-panel);
+  --color-panel-olive: var(--af-panel-olive);
+  --color-peach: var(--af-peach);
+  --color-ink: var(--af-ink);
+  --color-ink-contrast: var(--af-ink-contrast);
+  --color-heading: var(--af-heading);
+  --color-ink-soft: var(--af-ink-soft);
+  --color-muted-ink: var(--af-muted-ink);
+  --color-subtle: var(--af-subtle);
+  --color-line: var(--af-line);
+  --color-line-soft: var(--af-line-soft);
+  --color-line-input: var(--af-line-input);
+  --color-line-strong: var(--af-line-strong);
+  --color-btn: var(--af-btn);
+  --color-btn-fg: var(--af-btn-fg);
+}
+
+/* AzarFaith colour tokens (light only). */
+:root {
+  --af-paper: #ffffff;
+  --af-panel: #f7f5f3;
+  --af-panel-olive: #f7f8f2;
+  --af-peach: #ffefe7;
+  --af-ink: #130e30;
+  --af-ink-contrast: #eff2e5;
+  --af-heading: #232323;
+  --af-ink-soft: #4a4660;
+  --af-muted-ink: #667085;
+  --af-subtle: #8c8c8c;
+  --af-line: #d9ddbc;
+  --af-line-soft: rgba(57, 62, 70, 0.1);
+  --af-line-input: #d0d5dd;
+  --af-line-strong: #b6ba95;
+  --af-btn: #000000;
+  --af-btn-fg: #ffffff;
+  color-scheme: light;
 }
 
 :root {
@@ -82,7 +121,7 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    background-color: var(--color-background);
+    background-color: var(--af-paper);
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
@@ -94,6 +133,187 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
     font-weight: 400;
+  }
+}
+
+/* ─── Motion ─────────────────────────────────────────────────────────────
+   One hero load sequence + scroll reveals that only hide content when JS runs
+   and the visitor allows motion. Everything collapses to static under reduce. */
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-reveal]:not([data-shown]) {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  .js [data-reveal] {
+    transition:
+      opacity 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .js [data-reveal] > [data-stagger] {
+    transition:
+      opacity 600ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: calc(var(--i, 0) * 90ms + 120ms);
+  }
+  .js [data-reveal]:not([data-shown]) > [data-stagger] {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  /* Hero: headline lines rise out of a mask, the orange panel wipes in, the photo settles. */
+  .hero-line {
+    display: inline-block;
+    vertical-align: top;
+    overflow: hidden;
+    padding-bottom: 0.08em;
+    margin-bottom: -0.08em;
+  }
+  .hero-line > span {
+    display: inline-block;
+    animation: hero-rise 900ms cubic-bezier(0.2, 0.75, 0.15, 1) both;
+    animation-delay: calc(var(--i, 0) * 110ms + 80ms);
+  }
+  .hero-panel {
+    animation: hero-wipe 900ms cubic-bezier(0.65, 0, 0.25, 1) 250ms both;
+  }
+  .hero-panel-content {
+    animation: fade-up 700ms cubic-bezier(0.2, 0.7, 0.2, 1) 750ms both;
+  }
+  .hero-photo {
+    animation: hero-settle 1600ms cubic-bezier(0.2, 0.7, 0.2, 1) 200ms both;
+  }
+
+  /* Progress bars fill when they enter the viewport (class added by <ProgressFill>). */
+  .fill-in {
+    transition: width 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 150ms;
+  }
+  .js [data-fill]:not([data-shown]) {
+    width: 0 !important;
+  }
+
+  /* Yellow panel photo marquee. The list is rendered twice, so -50% loops seamlessly. */
+  .marquee-track {
+    animation: marquee 35s linear infinite;
+  }
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track {
+    animation-play-state: paused;
+  }
+
+  /* "How giving works": the orange line draws across the steps as they pass. */
+  @supports (animation-timeline: view()) {
+    .steps-line {
+      animation: draw-x linear both;
+      animation-timeline: view();
+      animation-range: entry 60% cover 55%;
+    }
+    /* Stat headline: words go from muted to ink as the line crosses the viewport. */
+    .ink-on-scroll > span {
+      animation: ink-in linear both;
+      animation-timeline: view();
+      animation-range: entry 70% cover 45%;
+    }
+  }
+
+  .press {
+    transition:
+      transform 120ms ease,
+      opacity 150ms ease,
+      background-color 150ms ease;
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes hero-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes hero-settle {
+  from {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Expanding panels (FAQ, feature list): animate height with a grid row. */
+.expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 380ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.expand[data-open] {
+  grid-template-rows: 1fr;
+}
+.expand > * {
+  overflow: hidden;
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .expand {
+    transition: none;
+  }
+  .marquee {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .marquee-track > li {
+    scroll-snap-align: start;
+  }
+}
+
+/* Skeleton shimmer, theme-aware. */
+.skeleton {
+  background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, var(--af-paper) 55%, transparent) 50%,
+      transparent 100%
+    )
+    var(--af-panel);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
   }
 }
 

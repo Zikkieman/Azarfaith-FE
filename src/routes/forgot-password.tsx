@@ -39,10 +39,10 @@ function ForgotPassword() {
       <AuthCard>
         {sentTo ? (
           <>
-            <span className="grid h-12 w-12 place-items-center rounded-full bg-[#FFEFE7] text-[#fe5102]">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-peach text-[#fe5102]">
               <MailCheck className="h-6 w-6" strokeWidth={1.5} />
             </span>
-            <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+            <div className="flex w-full flex-col items-start gap-[11px] text-heading">
               <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
                 Check your inbox
               </h1>
@@ -54,7 +54,7 @@ function ForgotPassword() {
             <div className="flex w-full flex-col gap-[9px]">
               <Link
                 to="/login"
-                className="flex w-full items-center justify-center rounded-[8px] bg-black px-4 py-3 text-sm font-semibold leading-5 text-white hover:bg-black/90"
+                className="flex w-full items-center justify-center rounded-[8px] bg-btn px-4 py-3 text-sm font-semibold leading-5 text-btn-fg hover:bg-btn/90"
               >
                 Back to sign in
               </Link>
@@ -63,7 +63,7 @@ function ForgotPassword() {
           </>
         ) : (
           <>
-            <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+            <div className="flex w-full flex-col items-start gap-[11px] text-heading">
               <p className="w-full text-[14px] font-medium leading-[26.25px]">Account help</p>
               <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
                 Reset your password

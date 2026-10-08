@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import logo from "@/assets/landing/logo.svg";
+import { AuthLogo } from "@/components/auth/AuthLogo";
 import iconLinkedin from "@/assets/landing/icon-linkedin.svg";
 import iconYoutube from "@/assets/landing/icon-youtube.svg";
 import iconFooterArrow from "@/assets/landing/icon-footer-arrow.svg";
@@ -93,14 +93,14 @@ const trustBadges = [
 
 export function Footer() {
   return (
-    <footer className="w-full bg-white px-6 pb-6 pt-[42.92px] md:px-12">
+    <footer className="w-full bg-paper px-6 pb-6 pt-[42.92px] md:px-12">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-7">
-        <div className="flex w-full flex-col items-stretch gap-4 rounded-[28px] bg-[#FFEFE7] p-4 pl-5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-8 sm:self-start sm:rounded-full sm:py-3 sm:pl-8 sm:pr-5">
-          <p className="font-gsf text-base font-semibold leading-5 tracking-[-0.02em] text-[#130E30]">
+        <div className="flex w-full flex-col items-stretch gap-4 rounded-[28px] bg-peach p-4 pl-5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-8 sm:self-start sm:rounded-full sm:py-3 sm:pl-8 sm:pr-5">
+          <p className="font-gsf text-base font-semibold leading-5 tracking-[-0.02em] text-ink">
             Practical giving updates—campaigns, stories, and receipts, in your inbox
           </p>
           <form
-            className="flex h-14 w-full min-w-0 items-center rounded-full border-b border-[#B6BA95] bg-white p-1 sm:w-[396.24px] sm:shrink-0"
+            className="flex h-14 w-full min-w-0 items-center rounded-full border-b border-line-strong bg-paper p-1 sm:w-[396.24px] sm:shrink-0"
             onSubmit={(event) => event.preventDefault()}
           >
             <label className="sr-only" htmlFor="footer-email">
@@ -110,22 +110,22 @@ export function Footer() {
               id="footer-email"
               type="email"
               placeholder="name@church.org"
-              className="min-w-0 flex-1 bg-transparent px-4 font-gsf text-base tracking-[-0.02em] text-[#130E30] outline-none placeholder:text-[#5F5C6E]"
+              className="min-w-0 flex-1 bg-transparent px-4 font-gsf text-base tracking-[-0.02em] text-ink outline-none placeholder:text-ink-soft"
             />
             <button
               type="submit"
-              className="h-full w-[104px] shrink-0 cursor-pointer rounded-full border-2 border-black bg-[#130E30] font-gsf text-sm font-medium text-[#EFF2E5] transition-opacity hover:opacity-90 sm:w-[116.24px]"
+              className="h-full w-[104px] shrink-0 cursor-pointer rounded-full border-2 border-ink bg-ink font-gsf text-sm font-medium text-ink-contrast transition-opacity hover:opacity-90 sm:w-[116.24px]"
             >
               Subscribe
             </button>
           </form>
         </div>
 
-        <div className="grid grid-cols-2 gap-5 border-t border-[#D9DDBC] pt-6 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-5 border-t border-line pt-6 sm:grid-cols-3 lg:grid-cols-5">
           {columns.map((column) => (
             <div key={column.heading} className="flex flex-col gap-1.5 self-start">
               <div className="pb-0.5">
-                <h3 className="font-gsf text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+                <h3 className="font-gsf text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
                   {column.heading}
                 </h3>
               </div>
@@ -133,7 +133,7 @@ export function Footer() {
                 <Link
                   key={link.label}
                   to={link.to}
-                  className="font-gsf text-sm leading-[21px] text-[#130E30] transition-opacity hover:opacity-70"
+                  className="font-gsf text-sm leading-[21px] text-ink transition-opacity hover:opacity-70"
                 >
                   {link.label}
                 </Link>
@@ -141,7 +141,7 @@ export function Footer() {
               {column.more ? (
                 <Link
                   to={column.more.to}
-                  className="flex items-center gap-1.5 pt-1 font-gsf text-sm font-semibold leading-[21px] text-[#130E30] transition-opacity hover:opacity-70"
+                  className="flex items-center gap-1.5 pt-1 font-gsf text-sm font-semibold leading-[21px] text-ink transition-opacity hover:opacity-70"
                 >
                   {column.more.label}
                   <img src={iconFooterArrow} alt="" className="h-3.5 w-3.5" />
@@ -151,13 +151,13 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="flex flex-col gap-7 border-t border-[#D9DDBC] pt-6 lg:flex-row lg:justify-between">
+        <div className="flex flex-col gap-7 border-t border-line pt-6 lg:flex-row lg:justify-between">
           <div className="flex min-w-0 flex-1 flex-col gap-3.5">
             <div className="flex flex-col gap-3">
               <div className="flex h-9 items-center">
-                <img src={logo} alt="AzarFaith" className="h-[27.5px] w-[139.12px]" />
+                <AuthLogo />
               </div>
-              <p className="font-display text-[22px] leading-[26.4px] text-[#130E30]">
+              <p className="font-display text-[22px] leading-[26.4px] text-ink">
                 Give to churches and faith-based work across Nigeria
               </p>
             </div>
@@ -168,7 +168,7 @@ export function Footer() {
                   {badge.dot ? (
                     <span className="h-1 w-1 shrink-0 rounded-full bg-[#B9BE9C]" />
                   ) : null}
-                  <span className="font-gsf text-[13px] leading-[19.5px] tracking-[-0.01em] text-[#4A4660]">
+                  <span className="font-gsf text-[13px] leading-[19.5px] tracking-[-0.01em] text-ink-soft">
                     {badge.label}
                   </span>
                 </span>
@@ -179,14 +179,14 @@ export function Footer() {
               <a
                 href="#"
                 aria-label="LinkedIn"
-                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#D9DDBC] transition-colors hover:bg-[#F7F7F2]"
+                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-line transition-colors hover:bg-panel-olive"
               >
                 <img src={iconLinkedin} alt="" className="h-5 w-5" />
               </a>
               <a
                 href="#"
                 aria-label="YouTube"
-                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#D9DDBC] transition-colors hover:bg-[#F7F7F2]"
+                className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-line transition-colors hover:bg-panel-olive"
               >
                 <img src={iconYoutube} alt="" className="h-[21px] w-[21px]" />
               </a>
@@ -196,7 +196,7 @@ export function Footer() {
           <div className="flex shrink-0 flex-col gap-3">
             <div className="flex items-center gap-2.5">
               <Star className="h-[21px] w-[21px] fill-[#00B67A] text-[#00B67A]" />
-              <p className="font-gsf text-[15px] font-semibold leading-[21px] tracking-[-0.01em] text-[#130E30]">
+              <p className="font-gsf text-[15px] font-semibold leading-[21px] tracking-[-0.01em] text-ink">
                 4.7/5<span className="font-normal"> from givers</span>
               </p>
             </div>
@@ -205,7 +205,7 @@ export function Footer() {
                 width="72px"
                 height="72px"
                 className="rounded-lg"
-                icon={<Star className="h-5 w-5 text-[#130E30]" strokeWidth={1.5} />}
+                icon={<Star className="h-5 w-5 text-ink" strokeWidth={1.5} />}
                 label="Verified"
                 caption="orgs"
               />
@@ -213,7 +213,7 @@ export function Footer() {
                 width="65.13px"
                 height="72px"
                 className="rounded-lg"
-                icon={<Star className="h-5 w-5 text-[#130E30]" strokeWidth={1.5} />}
+                icon={<Star className="h-5 w-5 text-ink" strokeWidth={1.5} />}
                 label="Secure"
                 caption="giving"
               />
@@ -221,14 +221,14 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#D9DDBC] pt-3.5">
-          <p className="font-gsf text-[13px] leading-[19.5px] text-[#4A4660]">© 2026 AzarFaith</p>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-3.5">
+          <p className="font-gsf text-[13px] leading-[19.5px] text-ink-soft">© 2026 AzarFaith</p>
           <div className="flex flex-wrap items-center gap-3.5">
             {legalLinks.map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
-                className="font-gsf text-[13px] leading-[19.5px] text-[#4A4660] transition-opacity hover:opacity-70"
+                className="font-gsf text-[13px] leading-[19.5px] text-ink-soft transition-opacity hover:opacity-70"
               >
                 {item.label}
               </Link>

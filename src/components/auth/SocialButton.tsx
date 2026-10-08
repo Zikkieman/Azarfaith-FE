@@ -19,8 +19,8 @@ export function SocialButton({
       className={cn(
         "flex w-full items-center justify-center gap-3 rounded-[8px] px-4 py-3 text-sm font-semibold leading-5 transition-colors",
         variant === "outline"
-          ? "border border-[#ededed] bg-white text-[#344054] hover:bg-muted"
-          : "bg-black text-white hover:bg-black/90",
+          ? "border border-line-soft bg-paper text-heading hover:bg-muted"
+          : "bg-btn text-btn-fg hover:bg-btn/90",
         className,
       )}
       {...props}

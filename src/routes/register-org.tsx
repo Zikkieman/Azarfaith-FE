@@ -111,9 +111,9 @@ function RegisterOrg() {
             <div className="flex flex-col gap-4">
               <p className={eyebrowClass}>Register your org</p>
               <Stepper steps={steps} current={step} />
-              <p className="text-[13px] text-[#667085] sm:hidden">
+              <p className="text-[13px] text-muted-ink sm:hidden">
                 Step {step + 1} of {steps.length} ·{" "}
-                <span className="font-semibold text-[#130E30]">{steps[step]}</span>
+                <span className="font-semibold text-ink">{steps[step]}</span>
               </p>
             </div>
 
@@ -195,7 +195,7 @@ function RegisterOrg() {
                 />
                 <label className="flex flex-col gap-1.5">
                   <span className={labelClass}>
-                    Tagline <span className="font-normal text-[#667085]">(one sentence)</span>
+                    Tagline <span className="font-normal text-muted-ink">(one sentence)</span>
                   </span>
                   <input
                     className={inputClass}
@@ -216,7 +216,7 @@ function RegisterOrg() {
                   />
                   <span className="flex items-center justify-between">
                     {field("bio") ?? <span />}
-                    <span className="text-[13px] text-[#667085]">
+                    <span className="text-[13px] text-muted-ink">
                       {orgDraft.bio?.length ?? 0} / 60 minimum
                     </span>
                   </span>
@@ -230,14 +230,12 @@ function RegisterOrg() {
                   title="Add photos and videos"
                   sub="Show givers the work. Nothing builds trust faster."
                 />
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#B6BA95] bg-[#F7F8F2] px-6 py-12 text-center">
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#130E30]">
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-panel-olive px-6 py-12 text-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-paper text-ink">
                     <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
                   </span>
-                  <p className="text-base font-semibold text-[#130E30]">
-                    Upload photos of your work
-                  </p>
-                  <p className="text-sm text-[#667085]">
+                  <p className="text-base font-semibold text-ink">Upload photos of your work</p>
+                  <p className="text-sm text-muted-ink">
                     Buildings, team, community, events — real photos, not stock.
                   </p>
                   <button
@@ -251,7 +249,7 @@ function RegisterOrg() {
                 <label className="flex flex-col gap-1.5">
                   <span className={labelClass}>
                     YouTube or Vimeo link{" "}
-                    <span className="font-normal text-[#667085]">(optional)</span>
+                    <span className="font-normal text-muted-ink">(optional)</span>
                   </span>
                   <input
                     className={inputClass}
@@ -271,14 +269,14 @@ function RegisterOrg() {
                       }
                     }}
                   />
-                  <span className="text-[13px] text-[#667085]">Press Enter to add a link.</span>
+                  <span className="text-[13px] text-muted-ink">Press Enter to add a link.</span>
                 </label>
                 {(orgDraft.videos ?? []).length > 0 ? (
                   <ul className="flex flex-col gap-2">
                     {(orgDraft.videos ?? []).map((v, i) => (
                       <li
                         key={i}
-                        className="truncate rounded-lg bg-[#F7F5F3] px-3.5 py-2.5 text-sm text-[#4A4660]"
+                        className="truncate rounded-lg bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
                       >
                         {v}
                       </li>
@@ -301,7 +299,7 @@ function RegisterOrg() {
               </div>
             ) : null}
 
-            <div className="flex items-center justify-between gap-3 border-t border-[#D9DDBC] pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
+            <div className="flex items-center justify-between gap-3 border-t border-line pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
               {step > 0 ? (
                 <button
                   type="button"
@@ -326,30 +324,30 @@ function RegisterOrg() {
           </div>
 
           <aside
-            className={`lg:sticky lg:top-6 lg:block lg:self-start ${step === 3 ? "" : "hidden"}`}
+            className={`lg:sticky lg:top-24 lg:block lg:self-start ${step === 3 ? "" : "hidden"}`}
           >
-            <p className="pb-3 text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+            <p className="pb-3 text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
               Live preview
             </p>
             <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-              <div className="grid h-[180px] w-full place-items-center rounded-lg bg-[#F7F5F3] text-[#B6BA95]">
+              <div className="grid h-[180px] w-full place-items-center rounded-lg bg-panel text-[#B6BA95]">
                 <ImagePlus className="h-8 w-8" strokeWidth={1.5} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-[#F7F5F3] px-2.5 py-0.5 text-xs font-medium text-[#4A4660]">
+                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-ink-soft">
                   {selectedCategory?.label ?? "Category"}
                 </span>
-                <span className="rounded-full bg-[#F7F5F3] px-2.5 py-0.5 text-xs font-medium text-[#667085]">
+                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-muted-ink">
                   Unverified
                 </span>
               </div>
-              <p className="font-display text-2xl leading-[1.2] text-[#130E30]">
+              <p className="font-display text-2xl leading-[1.2] text-ink">
                 {orgDraft.name || "Your organization"}
               </p>
-              <p className="text-sm leading-5 text-[#667085]">
+              <p className="text-sm leading-5 text-muted-ink">
                 {orgDraft.tagline || "Your one-line tagline appears here."}
               </p>
-              <p className="text-[13px] text-[#667085]">
+              <p className="text-[13px] text-muted-ink">
                 {[
                   orgDraft.denomination,
                   orgDraft.location,
@@ -359,7 +357,7 @@ function RegisterOrg() {
                   .join(" · ") || "Denomination · Location · Founded"}
               </p>
               {orgDraft.bio ? (
-                <p className="line-clamp-4 border-t border-[#EBECEC] pt-4 text-sm leading-[21px] text-[#4A4660]">
+                <p className="line-clamp-4 border-t border-line-soft pt-4 text-sm leading-[21px] text-ink-soft">
                   {orgDraft.bio}
                 </p>
               ) : null}
@@ -374,10 +372,10 @@ function RegisterOrg() {
 function StepTitle({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
         {title}
       </h1>
-      <p className="text-base leading-[25.6px] text-[#4A4660]">{sub}</p>
+      <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p>
     </div>
   );
 }

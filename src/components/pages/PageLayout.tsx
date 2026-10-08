@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { Nav } from "@/components/landing/Nav";
+import { SiteNav } from "@/components/landing/SiteNav";
+import { useScrollProgress } from "@/lib/motion";
 import { Footer } from "@/components/landing/Footer";
 import { Blocks } from "@/components/pages/Blocks";
 import type { PageDoc } from "@/components/pages/types";
@@ -22,27 +23,27 @@ function ClosingCta({ page }: { page: PageDoc }) {
     } satisfies NonNullable<PageDoc["cta"]>);
 
   return (
-    <section className="border-t border-[#D9DDBC] bg-white px-6 py-20 md:px-12">
+    <section className="border-t border-line bg-paper px-6 py-20 md:px-12">
       <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center gap-7">
-        <h2 className="text-center font-display text-[clamp(30px,3vw,48px)] leading-[1.1] tracking-[-0.01em] text-[#130E30]">
+        <h2 className="text-center font-display text-[clamp(30px,3vw,48px)] leading-[1.1] tracking-[-0.01em] text-ink">
           {cta.heading}
         </h2>
         {cta.text ? (
-          <p className="max-w-[640px] text-center font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-[#4A4660]">
+          <p className="max-w-[640px] text-center font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
             {cta.text}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             to={cta.primary.to}
-            className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-black bg-[#130E30] px-[22px] py-3 font-gsf text-base leading-5 tracking-[-0.02em] text-[#EFF2E5] transition-opacity hover:opacity-90"
+            className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-[22px] py-3 font-gsf text-base leading-5 tracking-[-0.02em] text-ink-contrast transition-opacity hover:opacity-90"
           >
             {cta.primary.label}
           </Link>
           {cta.secondary ? (
             <Link
               to={cta.secondary.to}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#130E30] px-[22px] py-3 font-gsf text-base leading-6 tracking-[-0.02em] text-[#130E30] transition-colors hover:bg-[#130E30]/5"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-ink px-[22px] py-3 font-gsf text-base leading-6 tracking-[-0.02em] text-ink transition-colors hover:bg-ink/5"
             >
               {cta.secondary.label}
             </Link>
@@ -50,6 +51,17 @@ function ClosingCta({ page }: { page: PageDoc }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function ReadingProgress() {
+  const p = useScrollProgress();
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-x-0 top-0 z-[60] h-[3px] origin-left bg-[#FE5102]"
+      style={{ transform: `scaleX(${p})` }}
+    />
   );
 }
 
@@ -61,23 +73,24 @@ export function PageLayout({ page }: { page: PageDoc }) {
   const showToc = !wide && toc.length >= 3;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white font-gsf text-[#232323]">
-      <Nav active="" />
+    <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
+      <ReadingProgress />
+      <SiteNav />
 
       <main>
-        <section className="border-b border-[#D9DDBC] bg-white px-6 pb-14 pt-14 md:px-12 md:pt-20">
+        <section className="border-b border-line bg-paper px-6 pb-14 pt-14 md:px-12 md:pt-20">
           <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5">
-            <p className="font-gsf text-sm font-semibold uppercase leading-[21px] tracking-[0.1em] text-[#4A4660]">
+            <p className="font-gsf text-sm font-semibold uppercase leading-[21px] tracking-[0.1em] text-ink-soft">
               {page.eyebrow}
             </p>
-            <h1 className="max-w-[900px] font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+            <h1 className="max-w-[900px] font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
               {page.title}
             </h1>
-            <p className="max-w-[760px] font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-[#4A4660]">
+            <p className="max-w-[760px] font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
               {page.lead}
             </p>
             {page.updated ? (
-              <p className="font-gsf text-[13px] leading-[19.5px] text-[#667085]">{page.updated}</p>
+              <p className="font-gsf text-[13px] leading-[19.5px] text-muted-ink">{page.updated}</p>
             ) : null}
           </div>
         </section>
@@ -88,15 +101,15 @@ export function PageLayout({ page }: { page: PageDoc }) {
           >
             {showToc ? (
               <aside className="lg:sticky lg:top-24 lg:self-start">
-                <p className="pb-3 font-gsf text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+                <p className="pb-3 font-gsf text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
                   On this page
                 </p>
-                <nav className="flex flex-col border-t border-[#D9DDBC]">
+                <nav className="flex flex-col border-t border-line">
                   {toc.map((item) => (
                     <a
                       key={item.id}
                       href={`#${item.id}`}
-                      className="border-b border-[#D9DDBC] py-3 font-gsf text-sm leading-[21px] text-[#130E30] transition-opacity hover:opacity-70"
+                      className="border-b border-line py-3 font-gsf text-sm leading-[21px] text-ink transition-opacity hover:opacity-70"
                     >
                       {item.text}
                     </a>

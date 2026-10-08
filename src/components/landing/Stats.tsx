@@ -1,3 +1,7 @@
+import { Fragment, type CSSProperties } from "react";
+import { CountUp, Reveal } from "@/components/motion/Reveal";
+const headline = "More than ₦35 million is given every week on AzarFaith.*";
+
 const stats = [
   { label: "Given to Ministries", value: "₦250M+" },
   { label: "Active Donors", value: "18k+" },
@@ -13,14 +17,22 @@ const rings = [
 
 export function Stats() {
   return (
-    <section className="w-full bg-white pt-[120px]">
+    <section className="w-full bg-paper pt-[120px]">
       <div className="mx-auto flex w-full max-w-[1728px] flex-col items-center gap-2.5">
-        <h2 className="w-full max-w-[1332px] px-6 text-center font-display text-[clamp(34px,5.55vw,96px)] leading-[1.1875] tracking-[-0.0128em] text-[#232323]">
-          More than ₦35 million is given every week on AzarFaith.*
+        <h2 className="ink-on-scroll w-full max-w-[1332px] px-6 text-center font-display text-[clamp(34px,5.55vw,96px)] leading-[1.1875] tracking-[-0.0128em] text-heading">
+          {headline.split(" ").map((word, i) => (
+            <Fragment key={i}>
+              <span>{word}</span>{" "}
+            </Fragment>
+          ))}
         </h2>
 
-        <div className="flex w-full flex-col gap-6 p-6 md:px-[120px] md:py-[120px] xl:flex-row">
-          <div className="relative h-[270px] min-w-0 flex-1 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_2%_1%,rgba(84,84,84,1)_0%,rgba(28,26,23,1)_100%)]">
+        <Reveal className="flex w-full flex-col gap-6 p-6 md:px-[120px] md:py-[120px] xl:flex-row">
+          <div
+            data-stagger
+            style={{ "--i": 0 } as CSSProperties}
+            className="relative h-[270px] min-w-0 flex-1 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_2%_1%,rgba(84,84,84,1)_0%,rgba(28,26,23,1)_100%)]"
+          >
             <div className="pointer-events-none absolute -left-[178px] -top-[204px] h-[392px] w-[392px]">
               {rings.map((ring) => (
                 <span
@@ -52,20 +64,22 @@ export function Stats() {
             </div>
           </div>
 
-          {stats.map((stat) => (
+          {stats.map((stat, i) => (
             <div
               key={stat.label}
-              className="flex h-[270px] min-w-0 flex-1 flex-col justify-between rounded-lg bg-[#EDEDED] p-10"
+              data-stagger
+              style={{ "--i": i + 1 } as CSSProperties}
+              className="flex h-[270px] min-w-0 flex-1 flex-col justify-between rounded-lg bg-panel p-10"
             >
-              <p className="font-gsf text-lg font-medium leading-6 tracking-[-0.01em] text-[rgba(28,26,23,0.56)]">
+              <p className="font-gsf text-lg font-medium leading-6 tracking-[-0.01em] text-muted-ink">
                 {stat.label}
               </p>
-              <p className="font-gsf text-[56px] font-bold leading-[56px] tracking-[-0.03em] text-[#1C1A17]">
-                {stat.value}
+              <p className="font-gsf text-[56px] font-bold leading-[56px] tracking-[-0.03em] text-heading">
+                <CountUp value={stat.value} />
               </p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </div>
     </section>
   );

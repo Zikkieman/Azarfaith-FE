@@ -1,7 +1,9 @@
+import type { CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
+import { Reveal } from "@/components/motion/Reveal";
 import { CampaignCard } from "@/components/CampaignCard";
 import { useApp } from "@/lib/store";
-import iconChevron from "@/assets/landing/icon-chevron-down.svg";
+import { ChevronRight } from "lucide-react";
 
 export function Campaigns() {
   const campaigns = useApp((s) => s.campaigns);
@@ -9,19 +11,19 @@ export function Campaigns() {
 
   return (
     <section className="mx-auto flex w-full max-w-[1728px] flex-col px-6 py-20 sm:px-10 md:py-[clamp(96px,9vw,156px)] lg:px-[clamp(40px,8.2vw,141px)]">
-      <div className="flex flex-col gap-6">
+      <Reveal className="flex flex-col gap-6">
         <div className="flex items-center gap-2.5">
-          <h2 className="min-w-0 flex-1 font-gsf text-[clamp(26px,2.08vw,36px)] font-bold leading-[1.1] text-[#232323]">
+          <h2 className="min-w-0 flex-1 font-gsf text-[clamp(26px,2.08vw,36px)] font-bold leading-[26.25px] text-heading">
             Featured campaigns
           </h2>
           <Link
             to="/discover"
             className="flex shrink-0 items-center gap-1 transition-opacity hover:opacity-70"
           >
-            <span className="font-gsf text-sm font-medium leading-[26.25px] text-[#8C8C8C]">
+            <span className="font-gsf text-sm font-medium leading-[26.25px] text-subtle">
               View more
             </span>
-            <img src={iconChevron} alt="" className="h-[18px] w-[18px]" />
+            <ChevronRight className="h-[18px] w-[18px] text-subtle" strokeWidth={1.5} />
           </Link>
         </div>
 
@@ -29,13 +31,15 @@ export function Campaigns() {
           {featured.map((c, i) => (
             <div
               key={c.id}
+              data-stagger
+              style={{ "--i": i } as CSSProperties}
               className={`w-[85%] shrink-0 snap-start sm:w-[60%] md:w-auto ${i === 2 ? "md:hidden xl:block" : ""}`}
             >
               <CampaignCard campaign={c} />
             </div>
           ))}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

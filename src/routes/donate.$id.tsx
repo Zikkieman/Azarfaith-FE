@@ -126,10 +126,10 @@ function AzarFaithDonate() {
             <Check className="h-10 w-10" strokeWidth={2} />
           </span>
           <p className={`${eyebrowClass} mt-8`}>Gift received</p>
-          <h1 className="mt-3 font-display text-[clamp(36px,4.4vw,64px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+          <h1 className="mt-3 font-display text-[clamp(36px,4.4vw,64px)] leading-[1.08] tracking-[-0.01em] text-ink">
             Thank you{!anonymous && name ? `, ${name.split(" ")[0]}` : ""}
           </h1>
-          <p className="mt-4 max-w-[560px] text-lg leading-[27.9px] tracking-[-0.02em] text-[#4A4660]">
+          <p className="mt-4 max-w-[560px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
             {isRecurring
               ? `Your ${freq} gift of ${formatMoney(finalAmount)} to ${campaign.title} is set up.`
               : `Your gift of ${formatMoney(finalAmount)} to ${campaign.title} has been received. A receipt is on its way to your inbox.`}
@@ -176,10 +176,10 @@ function AzarFaithDonate() {
 
   const stepTitle = (title: string, sub?: string) => (
     <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
         {title}
       </h1>
-      {sub ? <p className="text-base leading-[25.6px] text-[#4A4660]">{sub}</p> : null}
+      {sub ? <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p> : null}
     </div>
   );
 
@@ -188,10 +188,10 @@ function AzarFaithDonate() {
       bottomBar={
         <div className="flex items-center gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-[#667085]">
+            <p className="text-[13px] text-muted-ink">
               Total{isRecurring ? ` · ${frequencyLabel[freq].toLowerCase()}` : ""}
             </p>
-            <p className="font-display text-xl text-[#130E30]">{formatMoney(total)}</p>
+            <p className="font-display text-xl text-ink">{formatMoney(total)}</p>
           </div>
           {cta("shrink-0 px-6")}
         </div>
@@ -203,7 +203,7 @@ function AzarFaithDonate() {
           onClick={() =>
             step > 0 ? setStep((s) => s - 1) : nav({ to: "/campaign/$id", params: { id } })
           }
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-[#4A4660] transition-colors hover:text-[#130E30]"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
           {step > 0 ? "Back" : "Back to campaign"}
@@ -211,13 +211,13 @@ function AzarFaithDonate() {
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-10">
-            <div className="flex items-center gap-3 rounded-xl border border-[rgba(57,62,70,0.08)] p-3 lg:hidden">
+            <div className="flex items-center gap-3 rounded-xl border border-line-soft p-3 lg:hidden">
               <img
                 src={campaign.cover}
                 alt=""
                 className="h-12 w-12 shrink-0 rounded-lg object-cover"
               />
-              <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-[#0B0E0D]">
+              <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-heading">
                 {campaign.title}
               </p>
             </div>
@@ -245,8 +245,8 @@ function AzarFaithDonate() {
                         }}
                         className={`rounded-xl border py-3.5 font-display text-base transition-colors sm:py-4 sm:text-xl ${
                           selected
-                            ? "border-[#130E30] bg-[#130E30] text-[#EFF2E5]"
-                            : "border-[rgba(57,62,70,0.12)] text-[#130E30] hover:border-[#130E30]/40"
+                            ? "border-ink bg-ink text-ink-contrast"
+                            : "border-line-soft text-ink hover:border-ink/40"
                         }`}
                       >
                         {formatMoney(p)}
@@ -257,7 +257,7 @@ function AzarFaithDonate() {
                 <label className="flex flex-col gap-1.5">
                   <span className={labelClass}>Or enter your own amount</span>
                   <div className="relative">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-[#4A4660]">
+                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-soft">
                       ₦
                     </span>
                     <input
@@ -329,12 +329,12 @@ function AzarFaithDonate() {
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  <label className="flex items-center gap-3 text-base text-[#130E30]">
+                  <label className="flex items-center gap-3 text-base text-ink">
                     <input
                       type="checkbox"
                       checked={anonymous}
                       onChange={(e) => setAnonymous(e.target.checked)}
-                      className="h-4 w-4 accent-[#130E30]"
+                      className="h-4 w-4 accent-ink"
                     />
                     Give anonymously
                   </label>
@@ -380,12 +380,12 @@ function AzarFaithDonate() {
                 <dl className={`${cardClass} flex flex-col gap-2.5 p-5 lg:hidden`}>
                   {summaryRows.map(({ label, value }) => (
                     <div key={label} className="flex justify-between text-sm">
-                      <dt className="text-[#667085]">{label}</dt>
-                      <dd className="text-[#130E30]">{value}</dd>
+                      <dt className="text-muted-ink">{label}</dt>
+                      <dd className="text-ink">{value}</dd>
                     </div>
                   ))}
                 </dl>
-                <dl className={`${cardClass} divide-y divide-[#EBECEC]`}>
+                <dl className={`${cardClass} divide-y divide-line-soft`}>
                   {[
                     { label: "To", value: campaign.title },
                     { label: "From", value: anonymous ? "Anonymous" : name || "You" },
@@ -402,8 +402,8 @@ function AzarFaithDonate() {
                     ...(note ? [{ label: "Message", value: note }] : []),
                   ].map(({ label, value }) => (
                     <div key={label} className="flex justify-between gap-6 px-5 py-4">
-                      <dt className="shrink-0 text-sm text-[#667085]">{label}</dt>
-                      <dd className="min-w-0 text-right text-base text-[#130E30]">{value}</dd>
+                      <dt className="shrink-0 text-sm text-muted-ink">{label}</dt>
+                      <dd className="min-w-0 text-right text-base text-ink">{value}</dd>
                     </div>
                   ))}
                 </dl>
@@ -413,7 +413,7 @@ function AzarFaithDonate() {
             <div className="hidden lg:flex">{cta("min-w-[240px]")}</div>
           </div>
 
-          <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
+          <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
             <div className={`${cardClass} flex flex-col gap-5 p-6`}>
               <div className="flex items-center gap-4">
                 <img
@@ -422,38 +422,38 @@ function AzarFaithDonate() {
                   className="h-16 w-16 shrink-0 rounded-lg object-cover"
                 />
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold uppercase tracking-[0.1em] text-[#4A4660]">
+                  <p className="text-[13px] font-semibold uppercase tracking-[0.1em] text-ink-soft">
                     {campaign.faithCategory}
                   </p>
-                  <p className="line-clamp-2 text-base font-semibold leading-[22px] text-[#0B0E0D]">
+                  <p className="line-clamp-2 text-base font-semibold leading-[22px] text-heading">
                     {campaign.title}
                   </p>
                 </div>
               </div>
               {campaign.goal ? (
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between text-sm text-[#667085]">
+                  <div className="flex justify-between text-sm text-muted-ink">
                     <span>{formatMoney(campaign.raised)} raised</span>
                     <span>{pct}%</span>
                   </div>
                   <ProgressBar pct={pct} />
                 </div>
               ) : null}
-              <dl className="flex flex-col gap-2.5 border-t border-[#EBECEC] pt-5">
+              <dl className="flex flex-col gap-2.5 border-t border-line-soft pt-5">
                 {summaryRows.map(({ label, value }) => (
                   <div key={label} className="flex justify-between text-sm">
-                    <dt className="text-[#667085]">{label}</dt>
-                    <dd className="text-[#130E30]">{value}</dd>
+                    <dt className="text-muted-ink">{label}</dt>
+                    <dd className="text-ink">{value}</dd>
                   </div>
                 ))}
-                <div className="mt-2 flex items-end justify-between border-t border-[#EBECEC] pt-4">
-                  <dt className="text-base font-semibold text-[#130E30]">
+                <div className="mt-2 flex items-end justify-between border-t border-line-soft pt-4">
+                  <dt className="text-base font-semibold text-ink">
                     Total{isRecurring ? ` · ${frequencyLabel[freq].toLowerCase()}` : ""}
                   </dt>
-                  <dd className="font-display text-2xl text-[#130E30]">{formatMoney(total)}</dd>
+                  <dd className="font-display text-2xl text-ink">{formatMoney(total)}</dd>
                 </div>
               </dl>
-              <p className="flex items-center gap-2 text-[13px] text-[#667085]">
+              <p className="flex items-center gap-2 text-[13px] text-muted-ink">
                 <ShieldCheck className="h-4 w-4 text-[#00B67A]" strokeWidth={1.5} />
                 Secured by Paystack · verified organization
               </p>

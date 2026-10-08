@@ -137,7 +137,7 @@ function AzarFaithCreate() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white font-gsf">
+    <div className="flex min-h-screen bg-paper font-gsf">
       <aside className="hidden w-[310px] shrink-0 bg-black px-10 py-14 lg:block">
         <Link to="/">
           <AuthLogo className="flex items-center gap-[3px] [&_img:last-child]:brightness-0 [&_img:last-child]:invert" />
@@ -158,14 +158,14 @@ function AzarFaithCreate() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <div className="sticky top-0 z-20 border-b border-[#EBECEC] bg-white px-6 pb-4 pt-5 lg:hidden">
+        <div className="sticky top-0 z-20 border-b border-line-soft bg-paper px-6 pb-4 pt-5 lg:hidden">
           <div className="flex items-center justify-between gap-3">
             {step > 0 ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => s - 1)}
                 aria-label="Back"
-                className="-ml-2 grid h-10 w-10 place-items-center text-[#232323]"
+                className="-ml-2 grid h-10 w-10 place-items-center text-heading"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
@@ -174,7 +174,7 @@ function AzarFaithCreate() {
                 <AuthLogo />
               </Link>
             )}
-            <div className="flex items-center gap-4 text-sm text-[#232323]">
+            <div className="flex items-center gap-4 text-sm text-heading">
               <button
                 type="button"
                 onClick={() => toast("Draft saved")}
@@ -185,13 +185,13 @@ function AzarFaithCreate() {
               <Link to="/dashboard">Close</Link>
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between text-[13px] text-[#667085]">
-            <span className="font-semibold text-[#130E30]">{stepLabels[step]}</span>
+          <div className="mt-3 flex items-center justify-between text-[13px] text-muted-ink">
+            <span className="font-semibold text-ink">{stepLabels[step]}</span>
             <span>
               Step {step + 1} of {totalSteps}
             </span>
           </div>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#EBECEC]">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-line-soft">
             <div
               className="h-1 rounded-full bg-[#FE5102] transition-[width] duration-300"
               style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
@@ -204,14 +204,14 @@ function AzarFaithCreate() {
               type="button"
               onClick={() => setStep((s) => s - 1)}
               aria-label="Back"
-              className="text-[#232323]"
+              className="text-heading"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
           ) : (
             <span />
           )}
-          <div className="flex items-center gap-2 text-sm text-[#232323]">
+          <div className="flex items-center gap-2 text-sm text-heading">
             <button
               type="button"
               onClick={() => toast("Draft saved")}
@@ -283,7 +283,7 @@ function AzarFaithCreate() {
             <div className="mt-8 flex justify-end">
               <button
                 onClick={next}
-                className="w-full rounded-[8px] bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-black/90 sm:w-auto sm:py-3"
+                className="w-full rounded-[8px] bg-btn px-6 py-3.5 text-sm font-semibold text-btn-fg hover:bg-btn/90 sm:w-auto sm:py-3"
               >
                 Continue
               </button>
@@ -294,11 +294,11 @@ function AzarFaithCreate() {
 
       {done && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5">
-          <div className="flex w-full max-w-[460px] flex-col items-center gap-8 bg-white p-8 text-center">
+          <div className="flex w-full max-w-[460px] flex-col items-center gap-8 bg-paper p-8 text-center">
             <PartyPopper className="h-12 w-12 text-[#fe5102]" strokeWidth={1.5} />
             <div className="flex flex-col gap-2.5">
-              <p className="font-display text-3xl text-[#232323]">Completed.</p>
-              <p className="text-sm text-[#232323]">
+              <p className="font-display text-3xl text-heading">Completed.</p>
+              <p className="text-sm text-heading">
                 Your campaign has been submitted for review. We will notify you once it has been
                 approved or if further action is needed. Thank you for your support!
               </p>
@@ -308,7 +308,7 @@ function AzarFaithCreate() {
                 resetDraft();
                 nav({ to: "/campaign/$id", params: { id: done.id } });
               }}
-              className="w-full rounded-[8px] bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90"
+              className="w-full rounded-[8px] bg-btn px-4 py-3 text-sm font-semibold text-btn-fg hover:bg-btn/90"
             >
               View campaign
             </button>
@@ -322,10 +322,10 @@ function AzarFaithCreate() {
 function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="flex flex-col gap-3 pb-7 pt-6 sm:pb-10">
-      <h1 className="font-display text-[clamp(32px,8.5vw,48px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="font-display text-[clamp(32px,8.5vw,48px)] leading-[1.08] tracking-[-0.01em] text-ink">
         {title}
       </h1>
-      <p className="text-sm text-[#232323]">{subtitle}</p>
+      <p className="text-sm text-heading">{subtitle}</p>
     </div>
   );
 }
@@ -385,7 +385,7 @@ function ModeCard({
       onClick={onClick}
       aria-pressed={selected}
       className={`flex items-center gap-4 rounded-lg px-5 py-5 text-left transition sm:flex-col sm:gap-3 sm:px-7 sm:py-8 sm:text-center ${
-        selected ? "bg-[#fff6f2] ring-1 ring-[#fe5102]" : "bg-[#fafafa] hover:bg-[#f2f2f2]"
+        selected ? "bg-peach ring-1 ring-[#fe5102]" : "bg-panel hover:bg-panel"
       }`}
     >
       <img
@@ -394,11 +394,11 @@ function ModeCard({
         className="h-16 w-16 shrink-0 object-contain sm:h-[99px] sm:w-auto"
       />
       <span className="flex flex-col gap-1.5 sm:items-center sm:gap-3">
-        <span className="flex items-center gap-1.5 text-sm font-bold text-[#232323]">
+        <span className="flex items-center gap-1.5 text-sm font-bold text-heading">
           {label}
           {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
         </span>
-        <span className="text-sm text-[#232323]">{desc}</span>
+        <span className="text-sm text-heading">{desc}</span>
       </span>
     </button>
   );
@@ -426,11 +426,11 @@ function TypeStep({
             type="button"
             onClick={() => onSelect(v)}
             className={`flex items-center gap-3.5 rounded-lg px-7 py-3 text-left transition ${
-              type === v ? "bg-[#fff6f2] ring-1 ring-[#fe5102]" : "bg-[#f7f7f7] hover:bg-[#f0f0f0]"
+              type === v ? "bg-peach ring-1 ring-[#fe5102]" : "bg-panel hover:bg-panel"
             }`}
           >
             <img src={typeSticker} alt="" className="h-[63px] w-auto shrink-0 object-contain" />
-            <div className="flex-1 text-sm font-bold text-[#232323]">{label}</div>
+            <div className="flex-1 text-sm font-bold text-heading">{label}</div>
             {type === v && <Check className="h-4 w-4 shrink-0 text-[#fe5102]" />}
           </button>
         ))}
@@ -472,12 +472,12 @@ function StoryStep({
           error={errors.title}
         />
         <div className="flex w-full flex-col items-start gap-[2px]">
-          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+          <label className="text-[14px] font-semibold leading-[26.25px] text-heading">
             {isOngoing ? "Describe your ministry" : "What's the need?"}
           </label>
           <textarea
             rows={5}
-            className="w-full resize-none rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full resize-none rounded-[8px] border border-line-input px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
             placeholder={
               isOngoing
                 ? "Tell donors about your ministry — who you serve, what you do, why it matters."
@@ -501,9 +501,9 @@ function UploadBox({ label, hint, tall }: { label: string; hint: string; tall?: 
       onClick={() => toast("Image upload coming soon")}
       className="flex w-full flex-col items-start gap-[3px]"
     >
-      <span className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">{label}</span>
+      <span className="text-[14px] font-semibold leading-[26.25px] text-heading">{label}</span>
       <span
-        className={`flex w-full items-center justify-center rounded-[8px] border border-dashed border-[#d0d5dd] px-3 text-sm text-[#232323]/35 ${tall ? "h-[120px]" : "h-[72px]"}`}
+        className={`flex w-full items-center justify-center rounded-[8px] border border-dashed border-line-input px-3 text-sm text-heading/35 ${tall ? "h-[120px]" : "h-[72px]"}`}
       >
         {hint}
       </span>
@@ -542,7 +542,7 @@ function DetailsStep({
       />
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+          <label className="text-[14px] font-semibold leading-[26.25px] text-heading">
             Faith category
           </label>
           <div className="flex flex-wrap gap-2">
@@ -554,8 +554,8 @@ function DetailsStep({
                 aria-pressed={faithCategory === label}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   faithCategory === label
-                    ? "border-[#130E30] bg-[#130E30] text-[#EFF2E5]"
-                    : "border-[#D9DDBC] bg-white text-[#4A4660] hover:border-[#130E30]"
+                    ? "border-ink bg-ink text-ink-contrast"
+                    : "border-line bg-paper text-ink-soft hover:border-ink"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" strokeWidth={1.5} /> {label}
@@ -588,7 +588,7 @@ function DetailsStep({
 
         {!isOngoing && (
           <div className="flex flex-col gap-1.5">
-            <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
+            <label className="text-[14px] font-semibold leading-[26.25px] text-heading">
               Urgency
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -598,13 +598,11 @@ function DetailsStep({
                   type="button"
                   onClick={() => onChange({ urgency: v })}
                   className={`flex flex-col rounded-[8px] border px-3 py-2.5 text-left transition ${
-                    urgency === v
-                      ? "border-[#fe5102] bg-[#fff6f2]"
-                      : "border-[#d0d5dd] hover:bg-muted"
+                    urgency === v ? "border-[#fe5102] bg-peach" : "border-line-input hover:bg-muted"
                   }`}
                 >
-                  <span className="text-sm font-medium text-[#232323]">{label}</span>
-                  <span className="text-xs text-[#667085]">{desc}</span>
+                  <span className="text-sm font-medium text-heading">{label}</span>
+                  <span className="text-xs text-muted-ink">{desc}</span>
                 </button>
               ))}
             </div>
@@ -612,11 +610,11 @@ function DetailsStep({
         )}
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[14px] font-semibold leading-[26.25px] text-[#232323]">
-            Link to an org <span className="font-normal text-[#667085]">(optional)</span>
+          <label className="text-[14px] font-semibold leading-[26.25px] text-heading">
+            Link to an org <span className="font-normal text-muted-ink">(optional)</span>
           </label>
           <select
-            className="w-full rounded-[8px] border border-[#d0d5dd] px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full rounded-[8px] border border-line-input px-3 py-2 text-sm shadow-[0px_1px_1px_rgba(16,24,40,0.05)] focus:outline-none focus:ring-1 focus:ring-ring"
             value={orgId ?? ""}
             onChange={(e) => onChange({ orgId: e.target.value || undefined })}
           >
@@ -660,12 +658,12 @@ function FrequenciesStep({
                 onChange(selected ? current.filter((f) => f !== v) : [...current, v]);
               }}
               className={`flex items-center justify-between rounded-[8px] border px-4 py-3.5 transition ${
-                selected ? "border-[#fe5102] bg-[#fff6f2]" : "border-[#d0d5dd] hover:bg-muted"
+                selected ? "border-[#fe5102] bg-peach" : "border-line-input hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <Repeat2 className={`h-4 w-4 ${selected ? "text-[#fe5102]" : "text-[#667085]"}`} />
-                <span className="text-sm font-medium text-[#232323]">{label}</span>
+                <Repeat2 className={`h-4 w-4 ${selected ? "text-[#fe5102]" : "text-muted-ink"}`} />
+                <span className="text-sm font-medium text-heading">{label}</span>
               </div>
               {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
             </button>
@@ -700,7 +698,7 @@ function PreviewStep({
 }) {
   return (
     <div>
-      <h1 className="pt-6 font-display text-[clamp(30px,8vw,40px)] font-normal leading-[1.1] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="pt-6 font-display text-[clamp(30px,8vw,40px)] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
         {draft.title || "Your campaign title"}
       </h1>
 
@@ -716,37 +714,35 @@ function PreviewStep({
 
       <div className="mt-5 flex items-center gap-2">
         <span
-          className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-[#130E30] text-[#EFF2E5]" : "bg-[#F7F5F3] text-[#130E30]"}`}
+          className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-ink text-ink-contrast" : "bg-panel text-ink"}`}
         >
           {isOngoing ? "Ongoing" : "One-time"}
         </span>
         {draft.faithCategory && (
-          <span className="rounded-full bg-[#F7F5F3] px-2.5 py-1 text-xs text-[#130E30]">
+          <span className="rounded-full bg-panel px-2.5 py-1 text-xs text-ink">
             {draft.faithCategory}
           </span>
         )}
       </div>
 
-      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#232323]">
-        {draft.story}
-      </p>
+      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-heading">{draft.story}</p>
 
       {!isOngoing && draft.goal && (
-        <p className="mt-4 text-sm text-[#232323]">
+        <p className="mt-4 text-sm text-heading">
           Goal: <span className="font-semibold">₦{draft.goal.toLocaleString()}</span>
         </p>
       )}
       {isOngoing && draft.frequencies && (
-        <p className="mt-4 text-xs text-[#667085]">Give: {draft.frequencies.join(" · ")}</p>
+        <p className="mt-4 text-xs text-muted-ink">Give: {draft.frequencies.join(" · ")}</p>
       )}
 
-      <div className="mt-6 rounded-xl border border-[#D9DDBC] bg-[#F7F8F2] p-4 text-sm text-[#4A4660]">
+      <div className="mt-6 rounded-xl border border-line bg-panel-olive p-4 text-sm text-ink-soft">
         Your campaign goes live with an <strong>unverified</strong> badge. You can request
         verification from the campaign page after publishing.
       </div>
 
       {draft.type === "emergency" && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#FE5102]/30 bg-[#FFEFE7] p-3 text-sm text-[#130E30]">
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#FE5102]/30 bg-peach p-3 text-sm text-ink">
           <Flame className="h-4 w-4 shrink-0 text-[#FE5102]" strokeWidth={1.5} />
           <span>This will be marked as an emergency campaign and shown with an urgent badge.</span>
         </div>
@@ -756,7 +752,7 @@ function PreviewStep({
         <button
           type="button"
           onClick={onSaveDraft}
-          className="flex flex-1 items-center justify-center rounded-[8px] border border-[#ebebeb] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
+          className="flex flex-1 items-center justify-center rounded-[8px] border border-line-soft bg-paper px-4 py-3 text-sm font-semibold text-heading hover:bg-muted"
         >
           Save as Draft
         </button>
@@ -764,7 +760,7 @@ function PreviewStep({
           type="button"
           disabled={publishing}
           onClick={onPublish}
-          className="flex flex-1 items-center justify-center rounded-[8px] bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-60"
+          className="flex flex-1 items-center justify-center rounded-[8px] bg-btn px-4 py-3 text-sm font-semibold text-btn-fg hover:bg-btn/90 disabled:opacity-60"
         >
           {publishing ? "Submitting…" : "Submit for Review"}
         </button>

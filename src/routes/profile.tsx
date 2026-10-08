@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ProfileSkeleton } from "@/components/app/Skeletons";
+import { pending, simulateNetwork } from "@/lib/api";
 import { useState } from "react";
 import { BadgeCheck, Building2, LogOut } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +21,9 @@ import { useApp } from "@/lib/store";
 import { formatCompactMoney, me } from "@/lib/mock";
 
 export const Route = createFileRoute("/profile")({
+  loader: () => simulateNetwork(),
+  pendingComponent: () => <ProfileSkeleton label="Loading your profile" />,
+  ...pending,
   head: () => ({ meta: [{ title: "Profile — AzarFaith" }] }),
   component: Profile,
 });
@@ -56,7 +61,7 @@ function Profile() {
 
   return (
     <AppShell>
-      <section className="border-b border-[#D9DDBC] pb-12 pt-12 md:pb-14 md:pt-16">
+      <section className="border-b border-line pb-12 pt-12 md:pb-14 md:pt-16">
         <Container className="flex flex-col gap-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-center gap-5">
@@ -67,10 +72,10 @@ function Profile() {
               />
               <div className="flex flex-col gap-1.5">
                 <p className={eyebrowClass}>Profile</p>
-                <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+                <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
                   {me.name}
                 </h1>
-                <p className="text-base text-[#4A4660]">
+                <p className="text-base text-ink-soft">
                   {me.location} · Giving since {me.joined}
                 </p>
               </div>
@@ -104,7 +109,7 @@ function Profile() {
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="text-sm font-medium text-[#130E30] underline underline-offset-2"
+                    className="text-sm font-medium text-ink underline underline-offset-2"
                   >
                     Edit
                   </button>
@@ -156,20 +161,20 @@ function Profile() {
 
           <section className="flex flex-col gap-6">
             <SectionHeading>Notifications</SectionHeading>
-            <ul className="flex flex-col border-t border-[#D9DDBC]">
+            <ul className="flex flex-col border-t border-line">
               {preferences.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between gap-6 border-b border-[#D9DDBC] py-5"
+                  className="flex items-center justify-between gap-6 border-b border-line py-5"
                 >
                   <label htmlFor={p.id} className="flex flex-col gap-0.5">
-                    <span className="text-base font-semibold text-[#130E30]">{p.title}</span>
-                    <span className="text-sm leading-5 text-[#667085]">{p.body}</span>
+                    <span className="text-base font-semibold text-ink">{p.title}</span>
+                    <span className="text-sm leading-5 text-muted-ink">{p.body}</span>
                   </label>
                   <Switch
                     id={p.id}
                     defaultChecked={p.on}
-                    className="data-[state=checked]:bg-[#130E30]"
+                    className="data-[state=checked]:bg-ink data-[state=unchecked]:bg-line-input"
                   />
                 </li>
               ))}
@@ -179,12 +184,12 @@ function Profile() {
 
         <aside className="flex flex-col gap-6">
           <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
               Verifications
             </p>
             <ul className="flex flex-col gap-3">
               {me.verifications.map((v) => (
-                <li key={v} className="flex items-center gap-3 text-base text-[#130E30]">
+                <li key={v} className="flex items-center gap-3 text-base text-ink">
                   <BadgeCheck className="h-5 w-5 text-[#00B67A]" strokeWidth={1.5} />
                   {v}
                 </li>
@@ -193,7 +198,7 @@ function Profile() {
           </div>
 
           <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
               Organizations you support
             </p>
             <ul className="flex flex-col gap-3">
@@ -202,7 +207,7 @@ function Profile() {
                   <Link
                     to="/org/$id"
                     params={{ id: o.id }}
-                    className="flex items-center gap-3 text-[#130E30] hover:underline"
+                    className="flex items-center gap-3 text-ink hover:underline"
                   >
                     <img
                       src={o.photos[0]}
@@ -217,11 +222,11 @@ function Profile() {
           </div>
 
           <div className="flex flex-col gap-4 rounded-xl bg-[#FFE228] p-6">
-            <Building2 className="h-6 w-6 text-[#130E30]" strokeWidth={1.5} />
-            <p className="font-display text-2xl leading-[1.2] text-[#130E30]">
+            <Building2 className="h-6 w-6 text-ink" strokeWidth={1.5} />
+            <p className="font-display text-2xl leading-[1.2] text-ink">
               Lead a church or ministry?
             </p>
-            <p className="text-base leading-[25.6px] tracking-[-0.02em] text-[#130E30]">
+            <p className="text-base leading-[25.6px] tracking-[-0.02em] text-ink">
               Register it on AzarFaith to raise support with a verified badge.
             </p>
             <Link to="/register-org" className={`${btnPrimary} self-start`}>
@@ -244,7 +249,7 @@ function Field({
       <span className={labelClass}>{label}</span>
       <input
         {...props}
-        className={`${inputClass} disabled:border-transparent disabled:bg-[#F7F5F3] disabled:text-[#4A4660]`}
+        className={`${inputClass} disabled:border-transparent disabled:bg-panel disabled:text-ink-soft`}
       />
     </label>
   );

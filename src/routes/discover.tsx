@@ -1,4 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Photo } from "@/components/app/Photo";
+import { DiscoverSkeleton } from "@/components/app/Skeletons";
+import { pending, simulateNetwork } from "@/lib/api";
 import { useState } from "react";
 import { Search, MapPin, Church, Globe, Baby, GraduationCap, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,6 +19,9 @@ import { useApp } from "@/lib/store";
 import { formatMoney, categories, type Org } from "@/lib/mock";
 
 export const Route = createFileRoute("/discover")({
+  loader: () => simulateNetwork(),
+  pendingComponent: DiscoverSkeleton,
+  ...pending,
   head: () => ({ meta: [{ title: "Discover causes — AzarFaith" }] }),
   component: AzarFaithDiscover,
 });
@@ -93,11 +99,11 @@ function AzarFaithDiscover() {
         title="Discover AzarFaith causes"
         lead="Find missionaries, churches, orphanages, and schools to support — every organization is reviewed before it can receive gifts."
         actions={
-          <label className="flex w-full items-center gap-2 border-b border-[#B6BA95] pb-2.5 lg:w-[360px]">
-            <Search className="h-[18px] w-[18px] shrink-0 text-[#4A4660]" strokeWidth={1.5} />
+          <label className="flex w-full items-center gap-2 border-b border-line-strong pb-2.5 lg:w-[360px]">
+            <Search className="h-[18px] w-[18px] shrink-0 text-ink-soft" strokeWidth={1.5} />
             <span className="sr-only">Search</span>
             <input
-              className="w-full bg-transparent font-gsf text-base text-[#130E30] placeholder:text-[#8C8C8C] focus:outline-none"
+              className="w-full bg-transparent font-gsf text-base text-ink placeholder:text-subtle focus:outline-none"
               placeholder="Search causes, orgs or places"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -191,7 +197,7 @@ function CategoryChip({
       onClick={onClick}
       aria-pressed={active}
       className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 font-gsf text-[13px] font-medium leading-5 transition-colors ${
-        active ? "bg-[#FFE228] text-[#130E30]" : "bg-[#F7F5F3] text-[#4A4660] hover:text-[#130E30]"
+        active ? "bg-[#FFE228] text-[#130E30]" : "bg-panel text-ink-soft hover:text-ink"
       }`}
     >
       {children}
@@ -205,13 +211,13 @@ function OrgCard({ org }: { org: Org }) {
     <Link
       to="/org/$id"
       params={{ id: org.id }}
-      className="group flex flex-col rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-6 transition-colors hover:border-[rgba(57,62,70,0.24)]"
+      className="group flex flex-col rounded-xl border border-line-soft bg-paper p-6 transition-colors hover:border-line"
     >
       <div className="relative h-[200px] w-full overflow-hidden rounded-lg">
-        <img
+        <Photo
           src={org.photos[0] ?? fallbackCover}
-          alt=""
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+          className="absolute inset-0"
+          imgClassName="transition duration-500 group-hover:scale-[1.02]"
         />
         <span className="absolute left-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-[25px] bg-[#F8F8F8]/80 px-2 py-1 text-sm leading-5 text-black">
           <Icon className="h-3.5 w-3.5" strokeWidth={1.5} /> {orgCategoryLabel[org.category]}
@@ -223,23 +229,21 @@ function OrgCard({ org }: { org: Org }) {
           </span>
         ) : null}
       </div>
-      <h3 className="pt-5 font-gsf text-lg font-semibold leading-[27px] text-[#0B0E0D]">
+      <h3 className="pt-5 font-gsf text-lg font-semibold leading-[27px] text-heading">
         {org.name}
       </h3>
-      <p className="line-clamp-2 text-sm leading-5 text-[#667085]">{org.tagline}</p>
-      <p className="flex items-center gap-1.5 pt-2 text-sm leading-5 text-[#667085]">
+      <p className="line-clamp-2 text-sm leading-5 text-muted-ink">{org.tagline}</p>
+      <p className="flex items-center gap-1.5 pt-2 text-sm leading-5 text-muted-ink">
         <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} /> {org.location}
       </p>
-      <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#EBECEC] pt-4">
+      <div className="mt-5 grid grid-cols-2 gap-3 border-t border-line-soft pt-4">
         <div>
-          <p className="text-base font-semibold text-[#130E30]">{formatMoney(org.totalReceived)}</p>
-          <p className="text-[13px] text-[#667085]">received</p>
+          <p className="text-base font-semibold text-ink">{formatMoney(org.totalReceived)}</p>
+          <p className="text-[13px] text-muted-ink">received</p>
         </div>
         <div>
-          <p className="text-base font-semibold text-[#130E30]">
-            {org.supporters.toLocaleString()}
-          </p>
-          <p className="text-[13px] text-[#667085]">supporters</p>
+          <p className="text-base font-semibold text-ink">{org.supporters.toLocaleString()}</p>
+          <p className="text-[13px] text-muted-ink">supporters</p>
         </div>
       </div>
     </Link>

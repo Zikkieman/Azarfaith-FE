@@ -1,7 +1,7 @@
 import type { Block, Card } from "@/components/pages/types";
 
 function Rule() {
-  return <div className="h-px w-full bg-[#D9DDBC]" />;
+  return <div className="h-px w-full bg-line" />;
 }
 
 function CardGrid({ items }: { items: Card[] }) {
@@ -10,21 +10,21 @@ function CardGrid({ items }: { items: Card[] }) {
       {items.map((item) => (
         <article
           key={item.title}
-          className="flex h-full flex-col gap-3 rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-6 transition-colors hover:border-[#D9DDBC]"
+          className="flex h-full flex-col gap-3 rounded-xl border border-line-soft bg-paper p-6 transition-colors hover:border-line"
         >
           {item.tag ? (
-            <span className="w-fit rounded-full bg-[#FFEFE7] px-2.5 py-1 font-gsf text-xs font-semibold uppercase tracking-[0.08em] text-[#FE5102]">
+            <span className="w-fit rounded-full bg-peach px-2.5 py-1 font-gsf text-xs font-semibold uppercase tracking-[0.08em] text-[#FE5102]">
               {item.tag}
             </span>
           ) : null}
-          <h3 className="font-gsf text-lg font-semibold leading-[27px] tracking-[-0.01em] text-[#130E30]">
+          <h3 className="font-gsf text-lg font-semibold leading-[27px] tracking-[-0.01em] text-ink">
             {item.title}
           </h3>
           {item.meta ? (
-            <p className="font-gsf text-[13px] leading-[19.5px] text-[#667085]">{item.meta}</p>
+            <p className="font-gsf text-[13px] leading-[19.5px] text-muted-ink">{item.meta}</p>
           ) : null}
           {item.text ? (
-            <p className="font-gsf text-sm leading-[21px] text-[#4A4660]">{item.text}</p>
+            <p className="font-gsf text-sm leading-[21px] text-ink-soft">{item.text}</p>
           ) : null}
         </article>
       ))}
@@ -36,8 +36,8 @@ function Faq({ items }: { items: { q: string; a: string }[] }) {
   return (
     <div className="flex flex-col">
       {items.map((item) => (
-        <details key={item.q} className="group border-t border-[#D9DDBC] last:border-b">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-[17px] font-gsf text-base leading-[22.4px] tracking-[-0.02em] text-[#130E30] [&::-webkit-details-marker]:hidden">
+        <details key={item.q} className="group border-t border-line last:border-b">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-[17px] font-gsf text-base leading-[22.4px] tracking-[-0.02em] text-ink [&::-webkit-details-marker]:hidden">
             {item.q}
             <svg
               viewBox="0 0 18 18"
@@ -54,7 +54,7 @@ function Faq({ items }: { items: { q: string; a: string }[] }) {
               />
             </svg>
           </summary>
-          <p className="pb-[17px] font-gsf text-sm leading-[21px] text-[#4A4660]">{item.a}</p>
+          <p className="pb-[17px] font-gsf text-sm leading-[21px] text-ink-soft">{item.a}</p>
         </details>
       ))}
     </div>
@@ -63,14 +63,14 @@ function Faq({ items }: { items: { q: string; a: string }[] }) {
 
 function Table({ head, rows }: { head: string[]; rows: string[][] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[rgba(57,62,70,0.08)]">
+    <div className="overflow-x-auto rounded-xl border border-line-soft">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="bg-[#F7F5F3]">
+          <tr className="bg-panel">
             {head.map((cell) => (
               <th
                 key={cell}
-                className="px-4 py-3 font-gsf text-[13px] font-semibold uppercase tracking-[0.08em] text-[#4A4660]"
+                className="px-4 py-3 font-gsf text-[13px] font-semibold uppercase tracking-[0.08em] text-ink-soft"
               >
                 {cell}
               </th>
@@ -79,9 +79,9 @@ function Table({ head, rows }: { head: string[]; rows: string[][] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.join("|")} className="border-t border-[#EBECEC]">
+            <tr key={row.join("|")} className="border-t border-line-soft">
               {row.map((cell) => (
-                <td key={cell} className="px-4 py-3 font-gsf text-sm leading-[21px] text-[#130E30]">
+                <td key={cell} className="px-4 py-3 font-gsf text-sm leading-[21px] text-ink">
                   {cell}
                 </td>
               ))}
@@ -104,7 +104,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
                 <Rule />
                 <h2
                   id={block.id}
-                  className="scroll-mt-24 font-display text-[clamp(26px,2.2vw,36px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]"
+                  className="scroll-mt-24 font-display text-[clamp(26px,2.2vw,36px)] leading-[1.14] tracking-[-0.01em] text-ink"
                 >
                   {block.text}
                 </h2>
@@ -114,7 +114,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
             return (
               <h3
                 key={index}
-                className="pt-2 font-gsf text-lg font-semibold leading-[27px] text-[#130E30]"
+                className="pt-2 font-gsf text-lg font-semibold leading-[27px] text-ink"
               >
                 {block.text}
               </h3>
@@ -123,7 +123,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
             return (
               <p
                 key={index}
-                className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-[#4A4660]"
+                className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft"
               >
                 {block.text}
               </p>
@@ -134,7 +134,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
                 {block.items.map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#FE5102]" />
-                    <span className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-[#4A4660]">
+                    <span className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft">
                       {item}
                     </span>
                   </li>
@@ -146,10 +146,10 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
               <ol key={index} className="flex flex-col gap-4">
                 {block.items.map((item, step) => (
                   <li key={item} className="flex items-start gap-4">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#130E30] font-gsf text-[13px] font-semibold text-white">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink font-gsf text-[13px] font-semibold text-ink-contrast">
                       {step + 1}
                     </span>
-                    <span className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-[#4A4660]">
+                    <span className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft">
                       {item}
                     </span>
                   </li>
@@ -160,14 +160,14 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
             return (
               <aside
                 key={index}
-                className="flex flex-col gap-2 rounded-2xl border border-[#D9DDBC] bg-[#F7F8F2] p-6"
+                className="flex flex-col gap-2 rounded-2xl border border-line bg-panel-olive p-6"
               >
                 {block.title ? (
-                  <p className="font-gsf text-[13px] font-semibold uppercase tracking-[0.1em] text-[#130E30]">
+                  <p className="font-gsf text-[13px] font-semibold uppercase tracking-[0.1em] text-ink">
                     {block.title}
                   </p>
                 ) : null}
-                <p className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-[#4A4660]">
+                <p className="font-gsf text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft">
                   {block.text}
                 </p>
               </aside>
@@ -175,11 +175,11 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
           case "quote":
             return (
               <figure key={index} className="flex flex-col gap-3 border-l-4 border-[#FE5102] pl-6">
-                <blockquote className="font-display text-[clamp(22px,1.8vw,28px)] leading-[1.26] tracking-[-0.01em] text-[#130E30]">
+                <blockquote className="font-display text-[clamp(22px,1.8vw,28px)] leading-[1.26] tracking-[-0.01em] text-ink">
                   “{block.text}”
                 </blockquote>
                 {block.by ? (
-                  <figcaption className="font-gsf text-sm leading-[21px] text-[#667085]">
+                  <figcaption className="font-gsf text-sm leading-[21px] text-muted-ink">
                     {block.by}
                   </figcaption>
                 ) : null}

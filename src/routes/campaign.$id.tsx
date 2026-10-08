@@ -1,4 +1,7 @@
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
+import { Photo } from "@/components/app/Photo";
+import { CampaignDetailSkeleton } from "@/components/app/Skeletons";
+import { pending, simulateNetwork } from "@/lib/api";
 import { useState } from "react";
 import {
   ChevronLeft,
@@ -24,6 +27,9 @@ import {
 } from "@/lib/mock";
 
 export const Route = createFileRoute("/campaign/$id")({
+  loader: () => simulateNetwork(),
+  pendingComponent: CampaignDetailSkeleton,
+  ...pending,
   head: ({ params }) => {
     const c = campaignSeed.find((x) => x.id === params.id);
     return { meta: [{ title: c ? `${c.title} — AzarFaith` : "Campaign — AzarFaith" }] };
@@ -51,7 +57,7 @@ function CampaignDetail() {
             <button
               type="button"
               onClick={() => router.history.back()}
-              className="flex items-center gap-2 text-sm text-[#232323]"
+              className="flex items-center gap-2 text-sm text-heading"
             >
               <ChevronLeft className="h-4 w-4" /> Go Back
             </button>
@@ -61,10 +67,10 @@ function CampaignDetail() {
             {campaign.updates.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
                     Updates
                   </h2>
-                  <span className="rounded bg-[#e9e9e9] px-2 py-0.5 text-sm text-[#424242]">
+                  <span className="rounded bg-panel px-2 py-0.5 text-sm text-heading">
                     {campaign.updates.length}
                   </span>
                 </div>
@@ -77,7 +83,7 @@ function CampaignDetail() {
                   <button
                     type="button"
                     onClick={() => setShowAllUpdates(true)}
-                    className="self-start text-sm font-medium text-[#232323]"
+                    className="self-start text-sm font-medium text-heading"
                   >
                     See {campaign.updates.length - 1} more
                   </button>
@@ -92,14 +98,14 @@ function CampaignDetail() {
             {campaign.comments.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
                     Comments
                   </h2>
-                  <span className="rounded bg-[#e9e9e9] px-2 py-0.5 text-sm text-[#424242]">
+                  <span className="rounded bg-panel px-2 py-0.5 text-sm text-heading">
                     {campaign.comments.length}
                   </span>
                 </div>
-                <p className="text-[16px] text-[#232323]">Please sign in and donate to comment.</p>
+                <p className="text-[16px] text-heading">Please sign in and donate to comment.</p>
                 <div className="flex flex-col gap-6">
                   {campaign.comments.map((c) => (
                     <CommentItem key={c.id} comment={c} />
@@ -109,7 +115,7 @@ function CampaignDetail() {
             )}
           </main>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
             <DonateSidebar campaign={campaign} />
           </aside>
         </div>
@@ -125,17 +131,15 @@ function MobileDonateBar({ campaign }: { campaign: Campaign }) {
   return (
     <div className="flex items-center gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <p className="truncate text-sm text-[#667085]">
-          <span className="font-semibold text-[#130E30]">
-            {formatCompactMoney(campaign.raised)}
-          </span>{" "}
+        <p className="truncate text-sm text-muted-ink">
+          <span className="font-semibold text-ink">{formatCompactMoney(campaign.raised)}</span>{" "}
           raised{pct === null ? "" : ` · ${pct}%`}
         </p>
         {pct === null ? (
-          <p className="text-[13px] text-[#667085]">{campaign.donors.toLocaleString()} givers</p>
+          <p className="text-[13px] text-muted-ink">{campaign.donors.toLocaleString()} givers</p>
         ) : null}
         {pct !== null ? (
-          <div className="h-1.5 overflow-hidden rounded-full bg-[#EBECEC]">
+          <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
             <div className="h-1.5 rounded-full bg-[#FE5102]" style={{ width: `${pct}%` }} />
           </div>
         ) : null}
@@ -143,13 +147,13 @@ function MobileDonateBar({ campaign }: { campaign: Campaign }) {
       <ShareButton
         campaign={campaign}
         iconOnly
-        className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-[#ebebeb] bg-white text-[#232323]"
+        className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-line-soft bg-paper text-heading"
       />
       <Link
         to="/donate/$id"
         params={{ id: campaign.id }}
         search={{ freq: "" }}
-        className="flex h-12 shrink-0 items-center justify-center rounded-lg bg-black px-5 text-sm font-semibold text-white"
+        className="flex h-12 shrink-0 items-center justify-center rounded-lg bg-btn px-5 text-sm font-semibold text-btn-fg"
       >
         Donate now
       </Link>
@@ -169,12 +173,17 @@ function HeroSection({
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="font-display text-[clamp(32px,3.2vw,48px)] font-normal leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+      <h1 className="font-display text-[clamp(32px,3.2vw,48px)] font-normal leading-[1.08] tracking-[-0.01em] text-ink">
         {campaign.title}
       </h1>
 
       <div className="relative -mx-6 aspect-[4/3] w-[calc(100%+48px)] overflow-hidden bg-muted sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-2xl">
-        <img src={photos[index]} alt="" className="h-full w-full object-cover" />
+        <Photo
+          key={photos[index]}
+          src={photos[index]}
+          loading="eager"
+          className="absolute inset-0"
+        />
         {photos.length > 1 && (
           <div className="absolute bottom-4 right-4 flex gap-2">
             <button
@@ -197,10 +206,10 @@ function HeroSection({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px] text-[#232323]">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px] text-heading">
         <img src={campaign.raiser.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
         <span className="font-medium">{campaign.raiser.name}</span>
-        <span className="w-full pl-8 text-[#6f6f6f] sm:w-auto sm:pl-0">
+        <span className="w-full pl-8 text-muted-ink sm:w-auto sm:pl-0">
           <span className="hidden sm:inline">· </span>
           {campaign.location}
         </span>
@@ -211,20 +220,20 @@ function HeroSection({
         )}
       </div>
 
-      <p className="whitespace-pre-line text-[16px] leading-[24px] text-[#232323]">
+      <p className="whitespace-pre-line text-[16px] leading-[24px] text-heading">
         {campaign.story}
       </p>
 
       <div className="hidden gap-3 lg:flex">
         <ShareButton
           campaign={campaign}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#ebebeb] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line-soft bg-paper px-4 py-3 text-sm font-semibold text-heading hover:bg-muted"
         />
         <Link
           to="/donate/$id"
           params={{ id: campaign.id }}
           search={{ freq: "" }}
-          className="flex flex-1 items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="flex flex-1 items-center justify-center rounded-lg bg-btn px-4 py-3 text-sm font-semibold text-btn-fg transition-opacity hover:opacity-90"
         >
           Donate now
         </Link>
@@ -243,15 +252,15 @@ function UpdateItem({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span className="text-[16px] font-medium text-[#232323]">{update.date}</span>
+        <span className="text-[16px] font-medium text-heading">{update.date}</span>
         {isLatest && (
           <span className="rounded bg-[#ccf88e] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#274a34]">
             New
           </span>
         )}
       </div>
-      <p className="text-sm font-semibold text-[#232323]">{update.title}</p>
-      <p className="text-[16px] leading-[24px] text-[#232323]">{update.body}</p>
+      <p className="text-sm font-semibold text-heading">{update.title}</p>
+      <p className="text-[16px] leading-[24px] text-heading">{update.body}</p>
     </div>
   );
 }
@@ -266,10 +275,10 @@ function ShareSection({ campaign }: { campaign: Campaign }) {
   ];
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
         Sharing helps more than you think
       </h2>
-      <p className="text-[16px] text-[#232323]">
+      <p className="text-[16px] text-heading">
         Sharing this campaign with your network can help {campaign.raiser.name.split(" ")[0]} reach
         more people and raise support faster.
       </p>
@@ -280,7 +289,7 @@ function ShareSection({ campaign }: { campaign: Campaign }) {
             type="button"
             aria-label={label}
             onClick={() => shareAction(label, campaign)}
-            className="grid h-10 w-10 place-items-center rounded-full bg-[#f0f4f5] text-[#4e5a62] hover:bg-[#e3e9eb]"
+            className="grid h-10 w-10 place-items-center rounded-full bg-panel text-ink-soft hover:bg-panel"
           >
             <Icon className="h-4 w-4" />
           </button>
@@ -333,23 +342,23 @@ function ShareButton({
 function OrganiserSection({ name, location }: { name: string; location: string }) {
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
         Organiser
       </h2>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-[#f5f5f5] text-sm font-semibold text-[#667085]">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-panel text-sm font-semibold text-muted-ink">
             {name.charAt(0)}
           </div>
           <div>
-            <p className="text-[16px] font-medium text-[#232323]">{name}</p>
-            <p className="text-sm text-[#6f6f6f]">Organiser · {location}</p>
+            <p className="text-[16px] font-medium text-heading">{name}</p>
+            <p className="text-sm text-muted-ink">Organiser · {location}</p>
           </div>
         </div>
         <button
           type="button"
           onClick={() => toast("Messaging is coming soon")}
-          className="shrink-0 rounded-full border border-[#d0d5dd] px-4 py-2 text-sm font-semibold text-[#232323] hover:bg-muted"
+          className="shrink-0 rounded-full border border-line-input px-4 py-2 text-sm font-semibold text-heading hover:bg-muted"
         >
           Message
         </button>
@@ -365,14 +374,14 @@ function CommentItem({ comment }: { comment: Campaign["comments"][number] }) {
       <img src={comment.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-[16px] font-medium text-[#232323]">{comment.author}</span>
-          <span className="text-sm text-[#6f6f6f]">{comment.date}</span>
+          <span className="text-[16px] font-medium text-heading">{comment.author}</span>
+          <span className="text-sm text-muted-ink">{comment.date}</span>
         </div>
-        <p className="text-[16px] leading-[24px] text-[#232323]">{comment.body}</p>
+        <p className="text-[16px] leading-[24px] text-heading">{comment.body}</p>
         <button
           type="button"
           onClick={() => setLiked((v) => !v)}
-          className={`flex w-fit items-center gap-1.5 text-sm ${liked ? "text-[#fe5102]" : "text-[#6f6f6f]"}`}
+          className={`flex w-fit items-center gap-1.5 text-sm ${liked ? "text-[#fe5102]" : "text-muted-ink"}`}
         >
           <Heart className={`h-4 w-4 ${liked ? "fill-[#fe5102]" : ""}`} />
           {liked ? "Liked" : "Like"}
@@ -393,17 +402,17 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
   const visibleDonations = seeAll ? donations : donations.slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-6 rounded-3xl border border-[#d8d8d8] p-6">
+    <div className="flex flex-col gap-6 rounded-3xl border border-line-soft p-6">
       <div className="flex items-center gap-4">
         {pct !== null && <ProgressRing percent={pct} />}
         <div>
-          <p className="text-2xl text-[#232323]">
+          <p className="text-2xl text-heading">
             {formatMoney(campaign.raised)}
             {campaign.goal && (
-              <span className="text-[#6f6f6f]"> of {formatMoney(campaign.goal)}</span>
+              <span className="text-muted-ink"> of {formatMoney(campaign.goal)}</span>
             )}
           </p>
-          <p className="text-sm text-[#6f6f6f]">{campaign.donors.toLocaleString()} donations</p>
+          <p className="text-sm text-muted-ink">{campaign.donors.toLocaleString()} donations</p>
         </div>
       </div>
 
@@ -412,18 +421,18 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
           to="/donate/$id"
           params={{ id: campaign.id }}
           search={{ freq: "" }}
-          className="flex items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          className="flex items-center justify-center rounded-lg bg-btn px-4 py-3 text-sm font-semibold text-btn-fg transition-opacity hover:opacity-90"
         >
           Donate now
         </Link>
         <ShareButton
           campaign={campaign}
-          className="flex items-center justify-center rounded-lg border border-[#ebebeb] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
+          className="flex items-center justify-center rounded-lg border border-line-soft bg-paper px-4 py-3 text-sm font-semibold text-heading hover:bg-muted"
         />
       </div>
 
       {campaign.donations.length > 0 && (
-        <div className="flex items-center gap-2 rounded-lg bg-[#fff6f2] px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-lg bg-peach px-3 py-2.5">
           <TrendingUp className="h-4 w-4 shrink-0 text-[#fe5102]" />
           <span className="text-sm font-medium text-[#fe5102]">
             {campaign.donations.length} recent donations
@@ -444,7 +453,7 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
           <button
             type="button"
             onClick={() => setSeeAll((v) => !v)}
-            className="flex-1 rounded-md border border-[#d0d5dd] px-3 py-2 text-sm font-medium text-[#232323] hover:bg-muted"
+            className="flex-1 rounded-md border border-line-input px-3 py-2 text-sm font-medium text-heading hover:bg-muted"
           >
             {seeAll ? "See less" : "See all"}
           </button>
@@ -454,7 +463,7 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium ${
               sortTop
                 ? "border-[#fe5102] text-[#fe5102]"
-                : "border-[#d0d5dd] text-[#232323] hover:bg-muted"
+                : "border-line-input text-heading hover:bg-muted"
             }`}
           >
             <Star className={`h-3.5 w-3.5 ${sortTop ? "fill-[#fe5102]" : ""}`} /> See top
@@ -468,12 +477,12 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
 function DonorRow({ donation }: { donation: Donation }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f5f5f5] text-sm font-semibold text-[#667085]">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-panel text-sm font-semibold text-muted-ink">
         {donation.donor.charAt(0)}
       </div>
       <div>
-        <p className="text-[16px] font-medium text-[#232323]">{donation.donor}</p>
-        <p className="text-sm text-[#6f6f6f]">
+        <p className="text-[16px] font-medium text-heading">{donation.donor}</p>
+        <p className="text-sm text-muted-ink">
           {formatMoney(donation.amount)} · {donation.note ?? donation.date}
         </p>
       </div>
@@ -510,7 +519,7 @@ function ProgressRing({ percent }: { percent: number }) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="absolute inset-0 grid place-items-center text-sm font-semibold text-[#232323]">
+      <span className="absolute inset-0 grid place-items-center text-sm font-semibold text-heading">
         {percent}%
       </span>
     </div>

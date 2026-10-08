@@ -16,7 +16,7 @@ export function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white font-gsf">
+    <div className="relative min-h-screen overflow-hidden bg-paper font-gsf">
       <img
         src={backgroundIllustration}
         alt=""
@@ -27,7 +27,7 @@ export function AuthLayout({
         <Link to="/">
           <AuthLogo />
         </Link>
-        <p className="text-[14px] leading-6 text-[#232323] sm:text-[16px] sm:leading-[35px]">
+        <p className="text-[14px] leading-6 text-heading sm:text-[16px] sm:leading-[35px]">
           {prompt}{" "}
           <Link to={linkTo} className="font-bold underline underline-offset-2">
             {linkLabel}

@@ -48,7 +48,7 @@ function Login() {
   return (
     <AuthLayout prompt="New to AzarFaith?" linkLabel="Create an account" linkTo="/signup">
       <AuthCard>
-        <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+        <div className="flex w-full flex-col items-start gap-[11px] text-heading">
           <p className="w-full text-[14px] font-medium leading-[26.25px]">Welcome back</p>
           <h1 className="w-full font-display text-[clamp(40px,5vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
             Sign in
@@ -75,7 +75,7 @@ function Login() {
 
         <div className="flex w-full items-center gap-3">
           <span className="h-px flex-1 bg-[#ebebeb]" />
-          <span className="text-xs text-[#667085]">or sign in with email</span>
+          <span className="text-xs text-muted-ink">or sign in with email</span>
           <span className="h-px flex-1 bg-[#ebebeb]" />
         </div>
 

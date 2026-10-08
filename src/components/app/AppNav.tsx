@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useApp } from "@/lib/store";
+import { useScrollDirection } from "@/lib/motion";
 import { me } from "@/lib/mock";
 
 const navLinks = [
@@ -22,11 +23,12 @@ const navLinks = [
 ];
 
 const menuItemClass =
-  "flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 font-gsf text-sm text-[#130E30] focus:bg-[#F7F5F3]";
+  "flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2.5 font-gsf text-sm text-ink focus:bg-panel";
 
-/** Brand nav. `active` overrides the link highlighted from the current route. */
-export function Nav({ active }: { active?: string }) {
+/** Signed-in app nav. `active` overrides the link highlighted from the current route. */
+export function AppNav({ active }: { active?: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const hideOnScroll = useScrollDirection();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const authed = useApp((s) => s.authed);
@@ -43,7 +45,11 @@ export function Nav({ active }: { active?: string }) {
   };
 
   return (
-    <header className="w-full bg-black">
+    <header
+      className={`sticky top-0 z-50 w-full bg-black transition-transform duration-300 ease-out motion-reduce:transition-none ${
+        hideOnScroll && !menuOpen ? "-translate-y-full" : ""
+      }`}
+    >
       <div className="mx-auto flex w-full max-w-[1728px] items-center justify-between gap-6 px-6 md:px-12 xl:px-[147px]">
         <div className="flex items-center gap-5 md:gap-8">
           <Link to="/" className="shrink-0 py-2.5">
@@ -68,7 +74,7 @@ export function Nav({ active }: { active?: string }) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 lg:gap-2">
           {authed ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="hidden cursor-pointer items-center gap-2.5 px-2.5 py-2.5 text-left outline-none lg:flex">
@@ -79,13 +85,13 @@ export function Nav({ active }: { active?: string }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-60 rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-1.5 shadow-none"
+                className="w-60 rounded-xl border border-line-soft bg-paper p-1.5 shadow-none"
               >
                 <div className="px-3 pb-2 pt-1.5">
-                  <p className="font-gsf text-sm font-semibold text-[#130E30]">{me.name}</p>
-                  <p className="font-gsf text-[13px] text-[#667085]">{me.location}</p>
+                  <p className="font-gsf text-sm font-semibold text-ink">{me.name}</p>
+                  <p className="font-gsf text-[13px] text-muted-ink">{me.location}</p>
                 </div>
-                <DropdownMenuSeparator className="bg-[#EBECEC]" />
+                <DropdownMenuSeparator className="bg-line-soft" />
                 <DropdownMenuItem asChild className={menuItemClass}>
                   <Link to="/profile">
                     <User className="h-4 w-4" strokeWidth={1.5} /> Profile
@@ -108,7 +114,7 @@ export function Nav({ active }: { active?: string }) {
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuSeparator className="bg-[#EBECEC]" />
+                <DropdownMenuSeparator className="bg-line-soft" />
                 <DropdownMenuItem onSelect={signOut} className={menuItemClass}>
                   <LogOut className="h-4 w-4" strokeWidth={1.5} /> Log out
                 </DropdownMenuItem>

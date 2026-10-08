@@ -1,4 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { Photo } from "@/components/app/Photo";
+import { ProfileSkeleton } from "@/components/app/Skeletons";
+import { pending, simulateNetwork } from "@/lib/api";
 import { Calendar, Church, HeartHandshake, Link2, MapPin, Repeat2, Target } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,6 +20,9 @@ import { useApp } from "@/lib/store";
 import { formatCompactMoney, orgs as orgSeed } from "@/lib/mock";
 
 export const Route = createFileRoute("/org/$id")({
+  loader: () => simulateNetwork(),
+  pendingComponent: () => <ProfileSkeleton label="Loading organization" />,
+  ...pending,
   head: ({ params }) => {
     const org = orgSeed.find((o) => o.id === params.id);
     return { meta: [{ title: org ? `${org.name} — AzarFaith` : "Organization — AzarFaith" }] };
@@ -52,7 +58,7 @@ function OrgProfile() {
 
   return (
     <AppShell>
-      <section className="border-b border-[#D9DDBC] py-12 md:py-16">
+      <section className="border-b border-line py-12 md:py-16">
         <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-5">
             <div className="flex flex-wrap items-center gap-2">
@@ -63,18 +69,18 @@ function OrgProfile() {
                   <span className="text-xs font-medium leading-4 text-[#6B6B6B]">Verified</span>
                 </span>
               ) : (
-                <span className="rounded-full bg-[#F7F5F3] px-2.5 py-0.5 text-xs font-medium text-[#667085]">
+                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-muted-ink">
                   {org.verificationStatus === "pending" ? "Verification pending" : "Unverified"}
                 </span>
               )}
             </div>
-            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
               {org.name}
             </h1>
-            <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-[#4A4660]">
+            <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
               {org.tagline}
             </p>
-            <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[#667085]">
+            <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" strokeWidth={1.5} /> {org.location}
               </span>
@@ -112,10 +118,10 @@ function OrgProfile() {
             </div>
           </div>
           {cover ? (
-            <img
+            <Photo
               src={cover}
-              alt=""
-              className="aspect-[4/3] w-full rounded-[20px] object-cover lg:aspect-[520/440]"
+              loading="eager"
+              className="aspect-[4/3] w-full rounded-[20px] lg:aspect-[520/440]"
             />
           ) : null}
         </Container>
@@ -131,7 +137,7 @@ function OrgProfile() {
 
         <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
           <SectionHeading>About</SectionHeading>
-          <p className="max-w-[820px] text-lg leading-[27.9px] tracking-[-0.02em] text-[#4A4660]">
+          <p className="max-w-[820px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
             {org.bio}
           </p>
         </section>
@@ -141,12 +147,7 @@ function OrgProfile() {
             <SectionHeading>From the field</SectionHeading>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               {org.photos.map((photo, i) => (
-                <img
-                  key={i}
-                  src={photo}
-                  alt=""
-                  className="aspect-square w-full rounded-[20px] object-cover"
-                />
+                <Photo key={i} src={photo} className="aspect-square w-full rounded-[20px]" />
               ))}
             </div>
           </section>
@@ -156,7 +157,7 @@ function OrgProfile() {
           <section className="flex flex-col gap-6">
             <SectionHeading
               aside={
-                <span className="hidden items-center gap-1.5 text-sm text-[#667085] sm:inline-flex">
+                <span className="hidden items-center gap-1.5 text-sm text-muted-ink sm:inline-flex">
                   <Repeat2 className="h-4 w-4" strokeWidth={1.5} /> Standing support
                 </span>
               }
@@ -175,7 +176,7 @@ function OrgProfile() {
           <section className="flex flex-col gap-6">
             <SectionHeading
               aside={
-                <span className="hidden items-center gap-1.5 text-sm text-[#667085] sm:inline-flex">
+                <span className="hidden items-center gap-1.5 text-sm text-muted-ink sm:inline-flex">
                   <Target className="h-4 w-4" strokeWidth={1.5} /> With a goal
                 </span>
               }
@@ -217,7 +218,7 @@ function OrgProfile() {
             <button
               type="button"
               onClick={copyLink}
-              className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-[#130E30] px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-[#EFF2E5] transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-ink-contrast transition-opacity hover:opacity-90"
             >
               <Link2 className="h-4 w-4" strokeWidth={1.5} /> Copy link
             </button>
@@ -226,7 +227,7 @@ function OrgProfile() {
                 to="/donate/$id"
                 params={{ id: ongoing[0].id }}
                 search={{ freq: ongoing[0].frequencies?.[0] ?? "monthly" }}
-                className="inline-flex items-center gap-2 rounded-full border-2 border-white px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-white transition-colors hover:bg-white hover:text-[#130E30]"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-white px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-white transition-colors hover:bg-paper hover:text-ink"
               >
                 Become a supporter
               </Link>

@@ -88,7 +88,7 @@ No gradients, no glass, no colored shadows.
 
 ## 4. Component recipes
 
-- **Nav** (`landing/Nav.tsx`): black bar, `max-w-[1728px]`, logo `139.12×27.5`, links `16px/600`,
+- **Nav** (`landing/SiteNav.tsx` website, `app/AppNav.tsx` app): black bar, `max-w-[1728px]`, logo `139.12×27.5`, links `16px/600`,
   inactive `text-white/70`, active `border-b-4 border-[#FE5102]`.
 - **Primary button**: pill `rounded-full`, `border-2 border-black`, `bg-[#130E30]`, `text-[#EFF2E5]`,
   `px-[22px] py-3`, `16px/500`, tracking `-0.02em`, hover `opacity-90`.
@@ -170,6 +170,26 @@ Build from its primitives instead of inline styles: `PageHeader`, `Container`, `
 Campaign tiles always use `src/components/CampaignCard.tsx`. Auth screens (`signup`, `login`,
 `forgot-password`) share `components/auth/AuthLayout.tsx`. Selection state is ink (`#130E30`), never
 orange; category icons are lucide (from `categories` in `lib/mock.ts`), never emoji.
+
+## 7c. Tokens, navs and motion
+
+- **Light only.** No dark mode. Colours are semantic tokens defined once in `src/styles.css` (`:root`):
+  `paper` `panel` `panel-olive` `peach` `ink` `ink-contrast` `heading` `ink-soft` `muted-ink` `subtle`
+  `line` `line-soft` `line-input` `line-strong` `btn` `btn-fg`. Use `text-ink`, `bg-panel`, `border-line`…
+  instead of hex. Orange `#FE5102`, yellow `#FFE228` and success `#00B67A` stay literal.
+- **Two navs.** Website (landing + `/$page`) uses `components/landing/SiteNav.tsx` (How it works,
+  Discover causes, Ways to give, For organizations, Trust & safety, About + Log in / Start giving).
+  The signed-in app uses `components/app/AppNav.tsx` via `AppShell`. Never mix them. Both are sticky and
+  hide on scroll down.
+- **Motion** (`lib/motion.ts`, `components/motion/Reveal.tsx`, CSS in `styles.css`): one hero load
+  sequence; `<Reveal>` (+ `data-stagger` children) for section headings and card rows only;
+  `<CountUp>` for stats; `<ProgressFill>` for every progress bar; `.expand` for accordions; `.press` on
+  buttons; the yellow-panel photo `.marquee`; scroll-driven `.ink-on-scroll` / `.steps-line`. Everything
+  is gated by `prefers-reduced-motion: no-preference` and by the `js` class, so content never hides
+  without JavaScript. Use `overflow-x-clip`, never `overflow-x-hidden`, on page roots (hidden breaks sticky).
+- **Loading.** App routes declare `loader: () => simulateNetwork()` + a `pendingComponent` from
+  `components/app/Skeletons.tsx`; swap `simulateNetwork` for real API calls later. Photos use
+  `components/app/Photo.tsx` (shimmer until loaded).
 
 ## 8. QA checklist (run before calling a page done)
 

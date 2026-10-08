@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ListPageSkeleton } from "@/components/app/Skeletons";
+import { pending, simulateNetwork } from "@/lib/api";
 import { CalendarClock, HeartHandshake, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -27,6 +29,9 @@ import { useApp } from "@/lib/store";
 import { formatCompactMoney, formatMoney, me, type RecurringDonation } from "@/lib/mock";
 
 export const Route = createFileRoute("/my-giving")({
+  loader: () => simulateNetwork(),
+  pendingComponent: () => <ListPageSkeleton label="Loading your giving" />,
+  ...pending,
   head: () => ({ meta: [{ title: "My giving — AzarFaith" }] }),
   component: MyGiving,
 });
@@ -108,11 +113,11 @@ function MyGiving() {
                     <Link
                       to="/campaign/$id"
                       params={{ id: r.targetId }}
-                      className="line-clamp-2 text-lg font-semibold leading-[24px] text-[#0B0E0D] hover:underline sm:truncate sm:leading-[27px]"
+                      className="line-clamp-2 text-lg font-semibold leading-[24px] text-heading hover:underline sm:truncate sm:leading-[27px]"
                     >
                       {r.targetName}
                     </Link>
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-5 text-[#667085]">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-5 text-muted-ink">
                       <span className="inline-flex items-center gap-1.5">
                         <Repeat2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                         {frequencyLabel[r.frequency]}
@@ -121,13 +126,13 @@ function MyGiving() {
                         <CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} />
                         Next on {formatDate(r.nextDate)}
                       </span>
-                      <span className="rounded-full bg-[#F7F5F3] px-2 py-0.5 text-xs font-medium text-[#4A4660]">
+                      <span className="rounded-full bg-panel px-2 py-0.5 text-xs font-medium text-ink-soft">
                         {r.mode === "auto" ? "Automatic" : "Reminder"}
                       </span>
                     </p>
                   </div>
-                  <div className="flex w-full items-center justify-between gap-5 border-t border-[#EBECEC] pt-4 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
-                    <p className="font-display text-2xl text-[#130E30]">{formatMoney(r.amount)}</p>
+                  <div className="flex w-full items-center justify-between gap-5 border-t border-line-soft pt-4 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
+                    <p className="font-display text-2xl text-ink">{formatMoney(r.amount)}</p>
                     <CancelGift
                       name={r.targetName}
                       onConfirm={() => {
@@ -144,14 +149,14 @@ function MyGiving() {
 
         {cancelled.length > 0 ? (
           <section className="flex flex-col gap-4">
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
               Cancelled
             </p>
-            <ul className="flex flex-col border-t border-[#D9DDBC]">
+            <ul className="flex flex-col border-t border-line">
               {cancelled.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-center gap-4 border-b border-[#D9DDBC] py-4 text-[#667085]"
+                  className="flex items-center gap-4 border-b border-line py-4 text-muted-ink"
                 >
                   <img
                     src={r.targetCover}
@@ -166,7 +171,7 @@ function MyGiving() {
                     to="/donate/$id"
                     params={{ id: r.targetId }}
                     search={{ freq: r.frequency }}
-                    className="hidden shrink-0 text-sm font-medium text-[#130E30] underline underline-offset-2 sm:block"
+                    className="hidden shrink-0 text-sm font-medium text-ink underline underline-offset-2 sm:block"
                   >
                     Restart
                   </Link>
@@ -176,16 +181,16 @@ function MyGiving() {
           </section>
         ) : null}
 
-        <section className="flex flex-col items-start gap-4 rounded-xl bg-[#FFEFE7] p-8 md:flex-row md:items-center md:justify-between">
+        <section className="flex flex-col items-start gap-4 rounded-xl bg-peach p-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-[#FE5102]">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-paper text-[#FE5102]">
               <HeartHandshake className="h-6 w-6" strokeWidth={1.5} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-[1.2] text-[#130E30]">
+              <p className="font-display text-2xl leading-[1.2] text-ink">
                 Every gift is traceable
               </p>
-              <p className="text-base leading-[25.6px] tracking-[-0.02em] text-[#4A4660]">
+              <p className="text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft">
                 Verified organizations post updates so you can see what your giving made possible.
               </p>
             </div>
@@ -202,15 +207,15 @@ function MyGiving() {
 function CancelGift({ name, onConfirm }: { name: string; onConfirm: () => void }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger className="rounded-full border border-[#EBEBEB] px-4 py-2 text-sm font-medium text-[#232323] transition-colors hover:bg-[#F8F8F8]">
+      <AlertDialogTrigger className="rounded-full border border-line-soft px-4 py-2 text-sm font-medium text-heading transition-colors hover:bg-panel">
         Cancel
       </AlertDialogTrigger>
       <AlertDialogContent className="font-gsf">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display text-2xl font-normal text-[#130E30]">
+          <AlertDialogTitle className="font-display text-2xl font-normal text-ink">
             Stop giving to {name}?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-[#4A4660]">
+          <AlertDialogDescription className="text-ink-soft">
             No further payments or reminders will be sent. Gifts already made are not affected.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -218,7 +223,7 @@ function CancelGift({ name, onConfirm }: { name: string; onConfirm: () => void }
           <AlertDialogCancel className="rounded-full">Keep giving</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="rounded-full border-2 border-black bg-[#130E30] text-[#EFF2E5] hover:bg-[#130E30]/90"
+            className="rounded-full border-2 border-ink bg-ink text-ink-contrast hover:bg-ink/90"
           >
             Cancel gift
           </AlertDialogAction>
