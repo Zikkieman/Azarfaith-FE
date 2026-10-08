@@ -31,7 +31,7 @@ import { formatMoney } from "@/lib/mock";
 import { toast } from "sonner";
 import { notFound } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/donate/$id")({
+export const Route = createFileRoute("/_app/donate/$id")({
   head: () => ({ meta: [{ title: "Give — AzarFaith" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     freq: (s.freq as string) ?? "",

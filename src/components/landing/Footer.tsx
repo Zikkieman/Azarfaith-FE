@@ -14,10 +14,8 @@ const columns: {
   {
     heading: "Platform",
     links: [
-      { label: "Discover", to: "/discover" },
-      { label: "Start a campaign", to: "/create" },
-      { label: "Manage", to: "/dashboard" },
-      { label: "My giving", to: "/my-giving" },
+      { label: "Log in", to: "/login" },
+      { label: "Create an account", to: "/signup" },
       { label: "Organizations", to: "/organizations" },
       { label: "Campaign updates", to: "/campaign-updates" },
       { label: "Payouts", to: "/payouts" },
@@ -38,7 +36,7 @@ const columns: {
   {
     heading: "For organizations",
     links: [
-      { label: "Register your org", to: "/register-org" },
+      { label: "Register your org", to: "/signup" },
       { label: "Verification", to: "/verification" },
       { label: "Payouts", to: "/payouts" },
       { label: "Update posts", to: "/update-posts" },
@@ -95,7 +93,7 @@ export function Footer() {
   return (
     <footer className="w-full bg-paper px-6 pb-6 pt-[42.92px] md:px-12">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-7">
-        <div className="flex w-full flex-col items-stretch gap-4 rounded-[28px] bg-peach p-4 pl-5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-8 sm:self-start sm:rounded-full sm:py-3 sm:pl-8 sm:pr-5">
+        <div className="flex w-full flex-col items-stretch gap-4 rounded-[28px] bg-peach p-4 pl-5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-8 sm:self-center sm:rounded-full sm:py-3 sm:pl-8 sm:pr-5">
           <p className="font-gsf text-base font-semibold leading-5 tracking-[-0.02em] text-ink">
             Practical giving updates—campaigns, stories, and receipts, in your inbox
           </p>

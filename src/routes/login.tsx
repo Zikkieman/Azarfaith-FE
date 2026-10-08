@@ -8,10 +8,13 @@ import { AuthField } from "@/components/auth/AuthField";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialButton } from "@/components/auth/SocialButton";
 import { useApp } from "@/lib/store";
+import { safeRedirect } from "@/lib/session";
 import googleIcon from "@/assets/signup/google-icon.svg";
 import facebookIcon from "@/assets/signup/facebook-icon.svg";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (s: Record<string, unknown>): { redirect?: string } =>
+    typeof s.redirect === "string" ? { redirect: s.redirect } : {},
   head: () => ({ meta: [{ title: "Sign in — AzarFaith" }] }),
   component: Login,
 });
@@ -24,6 +27,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 function Login() {
   const nav = useNavigate();
+  const { redirect } = Route.useSearch();
   const setAuthed = useApp((s) => s.setAuthed);
   const [loading, setLoading] = useState(false);
   const {
@@ -34,7 +38,7 @@ function Login() {
 
   const authenticate = () => {
     setAuthed(true);
-    nav({ to: "/dashboard" });
+    nav({ href: safeRedirect(redirect) });
   };
 
   const submit = handleSubmit(() => {

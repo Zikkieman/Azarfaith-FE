@@ -5,10 +5,12 @@ import logo from "@/assets/landing/logo.svg";
 import { useScrollDirection } from "@/lib/motion";
 import { useApp } from "@/lib/store";
 
-/** Public website links. The signed-in app has its own nav (components/app/AppNav.tsx). */
+/**
+ * Public website links only. The web app (dashboard, discover, giving…) sits behind log in and has
+ * its own nav (components/app/AppNav.tsx); the only bridge is Log in / Go to dashboard.
+ */
 const links: { label: string; to: string; hash?: string; wide?: boolean }[] = [
   { label: "How it works", to: "/", hash: "how-it-works" },
-  { label: "Discover causes", to: "/discover" },
   { label: "Ways to give", to: "/give-once" },
   { label: "For organizations", to: "/fees-pricing" },
   { label: "Trust & safety", to: "/verification" },
@@ -18,7 +20,10 @@ const links: { label: string; to: string; hash?: string; wide?: boolean }[] = [
 export function SiteNav() {
   const [open, setOpen] = useState(false);
   const hidden = useScrollDirection();
-  const authed = useApp((s) => s.authed);
+  // The session lives in a cookie only the browser store reads, so switch after hydration.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const authed = useApp((s) => s.authed) && mounted;
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => setOpen(false), [path]);
@@ -73,7 +78,7 @@ export function SiteNav() {
                 to="/signup"
                 className="press hidden rounded-full border-2 border-white bg-white px-5 py-2 font-gsf text-[15px] font-semibold text-black transition-opacity hover:opacity-90 sm:inline-flex"
               >
-                Start giving
+                Get started
               </Link>
             </>
           )}
@@ -129,7 +134,7 @@ export function SiteNav() {
                   to="/signup"
                   className="flex-1 rounded-full border-2 border-white bg-white py-3 text-center font-gsf text-base font-semibold text-black"
                 >
-                  Start giving
+                  Get started
                 </Link>
               </>
             )}

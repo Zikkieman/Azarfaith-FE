@@ -26,7 +26,7 @@ import {
   type Donation,
 } from "@/lib/mock";
 
-export const Route = createFileRoute("/campaign/$id")({
+export const Route = createFileRoute("/_app/campaign/$id")({
   loader: () => simulateNetwork(),
   pendingComponent: CampaignDetailSkeleton,
   ...pending,

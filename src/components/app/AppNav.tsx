@@ -31,7 +31,6 @@ export function AppNav({ active }: { active?: string }) {
   const hideOnScroll = useScrollDirection();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const authed = useApp((s) => s.authed);
   const setAuthed = useApp((s) => s.setAuthed);
   const adminRole = useApp((s) => s.adminRole);
 
@@ -75,7 +74,7 @@ export function AppNav({ active }: { active?: string }) {
         </div>
 
         <div className="flex items-center gap-1 lg:gap-2">
-          {authed ? (
+          <>
             <DropdownMenu>
               <DropdownMenuTrigger className="hidden cursor-pointer items-center gap-2.5 px-2.5 py-2.5 text-left outline-none lg:flex">
                 <span className="font-gsf text-base font-bold leading-[35px] text-white">
@@ -120,22 +119,7 @@ export function AppNav({ active }: { active?: string }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <div className="hidden items-center gap-2 lg:flex">
-              <Link
-                to="/login"
-                className="px-2.5 py-2.5 font-gsf text-base font-semibold leading-[35px] text-white/70 transition-colors hover:text-white"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/signup"
-                className="rounded-full border-2 border-white px-[22px] py-2.5 font-gsf text-base font-medium leading-5 tracking-[-0.02em] text-white transition-colors hover:bg-white hover:text-black"
-              >
-                Start giving
-              </Link>
-            </div>
-          )}
+          </>
 
           <button
             type="button"
@@ -171,7 +155,7 @@ export function AppNav({ active }: { active?: string }) {
               ) : null}
             </Link>
           ))}
-          {authed ? (
+          <>
             <>
               <Link
                 to="/profile"
@@ -188,24 +172,7 @@ export function AppNav({ active }: { active?: string }) {
                 Log out
               </button>
             </>
-          ) : (
-            <div className="flex gap-3 pt-5">
-              <Link
-                to="/login"
-                onClick={() => setMenuOpen(false)}
-                className="flex-1 rounded-full border-2 border-white/40 py-3 text-center font-gsf text-base font-medium text-white"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/signup"
-                onClick={() => setMenuOpen(false)}
-                className="flex-1 rounded-full border-2 border-white bg-white py-3 text-center font-gsf text-base font-medium text-black"
-              >
-                Start giving
-              </Link>
-            </div>
-          )}
+          </>
         </nav>
       ) : null}
     </header>

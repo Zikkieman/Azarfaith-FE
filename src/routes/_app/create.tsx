@@ -18,7 +18,7 @@ import modeOnetime from "@/assets/create/mode-onetime.png";
 import modeOngoing from "@/assets/create/mode-ongoing.png";
 import typeSticker from "@/assets/create/type-sticker.png";
 
-export const Route = createFileRoute("/create")({
+export const Route = createFileRoute("/_app/create")({
   head: () => ({ meta: [{ title: "Start a campaign — AzarFaith" }] }),
   component: AzarFaithCreate,
 });

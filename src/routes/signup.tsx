@@ -36,7 +36,7 @@ function Signup() {
 
   const authenticate = () => {
     setAuthed(true);
-    nav({ to: "/" });
+    nav({ to: "/dashboard" });
   };
 
   return (

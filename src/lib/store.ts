@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { SESSION_COOKIE, writeSession } from "./session";
 import {
   campaigns as campaignSeed,
   orgs as orgSeed,
@@ -80,8 +81,12 @@ type State = {
 };
 
 export const useApp = create<State>((set) => ({
-  authed: true,
-  setAuthed: (v) => set({ authed: v }),
+  // Mirrors the prototype session cookie (lib/session.ts). Always false on the server.
+  authed: typeof document !== "undefined" && document.cookie.includes(`${SESSION_COOKIE}=1`),
+  setAuthed: (v) => {
+    writeSession(v);
+    set({ authed: v });
+  },
 
   campaigns: campaignSeed,
   addCampaign: (c) => set((s) => ({ campaigns: [c, ...s.campaigns] })),

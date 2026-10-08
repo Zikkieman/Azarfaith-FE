@@ -9,7 +9,7 @@ import nudgeOrg from "@/assets/dashboard/nudge-org.png";
 import nudgePayment from "@/assets/dashboard/nudge-payment.png";
 import nudgeCampaign from "@/assets/dashboard/nudge-campaign.png";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_app/dashboard")({
   loader: () => simulateNetwork(),
   pendingComponent: DashboardSkeleton,
   ...pending,

@@ -18,7 +18,7 @@ import iconVerified from "@/assets/landing/icon-verified.svg";
 import { useApp } from "@/lib/store";
 import { formatMoney, categories, type Org } from "@/lib/mock";
 
-export const Route = createFileRoute("/discover")({
+export const Route = createFileRoute("/_app/discover")({
   loader: () => simulateNetwork(),
   pendingComponent: DiscoverSkeleton,
   ...pending,

@@ -19,7 +19,7 @@ import iconVerified from "@/assets/landing/icon-verified.svg";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, orgs as orgSeed } from "@/lib/mock";
 
-export const Route = createFileRoute("/org/$id")({
+export const Route = createFileRoute("/_app/org/$id")({
   loader: () => simulateNetwork(),
   pendingComponent: () => <ProfileSkeleton label="Loading organization" />,
   ...pending,

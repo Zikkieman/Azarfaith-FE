@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { Church, Globe, Baby, GraduationCap, Users, ImagePlus } from "lucide-react";
 import type { Org } from "@/lib/mock";
 
-export const Route = createFileRoute("/register-org")({
+export const Route = createFileRoute("/_app/register-org")({
   head: () => ({ meta: [{ title: "Register your org — AzarFaith" }] }),
   component: RegisterOrg,
 });

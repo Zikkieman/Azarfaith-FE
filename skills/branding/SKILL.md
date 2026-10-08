@@ -181,6 +181,9 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
   Discover causes, Ways to give, For organizations, Trust & safety, About + Log in / Start giving).
   The signed-in app uses `components/app/AppNav.tsx` via `AppShell`. Never mix them. Both are sticky and
   hide on scroll down.
+- **Website vs app.** The website (`/`, `/$page`, `/story`, `/map`, `/jos`) never links into app
+  pages from its nav or footer. App routes live under `src/routes/_app/` (pathless layout) and redirect
+  signed-out visitors to `/login?redirect=…` (prototype session cookie in `lib/session.ts`; `/admin` too).
 - **Motion** (`lib/motion.ts`, `components/motion/Reveal.tsx`, CSS in `styles.css`): one hero load
   sequence; `<Reveal>` (+ `data-stagger` children) for section headings and card rows only;
   `<CountUp>` for stats; `<ProgressFill>` for every progress bar; `.expand` for accordions; `.press` on

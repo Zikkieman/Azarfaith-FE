@@ -28,7 +28,7 @@ import {
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, formatMoney, me, type RecurringDonation } from "@/lib/mock";
 
-export const Route = createFileRoute("/my-giving")({
+export const Route = createFileRoute("/_app/my-giving")({
   loader: () => simulateNetwork(),
   pendingComponent: () => <ListPageSkeleton label="Loading your giving" />,
   ...pending,

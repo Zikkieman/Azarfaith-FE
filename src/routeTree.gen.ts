@@ -11,27 +11,28 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PageRouteImport } from './routes/$page'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as CreateRouteImport } from './routes/create'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as JosRouteImport } from './routes/jos'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MapRouteImport } from './routes/map'
-import { Route as MyGivingRouteImport } from './routes/my-giving'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as RegisterOrgRouteImport } from './routes/register-org'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StoryRouteImport } from './routes/story'
+import { Route as AppCreateRouteImport } from './routes/_app/create'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppDiscoverRouteImport } from './routes/_app/discover'
+import { Route as AppMyGivingRouteImport } from './routes/_app/my-giving'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
+import { Route as AppRegisterOrgRouteImport } from './routes/_app/register-org'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
-import { Route as DonateIdRouteImport } from './routes/donate.$id'
-import { Route as OrgIdRouteImport } from './routes/org.$id'
+import { Route as AppCampaignIdRouteImport } from './routes/_app/campaign.$id'
+import { Route as AppDonateIdRouteImport } from './routes/_app/donate.$id'
+import { Route as AppOrgIdRouteImport } from './routes/_app/org.$id'
 import { Route as AdminCampaignsIdRouteImport } from './routes/admin/campaigns.$id'
 import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
 import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
@@ -46,24 +47,13 @@ const PageRoute = PageRouteImport.update({
   path: '/$page',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreateRoute = CreateRouteImport.update({
-  id: '/create',
-  path: '/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiscoverRoute = DiscoverRouteImport.update({
-  id: '/discover',
-  path: '/discover',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -86,21 +76,6 @@ const MapRoute = MapRouteImport.update({
   path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MyGivingRoute = MyGivingRouteImport.update({
-  id: '/my-giving',
-  path: '/my-giving',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterOrgRoute = RegisterOrgRouteImport.update({
-  id: '/register-org',
-  path: '/register-org',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -110,6 +85,36 @@ const StoryRoute = StoryRouteImport.update({
   id: '/story',
   path: '/story',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppCreateRoute = AppCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDiscoverRoute = AppDiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMyGivingRoute = AppMyGivingRouteImport.update({
+  id: '/my-giving',
+  path: '/my-giving',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRegisterOrgRoute = AppRegisterOrgRouteImport.update({
+  id: '/register-org',
+  path: '/register-org',
+  getParentRoute: () => AppRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -136,20 +141,20 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
-const CampaignIdRoute = CampaignIdRouteImport.update({
+const AppCampaignIdRoute = AppCampaignIdRouteImport.update({
   id: '/campaign/$id',
   path: '/campaign/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const DonateIdRoute = DonateIdRouteImport.update({
+const AppDonateIdRoute = AppDonateIdRouteImport.update({
   id: '/donate/$id',
   path: '/donate/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const OrgIdRoute = OrgIdRouteImport.update({
+const AppOrgIdRoute = AppOrgIdRouteImport.update({
   id: '/org/$id',
   path: '/org/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const AdminCampaignsIdRoute = AdminCampaignsIdRouteImport.update({
   id: '/$id',
@@ -171,26 +176,26 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$page': typeof PageRoute
   '/admin': typeof AdminRouteWithChildren
-  '/create': typeof CreateRoute
-  '/dashboard': typeof DashboardRoute
-  '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/jos': typeof JosRoute
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
-  '/my-giving': typeof MyGivingRoute
-  '/profile': typeof ProfileRoute
-  '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/create': typeof AppCreateRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/discover': typeof AppDiscoverRoute
+  '/my-giving': typeof AppMyGivingRoute
+  '/profile': typeof AppProfileRoute
+  '/register-org': typeof AppRegisterOrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/campaign/$id': typeof CampaignIdRoute
-  '/donate/$id': typeof DonateIdRoute
-  '/org/$id': typeof OrgIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/campaign/$id': typeof AppCampaignIdRoute
+  '/donate/$id': typeof AppDonateIdRoute
+  '/org/$id': typeof AppOrgIdRoute
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -198,26 +203,26 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$page': typeof PageRoute
-  '/create': typeof CreateRoute
-  '/dashboard': typeof DashboardRoute
-  '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/jos': typeof JosRoute
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
-  '/my-giving': typeof MyGivingRoute
-  '/profile': typeof ProfileRoute
-  '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/create': typeof AppCreateRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/discover': typeof AppDiscoverRoute
+  '/my-giving': typeof AppMyGivingRoute
+  '/profile': typeof AppProfileRoute
+  '/register-org': typeof AppRegisterOrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/campaign/$id': typeof CampaignIdRoute
-  '/donate/$id': typeof DonateIdRoute
-  '/org/$id': typeof OrgIdRoute
   '/admin': typeof AdminIndexRoute
+  '/campaign/$id': typeof AppCampaignIdRoute
+  '/donate/$id': typeof AppDonateIdRoute
+  '/org/$id': typeof AppOrgIdRoute
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -226,27 +231,28 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$page': typeof PageRoute
+  '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
-  '/create': typeof CreateRoute
-  '/dashboard': typeof DashboardRoute
-  '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/jos': typeof JosRoute
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
-  '/my-giving': typeof MyGivingRoute
-  '/profile': typeof ProfileRoute
-  '/register-org': typeof RegisterOrgRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/_app/create': typeof AppCreateRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/discover': typeof AppDiscoverRoute
+  '/_app/my-giving': typeof AppMyGivingRoute
+  '/_app/profile': typeof AppProfileRoute
+  '/_app/register-org': typeof AppRegisterOrgRoute
   '/admin/campaigns': typeof AdminCampaignsRouteWithChildren
   '/admin/orgs': typeof AdminOrgsRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/campaign/$id': typeof CampaignIdRoute
-  '/donate/$id': typeof DonateIdRoute
-  '/org/$id': typeof OrgIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/_app/campaign/$id': typeof AppCampaignIdRoute
+  '/_app/donate/$id': typeof AppDonateIdRoute
+  '/_app/org/$id': typeof AppOrgIdRoute
   '/admin/campaigns/$id': typeof AdminCampaignsIdRoute
   '/admin/orgs/$id': typeof AdminOrgsIdRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -257,26 +263,26 @@ export interface FileRouteTypes {
     | '/'
     | '/$page'
     | '/admin'
-    | '/create'
-    | '/dashboard'
-    | '/discover'
     | '/forgot-password'
     | '/jos'
     | '/login'
     | '/map'
+    | '/signup'
+    | '/story'
+    | '/create'
+    | '/dashboard'
+    | '/discover'
     | '/my-giving'
     | '/profile'
     | '/register-org'
-    | '/signup'
-    | '/story'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/'
     | '/campaign/$id'
     | '/donate/$id'
     | '/org/$id'
-    | '/admin/'
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
@@ -284,26 +290,26 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$page'
-    | '/create'
-    | '/dashboard'
-    | '/discover'
     | '/forgot-password'
     | '/jos'
     | '/login'
     | '/map'
+    | '/signup'
+    | '/story'
+    | '/create'
+    | '/dashboard'
+    | '/discover'
     | '/my-giving'
     | '/profile'
     | '/register-org'
-    | '/signup'
-    | '/story'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin'
     | '/campaign/$id'
     | '/donate/$id'
     | '/org/$id'
-    | '/admin'
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
@@ -311,27 +317,28 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$page'
+    | '/_app'
     | '/admin'
-    | '/create'
-    | '/dashboard'
-    | '/discover'
     | '/forgot-password'
     | '/jos'
     | '/login'
     | '/map'
-    | '/my-giving'
-    | '/profile'
-    | '/register-org'
     | '/signup'
     | '/story'
+    | '/_app/create'
+    | '/_app/dashboard'
+    | '/_app/discover'
+    | '/_app/my-giving'
+    | '/_app/profile'
+    | '/_app/register-org'
     | '/admin/campaigns'
     | '/admin/orgs'
     | '/admin/settings'
     | '/admin/users'
-    | '/campaign/$id'
-    | '/donate/$id'
-    | '/org/$id'
     | '/admin/'
+    | '/_app/campaign/$id'
+    | '/_app/donate/$id'
+    | '/_app/org/$id'
     | '/admin/campaigns/$id'
     | '/admin/orgs/$id'
     | '/admin/users/$id'
@@ -340,22 +347,14 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PageRoute: typeof PageRoute
+  AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
-  CreateRoute: typeof CreateRoute
-  DashboardRoute: typeof DashboardRoute
-  DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   JosRoute: typeof JosRoute
   LoginRoute: typeof LoginRoute
   MapRoute: typeof MapRoute
-  MyGivingRoute: typeof MyGivingRoute
-  ProfileRoute: typeof ProfileRoute
-  RegisterOrgRoute: typeof RegisterOrgRoute
   SignupRoute: typeof SignupRoute
   StoryRoute: typeof StoryRoute
-  CampaignIdRoute: typeof CampaignIdRoute
-  DonateIdRoute: typeof DonateIdRoute
-  OrgIdRoute: typeof OrgIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -374,32 +373,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/create': {
-      id: '/create'
-      path: '/create'
-      fullPath: '/create'
-      preLoaderRoute: typeof CreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/discover': {
-      id: '/discover'
-      path: '/discover'
-      fullPath: '/discover'
-      preLoaderRoute: typeof DiscoverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -430,27 +415,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/my-giving': {
-      id: '/my-giving'
-      path: '/my-giving'
-      fullPath: '/my-giving'
-      preLoaderRoute: typeof MyGivingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register-org': {
-      id: '/register-org'
-      path: '/register-org'
-      fullPath: '/register-org'
-      preLoaderRoute: typeof RegisterOrgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -464,6 +428,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/story'
       preLoaderRoute: typeof StoryRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/create': {
+      id: '/_app/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof AppCreateRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/discover': {
+      id: '/_app/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof AppDiscoverRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/my-giving': {
+      id: '/_app/my-giving'
+      path: '/my-giving'
+      fullPath: '/my-giving'
+      preLoaderRoute: typeof AppMyGivingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/register-org': {
+      id: '/_app/register-org'
+      path: '/register-org'
+      fullPath: '/register-org'
+      preLoaderRoute: typeof AppRegisterOrgRouteImport
+      parentRoute: typeof AppRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -500,26 +506,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/campaign/$id': {
-      id: '/campaign/$id'
+    '/_app/campaign/$id': {
+      id: '/_app/campaign/$id'
       path: '/campaign/$id'
       fullPath: '/campaign/$id'
-      preLoaderRoute: typeof CampaignIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppCampaignIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/donate/$id': {
-      id: '/donate/$id'
+    '/_app/donate/$id': {
+      id: '/_app/donate/$id'
       path: '/donate/$id'
       fullPath: '/donate/$id'
-      preLoaderRoute: typeof DonateIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppDonateIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/org/$id': {
-      id: '/org/$id'
+    '/_app/org/$id': {
+      id: '/_app/org/$id'
       path: '/org/$id'
       fullPath: '/org/$id'
-      preLoaderRoute: typeof OrgIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppOrgIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/admin/campaigns/$id': {
       id: '/admin/campaigns/$id'
@@ -544,6 +550,32 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppRouteChildren {
+  AppCreateRoute: typeof AppCreateRoute
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppDiscoverRoute: typeof AppDiscoverRoute
+  AppMyGivingRoute: typeof AppMyGivingRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppRegisterOrgRoute: typeof AppRegisterOrgRoute
+  AppCampaignIdRoute: typeof AppCampaignIdRoute
+  AppDonateIdRoute: typeof AppDonateIdRoute
+  AppOrgIdRoute: typeof AppOrgIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppCreateRoute: AppCreateRoute,
+  AppDashboardRoute: AppDashboardRoute,
+  AppDiscoverRoute: AppDiscoverRoute,
+  AppMyGivingRoute: AppMyGivingRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppRegisterOrgRoute: AppRegisterOrgRoute,
+  AppCampaignIdRoute: AppCampaignIdRoute,
+  AppDonateIdRoute: AppDonateIdRoute,
+  AppOrgIdRoute: AppOrgIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminCampaignsRouteChildren {
   AdminCampaignsIdRoute: typeof AdminCampaignsIdRoute
@@ -602,22 +634,14 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PageRoute: PageRoute,
+  AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
-  CreateRoute: CreateRoute,
-  DashboardRoute: DashboardRoute,
-  DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   JosRoute: JosRoute,
   LoginRoute: LoginRoute,
   MapRoute: MapRoute,
-  MyGivingRoute: MyGivingRoute,
-  ProfileRoute: ProfileRoute,
-  RegisterOrgRoute: RegisterOrgRoute,
   SignupRoute: SignupRoute,
   StoryRoute: StoryRoute,
-  CampaignIdRoute: CampaignIdRoute,
-  DonateIdRoute: DonateIdRoute,
-  OrgIdRoute: OrgIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

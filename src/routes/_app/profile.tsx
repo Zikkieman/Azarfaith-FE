@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, me } from "@/lib/mock";
 
-export const Route = createFileRoute("/profile")({
+export const Route = createFileRoute("/_app/profile")({
   loader: () => simulateNetwork(),
   pendingComponent: () => <ProfileSkeleton label="Loading your profile" />,
   ...pending,
