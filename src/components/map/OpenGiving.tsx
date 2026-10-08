@@ -128,7 +128,7 @@ function StatePanel({ id, filter }: { id: string; filter: Filter }) {
         </div>
         {s ? (
           <div className="text-right">
-            <p className="font-display text-[22px] font-black leading-none text-ink">
+            <p className="font-display text-[22px] font-bold leading-none text-ink">
               {formatCompactMoney(s.givenWeek)}
             </p>
             <p className="text-[12px] text-muted-ink">given this week</p>
@@ -258,13 +258,13 @@ export function OpenGiving() {
           <div className="mx-auto grid w-full max-w-[1440px] gap-10 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-14">
             <div className="flex flex-col gap-7 lg:pt-6">
               <div className="flex flex-col gap-4">
-                <p className="font-gsf text-sm font-semibold uppercase tracking-[0.1em] text-ink-soft">
+                <p className="font-gsf text-sm font-semibold uppercase tracking-[-0.03em] text-ink-soft">
                   Open giving
                 </p>
-                <h1 className="font-display text-[clamp(38px,4.2vw,68px)] leading-[1.02] tracking-[-0.015em] text-ink">
+                <h1 className="font-display text-[clamp(38px,4.2vw,68px)] leading-[1.02] tracking-[-0.03em] text-ink">
                   Watch giving land across Nigeria.
                 </h1>
-                <p className="text-lg leading-[1.55] tracking-[-0.02em] text-ink-soft">
+                <p className="text-lg leading-[1.55] tracking-[-0.03em] text-ink-soft">
                   Every gift goes to a verified organisation and comes back with a receipt. This is
                   what that looked like this week.
                 </p>
@@ -277,7 +277,7 @@ export function OpenGiving() {
                   { v: `${totals.receipts}`, l: "receipts posted" },
                 ].map((s) => (
                   <div key={s.l} className="flex flex-col gap-1">
-                    <dd className="font-display text-[clamp(20px,1.75vw,28px)] font-black leading-none text-ink">
+                    <dd className="font-display text-[clamp(20px,1.75vw,28px)] font-bold leading-none text-ink">
                       <CountUp value={s.v} />
                     </dd>
                     <dt className="text-[13px] leading-[17px] text-muted-ink">{s.l}</dt>
@@ -390,7 +390,7 @@ export function OpenGiving() {
         <section className="bg-panel px-6 py-20 sm:px-10 md:py-28 lg:px-[clamp(40px,6vw,120px)]">
           <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-10">
             <Reveal className="flex max-w-[720px] flex-col gap-4">
-              <h2 className="font-display text-[clamp(30px,3vw,52px)] leading-[1.08] tracking-[-0.01em] text-ink">
+              <h2 className="font-display text-[clamp(30px,3vw,52px)] leading-[1.08] tracking-[-0.03em] text-ink">
                 From budget to receipt, in the open.
               </h2>
               <p className="text-lg leading-[1.55] text-ink-soft">

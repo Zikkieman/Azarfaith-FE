@@ -212,7 +212,7 @@ function CancelGift({ name, onConfirm }: { name: string; onConfirm: () => void }
       </AlertDialogTrigger>
       <AlertDialogContent className="font-gsf">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display text-2xl font-normal text-ink">
+          <AlertDialogTitle className="font-display text-2xl font-medium text-ink">
             Stop giving to {name}?
           </AlertDialogTitle>
           <AlertDialogDescription className="text-ink-soft">

@@ -1,7 +1,5 @@
-import { Fragment, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { CountUp, Reveal } from "@/components/motion/Reveal";
-const headline = "More than ₦35 million is given every week on AzarFaith.*";
-
 const stats = [
   { label: "Given to Ministries", value: "₦250M+" },
   { label: "Active Donors", value: "18k+" },
@@ -17,16 +15,8 @@ const rings = [
 
 export function Stats() {
   return (
-    <section className="w-full bg-paper pt-[120px]">
+    <section className="w-full bg-paper pt-6 md:pt-10">
       <div className="mx-auto flex w-full max-w-[1728px] flex-col items-center gap-2.5">
-        <h2 className="ink-on-scroll w-full max-w-[1332px] px-6 text-center font-display text-[clamp(34px,5.55vw,96px)] leading-[1.1875] tracking-[-0.0128em] text-heading">
-          {headline.split(" ").map((word, i) => (
-            <Fragment key={i}>
-              <span>{word}</span>{" "}
-            </Fragment>
-          ))}
-        </h2>
-
         <Reveal className="flex w-full flex-col gap-6 p-6 md:px-[120px] md:py-[120px] xl:flex-row">
           <div
             data-stagger

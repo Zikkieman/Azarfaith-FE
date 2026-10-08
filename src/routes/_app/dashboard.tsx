@@ -28,7 +28,7 @@ function Dashboard() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <p className={eyebrowClass}>Manage</p>
-            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
+            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
               Welcome, {firstName}
             </h1>
             <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">

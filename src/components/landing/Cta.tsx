@@ -6,7 +6,7 @@ export function Cta() {
   return (
     <section className="flex w-full flex-col items-center bg-paper px-6 py-20 md:px-12">
       <Reveal className="flex w-full max-w-[1000px] flex-col items-center gap-7">
-        <h2 className="text-center font-display text-[clamp(36px,3.7vw,64px)] leading-[1.08] tracking-[-0.01em] text-ink">
+        <h2 className="text-center font-display text-[clamp(36px,3.7vw,64px)] leading-[1.08] tracking-[-0.03em] text-ink">
           Ready to give with confidence?
         </h2>
 

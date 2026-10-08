@@ -67,7 +67,7 @@ function CampaignDetail() {
             {campaign.updates.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
+                  <h2 className="font-display text-[28px] font-medium leading-[1.14] tracking-[-0.03em] text-ink">
                     Updates
                   </h2>
                   <span className="rounded bg-panel px-2 py-0.5 text-sm text-heading">
@@ -98,7 +98,7 @@ function CampaignDetail() {
             {campaign.comments.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
+                  <h2 className="font-display text-[28px] font-medium leading-[1.14] tracking-[-0.03em] text-ink">
                     Comments
                   </h2>
                   <span className="rounded bg-panel px-2 py-0.5 text-sm text-heading">
@@ -173,7 +173,7 @@ function HeroSection({
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="font-display text-[clamp(32px,3.2vw,48px)] font-normal leading-[1.08] tracking-[-0.01em] text-ink">
+      <h1 className="font-display text-[clamp(32px,3.2vw,48px)] font-medium leading-[1.08] tracking-[-0.03em] text-ink">
         {campaign.title}
       </h1>
 
@@ -275,7 +275,7 @@ function ShareSection({ campaign }: { campaign: Campaign }) {
   ];
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
+      <h2 className="font-display text-[28px] font-medium leading-[1.14] tracking-[-0.03em] text-ink">
         Sharing helps more than you think
       </h2>
       <p className="text-[16px] text-heading">
@@ -342,7 +342,7 @@ function ShareButton({
 function OrganiserSection({ name, location }: { name: string; location: string }) {
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-ink">
+      <h2 className="font-display text-[28px] font-medium leading-[1.14] tracking-[-0.03em] text-ink">
         Organiser
       </h2>
       <div className="flex items-center justify-between gap-4">

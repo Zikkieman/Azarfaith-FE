@@ -25,7 +25,7 @@ export function HowItWorks() {
     >
       <div className="mx-auto flex w-full max-w-[1446px] flex-col gap-14">
         <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <h2 className="max-w-[640px] font-display text-[clamp(32px,3.2vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
+          <h2 className="max-w-[640px] font-display text-[clamp(32px,3.2vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
             How giving works
           </h2>
           <div className="flex flex-wrap gap-3">
@@ -61,7 +61,7 @@ export function HowItWorks() {
               style={{ "--i": i } as CSSProperties}
               className="relative flex flex-col gap-4"
             >
-              <span className="relative grid h-[68px] w-[68px] place-items-center rounded-full border border-line bg-paper font-display text-[30px] font-black text-ink">
+              <span className="relative grid h-[68px] w-[68px] place-items-center rounded-full border border-line bg-paper font-display text-[30px] font-bold text-ink">
                 {i + 1}
               </span>
               <h3 className="font-gsf text-[clamp(22px,1.6vw,28px)] font-semibold leading-[1.2] text-heading">

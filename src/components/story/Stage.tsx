@@ -10,7 +10,6 @@ import {
   type MotionValue,
 } from "motion/react";
 import logoMark from "@/assets/signup/logo-mark.svg";
-import logoWordmark from "@/assets/signup/logo-wordmark.svg";
 import { cn } from "@/lib/utils";
 import { appeals, causes, checks, type Priority } from "./data";
 import {
@@ -239,7 +238,7 @@ function Headline({
         at === "top" ? "top-[max(84px,10vh)]" : "top-1/2 -translate-y-1/2",
       )}
     >
-      <h2 className="font-display text-[clamp(34px,5.6vw,92px)] leading-[1.02] tracking-[-0.015em] text-ink">
+      <h2 className="font-display text-[clamp(34px,5.6vw,92px)] leading-[1.02] tracking-[-0.03em] text-ink">
         {children}
       </h2>
       {sub ? (
@@ -643,12 +642,11 @@ export function Stage() {
             opacity: heroO,
             y: heroY,
             pointerEvents: heroPE,
-            top: L.mark.y + (vp.mobile ? 70 : 105),
+            top: L.mark.y + (vp.mobile ? 64 : 92),
           }}
           className="absolute inset-x-0 z-30 mx-auto flex max-w-[960px] flex-col items-center gap-5 px-6 text-center"
         >
-          <img src={logoWordmark} alt="AzarFaith" className="h-[30px] w-auto max-md:h-6" />
-          <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.015em] text-ink">
+          <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.03em] text-ink">
             Stop wondering. Start seeing.
           </h1>
           <p className="max-w-[620px] font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">
@@ -742,7 +740,7 @@ export function Stage() {
               style={{ opacity: markBackO, scale: markBackS }}
               className="h-12 w-12"
             />
-            <h2 className="max-w-[1000px] font-display text-[clamp(32px,4.8vw,80px)] leading-[1.02] tracking-[-0.015em] text-[#130E30]">
+            <h2 className="max-w-[1000px] font-display text-[clamp(32px,4.8vw,80px)] leading-[1.02] tracking-[-0.03em] text-[#130E30]">
               From hoping it helped to seeing that it did.
             </h2>
             <UpdateCard />

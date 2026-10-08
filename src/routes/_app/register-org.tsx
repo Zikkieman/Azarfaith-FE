@@ -372,7 +372,7 @@ function RegisterOrg() {
 function StepTitle({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.03em] text-ink">
         {title}
       </h1>
       <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p>

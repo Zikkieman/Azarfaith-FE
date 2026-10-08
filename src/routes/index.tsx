@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/landing/SiteNav";
-import { Hero } from "@/components/landing/Hero";
+import { HomeOpening } from "@/components/landing/HomeOpening";
 import { Stats } from "@/components/landing/Stats";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FeaturePanel } from "@/components/landing/FeaturePanel";
@@ -29,7 +29,7 @@ function AzarFaithLanding() {
   return (
     <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
       <SiteNav />
-      <Hero />
+      <HomeOpening />
       <Stats />
       <HowItWorks />
       <FeaturePanel />

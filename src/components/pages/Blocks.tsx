@@ -104,7 +104,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
                 <Rule />
                 <h2
                   id={block.id}
-                  className="scroll-mt-24 font-display text-[clamp(26px,2.2vw,36px)] leading-[1.14] tracking-[-0.01em] text-ink"
+                  className="scroll-mt-24 font-display text-[clamp(26px,2.2vw,36px)] leading-[1.14] tracking-[-0.03em] text-ink"
                 >
                   {block.text}
                 </h2>
@@ -175,7 +175,7 @@ export function Blocks({ blocks }: { blocks: Block[] }) {
           case "quote":
             return (
               <figure key={index} className="flex flex-col gap-3 border-l-4 border-[#FE5102] pl-6">
-                <blockquote className="font-display text-[clamp(22px,1.8vw,28px)] leading-[1.26] tracking-[-0.01em] text-ink">
+                <blockquote className="font-display text-[clamp(22px,1.8vw,28px)] leading-[1.26] tracking-[-0.03em] text-ink">
                   “{block.text}”
                 </blockquote>
                 {block.by ? (

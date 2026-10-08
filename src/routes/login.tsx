@@ -54,7 +54,7 @@ function Login() {
       <AuthCard>
         <div className="flex w-full flex-col items-start gap-[11px] text-heading">
           <p className="w-full text-[14px] font-medium leading-[26.25px]">Welcome back</p>
-          <h1 className="w-full font-display text-[clamp(40px,5vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
+          <h1 className="w-full font-display text-[clamp(40px,5vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
             Sign in
           </h1>
           <p className="w-full text-[14px] leading-[26.25px]">

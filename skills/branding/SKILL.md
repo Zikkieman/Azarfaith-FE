@@ -9,38 +9,28 @@ Derived from the canonical landing page (`src/routes/index.tsx` + `src/component
 matches Figma file `gDv4PrT0ffGmfQMAfFjdRp` node `338:2168` (1728px canvas). When in doubt, the landing page
 is the source of truth: open it, screenshot it, match it.
 
-## 1. Fonts — exactly two families
+## 1. Fonts — one family
 
-| Role                                        | Family               | CSS token        | Tailwind utility | Weights            |
-| ------------------------------------------- | -------------------- | ---------------- | ---------------- | ------------------ |
-| Display (headings, pull quotes, hero)       | **Coustard**         | `--font-display` | `font-display`   | 400, 900           |
-| Everything else (UI, body, labels, numbers) | **Google Sans Flex** | `--font-gsf`     | `font-gsf`       | 400, 500, 600, 700 |
-
-Imports live at the very top of `src/styles.css`:
+**Google Sans Flex everywhere** (headings, body, UI, numbers, app and admin). It is loaded once as a
+variable font (`opsz 6..144`, `wght 1..1000`) at the top of `src/styles.css`:
 
 ```css
-@import url("https://fonts.googleapis.com/css2?family=Coustard:wght@400;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700&display=swap");
-@import "tailwindcss" source(none);
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&display=swap");
 ```
 
-Rules:
+`--font-display`, `--font-sans` and `--font-gsf` all point to it, so `font-display` / `font-gsf`
+utilities still work. Rules:
 
-- **Never introduce a third family.** No Inter, Mona Sans, Hedvig Letters Serif, Google Sans Code,
-  system UI stacks, or decorative serifs anywhere on a branded surface.
-- `Plus Jakarta Sans` only exists as a fallback inside `--font-sans` for pre-existing app screens
-  (dashboard/admin/auth). Branded surfaces set `font-gsf` explicitly on their root element.
-- Headings default to Coustard through the base layer (`h1..h4 { font-family: var(--font-display) }`),
-  but Tailwind utilities win — so always set `font-display` or `font-gsf` explicitly on headings rather
-  than relying on the default.
-- Never use weight 900 for running display text; Coustard 400 is the brand's display voice, 900 is
-  reserved for numerals/stat moments only.
+- Headings (`h1–h4`, `.font-display`): weight **500**, tracking **-0.03em**, `text-wrap: balance` on
+  h1/h2. Use `font-bold` (700) for big numerals/stat moments; never `font-black`.
+- Body 400, labels/buttons 500–600.
+- Never introduce another family (Coustard, Plus Jakarta Sans, Inter, serifs… are retired).
 
 ### Type scale (px / line-height / tracking)
 
 | Token           | Size                      | LH          | Tracking                    | Family    | Used for                            |
 | --------------- | ------------------------- | ----------- | --------------------------- | --------- | ----------------------------------- |
-| Hero H1         | `clamp(44px,7.4vw,128px)` | `0.89`      | `-0.0096em`                 | display   | Landing hero                        |
+| Hero H1         | `clamp(40px,6.4vw,104px)` | `0.98`      | `-0.03em`                   | display   | Landing hero                        |
 | Page H1         | `clamp(32px,3.7vw,56px)`  | `1.08`      | `-0.01em`                   | display   | Content/legal page titles           |
 | Section H2      | `clamp(30px,2.78vw,48px)` | `1.14`      | `-0.01em`                   | display   | In-page section headings            |
 | Sub H2          | `clamp(30px,2.32vw,40px)` | `1.3`       | `-0.02em`                   | gsf / 500 | Panel headings (FeaturePanel style) |

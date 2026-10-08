@@ -25,7 +25,7 @@ function ClosingCta({ page }: { page: PageDoc }) {
   return (
     <section className="border-t border-line bg-paper px-6 py-20 md:px-12">
       <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center gap-7">
-        <h2 className="text-center font-display text-[clamp(30px,3vw,48px)] leading-[1.1] tracking-[-0.01em] text-ink">
+        <h2 className="text-center font-display text-[clamp(30px,3vw,48px)] leading-[1.1] tracking-[-0.03em] text-ink">
           {cta.heading}
         </h2>
         {cta.text ? (
@@ -80,13 +80,13 @@ export function PageLayout({ page }: { page: PageDoc }) {
       <main>
         <section className="border-b border-line bg-paper px-6 pb-14 pt-14 md:px-12 md:pt-20">
           <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-5">
-            <p className="font-gsf text-sm font-semibold uppercase leading-[21px] tracking-[0.1em] text-ink-soft">
+            <p className="font-gsf text-sm font-semibold uppercase leading-[21px] tracking-[-0.03em] text-ink-soft">
               {page.eyebrow}
             </p>
-            <h1 className="max-w-[900px] font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
+            <h1 className="max-w-[900px] font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
               {page.title}
             </h1>
-            <p className="max-w-[760px] font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
+            <p className="max-w-[760px] font-gsf text-lg leading-[27.9px] tracking-[-0.03em] text-ink-soft">
               {page.lead}
             </p>
             {page.updated ? (

@@ -171,7 +171,7 @@ function OtpStep({
         <button type="button" onClick={onBack} aria-label="Back">
           <ChevronLeft className="h-6 w-6" />
         </button>
-        <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
+        <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
           Verify your email
         </p>
         <p className="w-full text-[14px] leading-[26.25px]">
@@ -194,7 +194,7 @@ function HeadingBlock() {
       <p className="w-full text-[14px] font-medium leading-[26.25px]">
         More than ₦250M given to ministries
       </p>
-      <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
+      <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-medium leading-[0.92] tracking-[-0.03em]">
         Create an account
       </p>
       <p className="w-full text-[14px] font-normal leading-[26.25px]">

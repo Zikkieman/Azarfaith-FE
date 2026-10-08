@@ -13,7 +13,7 @@ import {
 } from "./pieces";
 import { campaignLayers } from "./layers";
 
-const h2 = "font-display text-[clamp(32px,4.4vw,72px)] leading-[1.04] tracking-[-0.015em] text-ink";
+const h2 = "font-display text-[clamp(32px,4.4vw,72px)] leading-[1.04] tracking-[-0.03em] text-ink";
 const scene = "flex flex-col items-center gap-10 px-6 py-24 text-center md:py-32";
 
 /** The whole story without motion: every scene in its resolved state, read top to bottom. */
@@ -24,7 +24,7 @@ export function StaticStory() {
     <div>
       <section className={`${scene} pt-36`}>
         <img src={logoMark} alt="" className="h-24 w-24" />
-        <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.015em] text-ink">
+        <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.03em] text-ink">
           Stop wondering. Start seeing.
         </h1>
         <p className="max-w-[620px] font-gsf text-lg text-ink-soft">

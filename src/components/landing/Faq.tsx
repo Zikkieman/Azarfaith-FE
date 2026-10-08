@@ -40,7 +40,7 @@ export function Faq() {
           FAQ
         </p>
 
-        <h2 className="font-display text-[clamp(30px,2.78vw,48px)] leading-[1.14] tracking-[-0.01em] text-ink">
+        <h2 className="font-display text-[clamp(30px,2.78vw,48px)] leading-[1.14] tracking-[-0.03em] text-ink">
           Frequently asked questions
         </h2>
 

@@ -30,9 +30,9 @@ function P({ children, first }: { children: ReactNode; first?: boolean }) {
   return (
     <p
       className={cn(
-        "font-gsf text-[clamp(17px,1.25vw,19px)] leading-[1.75] tracking-[-0.01em] text-heading",
+        "font-gsf text-[clamp(17px,1.25vw,19px)] leading-[1.75] tracking-[-0.03em] text-heading",
         first &&
-          "first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-display first-letter:text-[68px] first-letter:font-black first-letter:leading-[0.8] first-letter:text-ink",
+          "first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-display first-letter:text-[68px] first-letter:font-bold first-letter:leading-[0.8] first-letter:text-ink",
       )}
     >
       {children}
@@ -43,7 +43,7 @@ function P({ children, first }: { children: ReactNode; first?: boolean }) {
 function Quote({ children, by }: { children: ReactNode; by: string }) {
   return (
     <Reveal as="figure" className="my-6 border-l-[3px] border-[#FE5102] pl-6 md:-ml-8 md:pl-8">
-      <blockquote className="font-display text-[clamp(24px,2.3vw,34px)] leading-[1.25] tracking-[-0.01em] text-ink">
+      <blockquote className="font-display text-[clamp(24px,2.3vw,34px)] leading-[1.25] tracking-[-0.03em] text-ink">
         {children}
       </blockquote>
       <figcaption className="pt-3 font-gsf text-sm text-muted-ink">{by}</figcaption>
@@ -84,7 +84,7 @@ function Chapter({
     <section ref={refCb} data-week={index} className="scroll-mt-24 pt-20 md:pt-28">
       <Reveal className="mb-8 flex flex-col gap-3">
         <span className="font-gsf text-sm font-semibold text-[#FE5102]">Week {w.n}</span>
-        <h2 className="font-display text-[clamp(30px,3.4vw,52px)] leading-[1.08] tracking-[-0.01em] text-ink">
+        <h2 className="font-display text-[clamp(30px,3.4vw,52px)] leading-[1.08] tracking-[-0.03em] text-ink">
           {w.title}
         </h2>
       </Reveal>
@@ -182,7 +182,7 @@ function Rail({ week, raised, ended }: { week: number; raised: number; ended: bo
           </ol>
         </div>
         <p className="font-gsf text-[12px] leading-[17px] text-muted-ink">
-          <span className="block font-display text-[19px] font-black leading-none text-ink tabular-nums">
+          <span className="block font-display text-[19px] font-bold leading-none text-ink tabular-nums">
             {formatMoney(raised)}
           </span>
           raised of {formatMoney(GOAL)}
@@ -272,7 +272,7 @@ function Receipt() {
       <p className="pr-24 pt-4 text-[12px] text-muted-ink">
         Uploaded by Grace Harvest · matched to budget line &ldquo;20 bunk beds&rdquo;
       </p>
-      <span className="stamp absolute bottom-4 right-4 rotate-[-12deg] rounded-md border-[3px] border-[#00B67A] px-3 py-1 font-gsf text-[13px] font-bold uppercase tracking-[0.12em] text-[#00B67A] sm:right-6">
+      <span className="stamp absolute bottom-4 right-4 rotate-[-12deg] rounded-md border-[3px] border-[#00B67A] px-3 py-1 font-gsf text-[13px] font-bold uppercase tracking-[-0.03em] text-[#00B67A] sm:right-6">
         Verified
       </span>
     </Reveal>
@@ -300,7 +300,7 @@ export function JosEssay() {
             <p className="font-gsf text-sm font-semibold text-[#FE5102]">
               A month with Grace Harvest Orphanage · Jos, Plateau State
             </p>
-            <h1 className="font-display text-[clamp(48px,8vw,128px)] leading-[0.92] tracking-[-0.02em] text-ink">
+            <h1 className="font-display text-[clamp(48px,8vw,128px)] leading-[0.92] tracking-[-0.03em] text-ink">
               One month in Jos
             </h1>
             <p className="max-w-[680px] font-gsf text-[clamp(18px,1.5vw,22px)] leading-[1.5] text-ink-soft">
@@ -434,7 +434,7 @@ export function JosEssay() {
 
         <section className="bg-[#FFE228] px-6 py-20 md:py-28">
           <Reveal className="mx-auto flex max-w-[760px] flex-col items-center gap-6 text-center">
-            <h2 className="font-display text-[clamp(32px,4vw,64px)] leading-[1.04] tracking-[-0.015em] text-[#130E30]">
+            <h2 className="font-display text-[clamp(32px,4vw,64px)] leading-[1.04] tracking-[-0.03em] text-[#130E30]">
               Every organisation on AzarFaith has a story like this.
             </h2>
             <p className="max-w-[560px] font-gsf text-lg leading-[1.5] text-[#4A4660]">

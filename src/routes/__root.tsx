@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -28,7 +29,7 @@ function StatusScreen({
       {code ? (
         <p className="font-display text-[clamp(56px,10vw,120px)] leading-none text-ink">{code}</p>
       ) : null}
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.03em] text-ink">
         {title}
       </h1>
       <p className="max-w-md text-base leading-[25.6px] text-ink-soft">{body}</p>
@@ -131,7 +132,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
-          dangerouslySetInnerHTML={{ __html: "document.documentElement.classList.add('js')" }}
+          dangerouslySetInnerHTML={{
+            // Reveal animations only hide content while JS runs. If the app never hydrates
+            // (blocked or failed bundle), drop the flag after 8s so everything shows.
+            __html:
+              "var d=document.documentElement;d.classList.add('js');setTimeout(function(){if(!d.classList.contains('hydrated'))d.classList.remove('js')},8000)",
+          }}
         />
         <HeadContent />
       </head>
@@ -145,6 +151,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => document.documentElement.classList.add("hydrated"), []);
 
   return (
     <QueryClientProvider client={queryClient}>

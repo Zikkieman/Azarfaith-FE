@@ -15,7 +15,7 @@ export function Story() {
 
         <section className="flex flex-col items-center gap-6 px-6 py-32 text-center md:py-44">
           <img src={logoMark} alt="" className="h-14 w-14" />
-          <h2 className="max-w-[900px] font-display text-[clamp(34px,4.8vw,76px)] leading-[1.04] tracking-[-0.015em] text-ink">
+          <h2 className="max-w-[900px] font-display text-[clamp(34px,4.8vw,76px)] leading-[1.04] tracking-[-0.03em] text-ink">
             Someone near you is already doing God&rsquo;s work.
           </h2>
           <p className="max-w-[560px] font-gsf text-lg leading-[1.5] text-ink-soft">
@@ -51,4 +51,10 @@ export function Story() {
       </footer>
     </div>
   );
+}
+
+/** The cinematic opening for any page: full scroll stage, or the static story for reduced motion. */
+export function StoryOpening() {
+  const reduce = useReducedMotion();
+  return reduce ? <StaticStory /> : <Stage />;
 }

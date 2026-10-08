@@ -43,7 +43,7 @@ function ForgotPassword() {
               <MailCheck className="h-6 w-6" strokeWidth={1.5} />
             </span>
             <div className="flex w-full flex-col items-start gap-[11px] text-heading">
-              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
+              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-medium leading-[0.98] tracking-[-0.03em]">
                 Check your inbox
               </h1>
               <p className="w-full text-[14px] leading-[26.25px]">
@@ -65,7 +65,7 @@ function ForgotPassword() {
           <>
             <div className="flex w-full flex-col items-start gap-[11px] text-heading">
               <p className="w-full text-[14px] font-medium leading-[26.25px]">Account help</p>
-              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
+              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-medium leading-[0.98] tracking-[-0.03em]">
                 Reset your password
               </h1>
               <p className="w-full text-[14px] leading-[26.25px]">

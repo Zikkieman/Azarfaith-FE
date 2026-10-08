@@ -126,7 +126,7 @@ function AzarFaithDonate() {
             <Check className="h-10 w-10" strokeWidth={2} />
           </span>
           <p className={`${eyebrowClass} mt-8`}>Gift received</p>
-          <h1 className="mt-3 font-display text-[clamp(36px,4.4vw,64px)] leading-[1.08] tracking-[-0.01em] text-ink">
+          <h1 className="mt-3 font-display text-[clamp(36px,4.4vw,64px)] leading-[1.08] tracking-[-0.03em] text-ink">
             Thank you{!anonymous && name ? `, ${name.split(" ")[0]}` : ""}
           </h1>
           <p className="mt-4 max-w-[560px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
@@ -176,7 +176,7 @@ function AzarFaithDonate() {
 
   const stepTitle = (title: string, sub?: string) => (
     <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-ink">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.03em] text-ink">
         {title}
       </h1>
       {sub ? <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p> : null}

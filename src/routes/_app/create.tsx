@@ -322,7 +322,7 @@ function AzarFaithCreate() {
 function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="flex flex-col gap-3 pb-7 pt-6 sm:pb-10">
-      <h1 className="font-display text-[clamp(32px,8.5vw,48px)] leading-[1.08] tracking-[-0.01em] text-ink">
+      <h1 className="font-display text-[clamp(32px,8.5vw,48px)] leading-[1.08] tracking-[-0.03em] text-ink">
         {title}
       </h1>
       <p className="text-sm text-heading">{subtitle}</p>
@@ -698,7 +698,7 @@ function PreviewStep({
 }) {
   return (
     <div>
-      <h1 className="pt-6 font-display text-[clamp(30px,8vw,40px)] font-normal leading-[1.1] tracking-[-0.01em] text-ink">
+      <h1 className="pt-6 font-display text-[clamp(30px,8vw,40px)] font-medium leading-[1.1] tracking-[-0.03em] text-ink">
         {draft.title || "Your campaign title"}
       </h1>
 

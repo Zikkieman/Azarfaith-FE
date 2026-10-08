@@ -72,7 +72,7 @@ export function PageHeader({
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="flex max-w-[820px] flex-col gap-4">
             {eyebrow ? <p className={eyebrowClass}>{eyebrow}</p> : null}
-            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.01em] text-ink">
+            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
               {title}
             </h1>
             {lead ? (
@@ -92,7 +92,7 @@ export function PageHeader({
 export function SectionHeading({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="flex items-end justify-between gap-4">
-      <h2 className="font-display text-[clamp(26px,2.3vw,36px)] leading-[1.14] tracking-[-0.01em] text-ink">
+      <h2 className="font-display text-[clamp(26px,2.3vw,36px)] leading-[1.14] tracking-[-0.03em] text-ink">
         {children}
       </h2>
       {aside}
@@ -238,7 +238,7 @@ export function ProgressBar({ pct }: { pct: number }) {
 export function StatTile({ value, label }: { value: ReactNode; label: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 border-l border-line pl-3 sm:pl-5">
-      <span className="whitespace-nowrap font-display text-[clamp(19px,2.3vw,36px)] font-black leading-[1.1] text-ink">
+      <span className="whitespace-nowrap font-display text-[clamp(19px,2.3vw,36px)] font-bold leading-[1.1] text-ink">
         {value}
       </span>
       <span className="font-gsf text-[13px] leading-[18px] text-ink-soft sm:text-sm sm:leading-5">
