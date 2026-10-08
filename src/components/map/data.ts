@@ -1,6 +1,6 @@
 /**
  * Sample figures for the /map prototype. Totals line up with the landing page
- * (≈₦35M a week, 480+ verified organisations). Replace with live aggregates later.
+ * (≈₦35M a week, 480+ verified organizations). Replace with live aggregates later.
  */
 export type Cause = "church" | "mission" | "orphanage" | "school";
 

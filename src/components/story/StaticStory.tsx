@@ -53,7 +53,7 @@ export function StaticStory() {
       </section>
 
       <section className={scene}>
-        <h2 className={h2}>Every organisation is verified before it receives a naira.</h2>
+        <h2 className={h2}>Every organization is verified before it receives a naira.</h2>
         <OrgCard verified />
         <div className="grid w-full max-w-[760px] gap-3 sm:grid-cols-2 md:grid-cols-3">
           {checks.map((c) => (

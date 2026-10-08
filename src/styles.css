@@ -43,6 +43,10 @@
   --color-warm-foreground: var(--warm-foreground);
 
   /* AzarFaith colour tokens (values on :root below) */
+  --color-brand: var(--af-brand);
+  --color-verified: var(--af-verified);
+  --color-verified-ink: var(--af-verified-ink);
+  --color-danger: var(--af-danger);
   --color-paper: var(--af-paper);
   --color-panel: var(--af-panel);
   --color-panel-olive: var(--af-panel-olive);
@@ -77,6 +81,10 @@
   --af-line-soft: rgba(57, 62, 70, 0.1);
   --af-line-input: #d0d5dd;
   --af-line-strong: #b6ba95;
+  --af-brand: #fe5102;
+  --af-verified: #00b67a;
+  --af-verified-ink: #00875a;
+  --af-danger: #d92d20;
   --af-btn: #000000;
   --af-btn-fg: #ffffff;
   color-scheme: light;

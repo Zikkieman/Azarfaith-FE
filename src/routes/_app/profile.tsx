@@ -9,13 +9,14 @@ import {
   Container,
   SectionHeading,
   StatTile,
-  btnPrimary,
-  btnSecondary,
   cardClass,
-  eyebrowClass,
   inputClass,
   labelClass,
+  pageTitleClass,
+  panelClass,
+  smallHeadingClass,
 } from "@/components/app/AppShell";
+import { btn, btnPrimary, btnSecondary } from "@/components/app/btn";
 import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, me } from "@/lib/mock";
@@ -61,7 +62,7 @@ function Profile() {
 
   return (
     <AppShell>
-      <section className="border-b border-line pb-12 pt-12 md:pb-14 md:pt-16">
+      <section className="border-b border-line-soft pb-10 pt-10 md:pb-12 md:pt-14">
         <Container className="flex flex-col gap-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-center gap-5">
@@ -71,10 +72,7 @@ function Profile() {
                 className="h-20 w-20 shrink-0 rounded-full object-cover md:h-24 md:w-24"
               />
               <div className="flex flex-col gap-1.5">
-                <p className={eyebrowClass}>Profile</p>
-                <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
-                  {me.name}
-                </h1>
+                <h1 className={pageTitleClass}>{me.name}</h1>
                 <p className="text-base text-ink-soft">
                   {me.location} · Giving since {me.joined}
                 </p>
@@ -109,7 +107,7 @@ function Profile() {
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="text-sm font-medium text-ink underline underline-offset-2"
+                    className={btn("secondary", "sm")}
                   >
                     Edit
                   </button>
@@ -161,11 +159,11 @@ function Profile() {
 
           <section className="flex flex-col gap-6">
             <SectionHeading>Notifications</SectionHeading>
-            <ul className="flex flex-col border-t border-line">
+            <ul className="flex flex-col border-t border-line-soft">
               {preferences.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between gap-6 border-b border-line py-5"
+                  className="flex items-center justify-between gap-6 border-b border-line-soft py-5"
                 >
                   <label htmlFor={p.id} className="flex flex-col gap-0.5">
                     <span className="text-base font-semibold text-ink">{p.title}</span>
@@ -184,13 +182,11 @@ function Profile() {
 
         <aside className="flex flex-col gap-6">
           <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
-              Verifications
-            </p>
+            <h2 className={smallHeadingClass}>Verifications</h2>
             <ul className="flex flex-col gap-3">
               {me.verifications.map((v) => (
                 <li key={v} className="flex items-center gap-3 text-base text-ink">
-                  <BadgeCheck className="h-5 w-5 text-[#00B67A]" strokeWidth={1.5} />
+                  <BadgeCheck className="h-5 w-5 text-verified" strokeWidth={1.5} />
                   {v}
                 </li>
               ))}
@@ -198,9 +194,7 @@ function Profile() {
           </div>
 
           <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
-              Organizations you support
-            </p>
+            <h2 className={smallHeadingClass}>Organizations you support</h2>
             <ul className="flex flex-col gap-3">
               {supportedOrgs.map((o) => (
                 <li key={o.id}>
@@ -212,7 +206,7 @@ function Profile() {
                     <img
                       src={o.photos[0]}
                       alt=""
-                      className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                      className="h-10 w-10 shrink-0 rounded-xl object-cover"
                     />
                     <span className="min-w-0 truncate text-base">{o.name}</span>
                   </Link>
@@ -221,12 +215,12 @@ function Profile() {
             </ul>
           </div>
 
-          <div className="flex flex-col gap-4 rounded-xl bg-[#FFE228] p-6">
-            <Building2 className="h-6 w-6 text-ink" strokeWidth={1.5} />
-            <p className="font-display text-2xl leading-[1.2] text-ink">
-              Lead a church or ministry?
-            </p>
-            <p className="text-base leading-[25.6px] tracking-[-0.02em] text-ink">
+          <div className={`${panelClass} flex flex-col gap-3 p-6`}>
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-paper text-ink">
+              <Building2 className="h-5 w-5" strokeWidth={1.5} />
+            </span>
+            <h2 className={smallHeadingClass}>Lead a church or ministry?</h2>
+            <p className="text-[15px] leading-[1.55] text-ink-soft">
               Register it on AzarFaith to raise support with a verified badge.
             </p>
             <Link to="/register-org" className={`${btnPrimary} self-start`}>

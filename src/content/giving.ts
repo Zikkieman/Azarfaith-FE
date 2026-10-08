@@ -114,7 +114,7 @@ export const givingPages: PageDoc[] = [
       },
       {
         type: "p",
-        text: "Monthly support is a partnership, not a subscription. AzarFaith does not promise outcomes on a ministry's behalf — you are giving an organisation room to plan, and the update you receive each month shows how the funds were used. If your own circumstances change, reduce the amount, skip a month, or end the schedule in My giving; the ministry is told nothing until you decide.",
+        text: "Monthly support is a partnership, not a subscription. AzarFaith does not promise outcomes on a ministry's behalf — you are giving an organization room to plan, and the update you receive each month shows how the funds were used. If your own circumstances change, reduce the amount, skip a month, or end the schedule in My giving; the ministry is told nothing until you decide.",
       },
     ],
   },
@@ -296,7 +296,7 @@ export const givingPages: PageDoc[] = [
       },
       {
         type: "p",
-        text: "Sponsorship is a relationship measured in years, not campaigns. You commit to a fixed naira amount each month toward a child's school fees, a missionary's basic support, or an orphanage's care costs, and the partner organisation reports back on a set rhythm — usually each school term — so you see enrolment, attendance, and completed items rather than general promises.",
+        text: "Sponsorship is a relationship measured in years, not campaigns. You commit to a fixed naira amount each month toward a child's school fees, a missionary's basic support, or an orphanage's care costs, and the partner organization reports back on a set rhythm — usually each school term — so you see enrolment, attendance, and completed items rather than general promises.",
       },
       {
         type: "steps",
@@ -311,7 +311,7 @@ export const givingPages: PageDoc[] = [
         type: "bullets",
         items: [
           "Termly written updates naming what the gift paid for, with itemised costs.",
-          "Photographs published by the partner organisation only, never passed back as personal contact.",
+          "Photographs published by the partner organization only, never passed back as personal contact.",
           "No direct private contact between givers and children; all messages run through the ministry.",
           "Givers receive reference codes, not a child's personal data or home address.",
           "Partners hold a verified badge and re-verify to keep their listing live.",
@@ -345,7 +345,7 @@ export const givingPages: PageDoc[] = [
       },
       {
         type: "p",
-        text: "Matching programmes vary. Some employers match any registered non-profit, some restrict their lists to education, health, or disaster relief, and some cap each employee's annual total. Faith-based organisations qualify under many schemes, but the decision sits with your employer, so start by reading their matching policy and confirming that the ministry you chose is eligible.",
+        text: "Matching programmes vary. Some employers match any registered non-profit, some restrict their lists to education, health, or disaster relief, and some cap each employee's annual total. Faith-based organizations qualify under many schemes, but the decision sits with your employer, so start by reading their matching policy and confirming that the ministry you chose is eligible.",
       },
       {
         type: "steps",

@@ -435,7 +435,7 @@ export function JosEssay() {
         <section className="bg-[#FFE228] px-6 py-20 md:py-28">
           <Reveal className="mx-auto flex max-w-[760px] flex-col items-center gap-6 text-center">
             <h2 className="font-display text-[clamp(32px,4vw,64px)] leading-[1.04] tracking-[-0.03em] text-[#130E30]">
-              Every organisation on AzarFaith has a story like this.
+              Every organization on AzarFaith has a story like this.
             </h2>
             <p className="max-w-[560px] font-gsf text-lg leading-[1.5] text-[#4A4660]">
               Finish this one, or find the next one near you.

@@ -38,7 +38,7 @@ export const legalPages: PageDoc[] = [
       {
         type: "bullets",
         items: [
-          "One account per person or organisation, matching your identity or registration documents.",
+          "One account per person or organization, matching your identity or registration documents.",
           "No sharing, selling or transferring accounts, and no new account created to dodge a suspension.",
           "Extra verification may be required before payouts.",
         ],
@@ -65,22 +65,22 @@ export const legalPages: PageDoc[] = [
       { type: "h2", text: "5. Donations and the platform fee" },
       {
         type: "p",
-        text: "Donations are made in Naira through bank transfer, card, and USSD style payment methods. AzarFaith charges a platform fee of 2.5% on each donation, shown before you confirm and deducted from the amount the organisation receives.",
+        text: "Donations are made in Naira through bank transfer, card, and USSD style payment methods. AzarFaith charges a platform fee of 2.5% on each donation, shown before you confirm and deducted from the amount the organization receives.",
       },
       {
         type: "callout",
         title: "Receipts",
-        text: "Verified organisations may issue a donation receipt for your records. AzarFaith does not give tax advice — speak to your own adviser.",
+        text: "Verified organizations may issue a donation receipt for your records. AzarFaith does not give tax advice — speak to your own adviser.",
       },
 
       { type: "h2", text: "6. Payouts and settlement" },
       {
         type: "p",
-        text: "Verified organisations request a payout to the Nigerian bank account on file. Settlement is normally processed within 2 to 5 business days of an approved request, subject to bank clearing cycles.",
+        text: "Verified organizations request a payout to the Nigerian bank account on file. Settlement is normally processed within 2 to 5 business days of an approved request, subject to bank clearing cycles.",
       },
       {
         type: "p",
-        text: "We pay only into accounts held in the verified organisation's name and may delay a payout while a document issue or dispute is open.",
+        text: "We pay only into accounts held in the verified organization's name and may delay a payout while a document issue or dispute is open.",
       },
 
       { type: "h2", text: "7. Prohibited use, content and suspension" },
@@ -92,7 +92,7 @@ export const legalPages: PageDoc[] = [
         type: "bullets",
         items: [
           "Fraud, impersonation, money laundering or forged documents.",
-          "Personal or family fundraising outside our organisation policy.",
+          "Personal or family fundraising outside our organization policy.",
           "Hate speech, incitement or abuse aimed at any community.",
           "Unverified religious claims, such as miracles or guaranteed outcomes, used to solicit giving.",
           "Any activity banned by Nigerian law or your payment provider.",
@@ -132,7 +132,7 @@ export const legalPages: PageDoc[] = [
     slug: "privacy",
     eyebrow: "Legal",
     title: "Privacy Policy",
-    lead: "This policy explains what personal data AzarFaith collects from givers and faith-based organisations, why we process it under the Nigeria Data Protection Act 2023, who we share it with, and the rights you can exercise at any time.",
+    lead: "This policy explains what personal data AzarFaith collects from givers and faith-based organizations, why we process it under the Nigeria Data Protection Act 2023, who we share it with, and the rights you can exercise at any time.",
     template: "legal",
     updated: "Last updated 8 October 2026",
     blocks: [
@@ -150,7 +150,7 @@ export const legalPages: PageDoc[] = [
       {
         type: "bullets",
         items: [
-          "Account data: name, email, phone, password hash, role and organisation affiliation.",
+          "Account data: name, email, phone, password hash, role and organization affiliation.",
           "Campaign data: descriptions, beneficiary information, images and verification documents.",
           "Donation data: amounts in Naira, campaign supported, payment method and transaction references.",
           "Payout data: bank name, account number, account name and settlement history.",
@@ -169,7 +169,7 @@ export const legalPages: PageDoc[] = [
       {
         type: "bullets",
         items: [
-          "To create and secure your account and verify organisations before they receive funds.",
+          "To create and secure your account and verify organizations before they receive funds.",
           "To process donations, issue receipts and settle payouts to Nigerian bank accounts.",
           "To prevent fraud and money laundering, and to resolve giver disputes.",
           "To send service messages and, where you have consented, campaign updates.",
@@ -238,7 +238,7 @@ export const legalPages: PageDoc[] = [
       { type: "h2", text: "8. Children's data" },
       {
         type: "p",
-        text: "Givers must be 18 or older, and we do not knowingly create accounts for children. Where a campaign references children at an orphanage or faith-based school, we publish only what the responsible organisation is authorised to share and require guardian consent for identifiable images or stories. Contact us if you believe a child's data was processed without authorisation.",
+        text: "Givers must be 18 or older, and we do not knowingly create accounts for children. Where a campaign references children at an orphanage or faith-based school, we publish only what the responsible organization is authorised to share and require guardian consent for identifiable images or stories. Contact us if you believe a child's data was processed without authorisation.",
       },
 
       { type: "h2", text: "9. Contact" },
@@ -264,7 +264,7 @@ export const legalPages: PageDoc[] = [
       { type: "h2", text: "1. The service" },
       {
         type: "p",
-        text: "AzarFaith is a technology platform that connects givers with churches, missionaries, orphanages and faith-based organisations in Nigeria. We provide campaign pages, donation processing in Naira, verification workflows for receiving organisations, and payout and reporting tools.",
+        text: "AzarFaith is a technology platform that connects givers with churches, missionaries, orphanages and faith-based organizations in Nigeria. We provide campaign pages, donation processing in Naira, verification workflows for receiving organizations, and payout and reporting tools.",
       },
       {
         type: "p",
@@ -293,7 +293,7 @@ export const legalPages: PageDoc[] = [
       {
         type: "bullets",
         items: [
-          "Verified organisations may state, factually, that they raise support through AzarFaith.",
+          "Verified organizations may state, factually, that they raise support through AzarFaith.",
           "Press and partners must not imply ownership of, or endorsement by, AzarFaith without written permission.",
           "Report impersonation or misuse of the brand to legal@azarfaith.ng.",
         ],
@@ -302,22 +302,22 @@ export const legalPages: PageDoc[] = [
       { type: "h2", text: "4. Third-party links and services" },
       {
         type: "p",
-        text: "Campaigns, organisation profiles and receipts may link to third-party websites, including ministry pages, mapping services or bank portals. Those sites are operated independently and their content, security and privacy practices are not under our control.",
+        text: "Campaigns, organization profiles and receipts may link to third-party websites, including ministry pages, mapping services or bank portals. Those sites are operated independently and their content, security and privacy practices are not under our control.",
       },
       {
         type: "p",
-        text: "A link does not mean we endorse the site or its operators. We encourage givers to review the receiving organisation's own information before giving, and to contact us if a link looks wrong or unsafe.",
+        text: "A link does not mean we endorse the site or its operators. We encourage givers to review the receiving organization's own information before giving, and to contact us if a link looks wrong or unsafe.",
       },
 
       { type: "h2", text: "5. Verification, regulatory and tax notice" },
       {
         type: "p",
-        text: "Verification confirms that we reviewed documents provided by an organisation. It is a trust signal, not a guarantee of how funds will be spent, and it does not make AzarFaith responsible for a ministry's own governance.",
+        text: "Verification confirms that we reviewed documents provided by an organization. It is a trust signal, not a guarantee of how funds will be spent, and it does not make AzarFaith responsible for a ministry's own governance.",
       },
       {
         type: "callout",
         title: "Receipts and tax",
-        text: "Donations to verified organisations may be eligible for a receipt, and in some cases for relief under Nigerian law. AzarFaith does not give tax, accounting or legal advice — confirm your position with a qualified adviser.",
+        text: "Donations to verified organizations may be eligible for a receipt, and in some cases for relief under Nigerian law. AzarFaith does not give tax, accounting or legal advice — confirm your position with a qualified adviser.",
       },
       {
         type: "p",

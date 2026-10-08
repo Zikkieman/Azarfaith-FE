@@ -5,7 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 
 /** Each line is a promise, linked to the page that backs it. */
 const lines = [
-  { label: "Organisation verified before its first gift", value: "Yes", page: "verification" },
+  { label: "Organization verified before its first gift", value: "Yes", page: "verification" },
   { label: "Platform fee, shown before you pay", value: "2.5%", page: "platform-fee" },
   { label: "Card details stored by AzarFaith", value: "None", page: "payment-security" },
   { label: "Payout to the verified bank account", value: "1 working day", page: "payouts" },

@@ -10,10 +10,12 @@ import {
   PageHeader,
   SectionHeading,
   StatTile,
-  btnPrimary,
-  btnSecondary,
+  Tag,
   cardClass,
+  panelClass,
+  smallHeadingClass,
 } from "@/components/app/AppShell";
+import { btn, btnPrimary, btnSecondary } from "@/components/app/btn";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +69,6 @@ function MyGiving() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="My giving"
         title="Your giving, in one place"
         lead="See every standing gift, when it is next due, and change your mind at any time."
         actions={
@@ -107,7 +108,7 @@ function MyGiving() {
                   <img
                     src={r.targetCover}
                     alt=""
-                    className="h-14 w-14 shrink-0 rounded-lg object-cover sm:h-[72px] sm:w-[72px]"
+                    className="h-14 w-14 shrink-0 rounded-xl object-cover sm:h-[72px] sm:w-[72px]"
                   />
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <Link
@@ -126,9 +127,7 @@ function MyGiving() {
                         <CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} />
                         Next on {formatDate(r.nextDate)}
                       </span>
-                      <span className="rounded-full bg-panel px-2 py-0.5 text-xs font-medium text-ink-soft">
-                        {r.mode === "auto" ? "Automatic" : "Reminder"}
-                      </span>
+                      <Tag>{r.mode === "auto" ? "Automatic" : "Reminder"}</Tag>
                     </p>
                   </div>
                   <div className="flex w-full items-center justify-between gap-5 border-t border-line-soft pt-4 sm:w-auto sm:justify-end sm:border-0 sm:pt-0">
@@ -149,19 +148,17 @@ function MyGiving() {
 
         {cancelled.length > 0 ? (
           <section className="flex flex-col gap-4">
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
-              Cancelled
-            </p>
-            <ul className="flex flex-col border-t border-line">
+            <h2 className={smallHeadingClass}>Cancelled</h2>
+            <ul className="flex flex-col border-t border-line-soft">
               {cancelled.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-center gap-4 border-b border-line py-4 text-muted-ink"
+                  className="flex items-center gap-4 border-b border-line-soft py-4 text-muted-ink"
                 >
                   <img
                     src={r.targetCover}
                     alt=""
-                    className="h-11 w-11 shrink-0 rounded-lg object-cover opacity-60 grayscale"
+                    className="h-11 w-11 shrink-0 rounded-xl object-cover opacity-60 grayscale"
                   />
                   <p className="min-w-0 flex-1 truncate text-base">{r.targetName}</p>
                   <p className="shrink-0 text-sm">
@@ -181,16 +178,16 @@ function MyGiving() {
           </section>
         ) : null}
 
-        <section className="flex flex-col items-start gap-4 rounded-xl bg-peach p-8 md:flex-row md:items-center md:justify-between">
+        <section
+          className={`${panelClass} flex flex-col items-start gap-5 p-6 md:flex-row md:items-center md:justify-between md:p-8`}
+        >
           <div className="flex items-center gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-paper text-[#FE5102]">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-paper text-brand">
               <HeartHandshake className="h-6 w-6" strokeWidth={1.5} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-[1.2] text-ink">
-                Every gift is traceable
-              </p>
-              <p className="text-base leading-[25.6px] tracking-[-0.02em] text-ink-soft">
+              <p className={smallHeadingClass}>Every gift is traceable</p>
+              <p className="text-[15px] leading-[1.55] text-ink-soft">
                 Verified organizations post updates so you can see what your giving made possible.
               </p>
             </div>
@@ -207,12 +204,10 @@ function MyGiving() {
 function CancelGift({ name, onConfirm }: { name: string; onConfirm: () => void }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger className="rounded-full border border-line-soft px-4 py-2 text-sm font-medium text-heading transition-colors hover:bg-panel">
-        Cancel
-      </AlertDialogTrigger>
+      <AlertDialogTrigger className={btn("secondary", "sm")}>Cancel</AlertDialogTrigger>
       <AlertDialogContent className="font-gsf">
         <AlertDialogHeader>
-          <AlertDialogTitle className="font-display text-2xl font-medium text-ink">
+          <AlertDialogTitle className="font-display text-2xl text-ink">
             Stop giving to {name}?
           </AlertDialogTitle>
           <AlertDialogDescription className="text-ink-soft">
@@ -220,11 +215,8 @@ function CancelGift({ name, onConfirm }: { name: string; onConfirm: () => void }
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="rounded-full">Keep giving</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="rounded-full border-2 border-ink bg-ink text-ink-contrast hover:bg-ink/90"
-          >
+          <AlertDialogCancel className={btn("secondary")}>Keep giving</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className={btn("primary")}>
             Cancel gift
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -10,12 +10,14 @@ import {
   EmptyState,
   SectionHeading,
   StatTile,
-  btnPrimary,
-  btnSecondary,
-  eyebrowClass,
+  Tag,
+  VerifiedBadge,
+  pageTitleClass,
+  panelClass,
+  sectionTitleClass,
 } from "@/components/app/AppShell";
+import { btnPrimary, btnSecondary } from "@/components/app/btn";
 import { CampaignCard } from "@/components/CampaignCard";
-import iconVerified from "@/assets/landing/icon-verified.svg";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, orgs as orgSeed } from "@/lib/mock";
 
@@ -58,25 +60,20 @@ function OrgProfile() {
 
   return (
     <AppShell>
-      <section className="border-b border-line py-12 md:py-16">
+      <section className="border-b border-line-soft py-10 md:py-14">
         <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={eyebrowClass}>{orgCategoryLabel[org.category]}</span>
+            <p className="flex flex-wrap items-center gap-3 text-[15px] text-muted-ink">
+              {orgCategoryLabel[org.category]}
               {org.verificationStatus === "verified" ? (
-                <span className="flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-0.5">
-                  <img src={iconVerified} alt="" className="h-4 w-4" />
-                  <span className="text-xs font-medium leading-4 text-[#6B6B6B]">Verified</span>
-                </span>
+                <VerifiedBadge />
               ) : (
-                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-muted-ink">
+                <Tag>
                   {org.verificationStatus === "pending" ? "Verification pending" : "Unverified"}
-                </span>
+                </Tag>
               )}
-            </div>
-            <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
-              {org.name}
-            </h1>
+            </p>
+            <h1 className={pageTitleClass}>{org.name}</h1>
             <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
               {org.tagline}
             </p>
@@ -121,7 +118,7 @@ function OrgProfile() {
             <Photo
               src={cover}
               loading="eager"
-              className="aspect-[4/3] w-full rounded-[20px] lg:aspect-[520/440]"
+              className="aspect-[4/3] w-full rounded-2xl lg:aspect-[520/440]"
             />
           ) : null}
         </Container>
@@ -130,7 +127,7 @@ function OrgProfile() {
       <Container className="flex flex-col gap-16 py-12 md:py-16">
         <div className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-4 md:gap-6">
           <StatTile value={formatCompactMoney(org.totalReceived)} label="Total received" />
-          <StatTile value={org.supporters.toLocaleString()} label="Supporters" />
+          <StatTile value={org.supporters.toLocaleString()} label="Givers" />
           <StatTile value={campaigns.length} label="Active campaigns" />
           <StatTile value={org.founded} label="Founded" />
         </div>
@@ -147,7 +144,7 @@ function OrgProfile() {
             <SectionHeading>From the field</SectionHeading>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               {org.photos.map((photo, i) => (
-                <Photo key={i} src={photo} className="aspect-square w-full rounded-[20px]" />
+                <Photo key={i} src={photo} className="aspect-square w-full rounded-2xl" />
               ))}
             </div>
           </section>
@@ -203,23 +200,18 @@ function OrgProfile() {
             }
           />
         ) : null}
-      </Container>
 
-      <section className="bg-[#FE5102] px-6 py-16 md:px-12 md:py-20">
-        <div className="mx-auto flex w-full max-w-[1000px] flex-col items-center gap-6 text-center">
-          <h2 className="font-display text-[clamp(30px,3vw,48px)] leading-[1.1] tracking-[-0.03em] text-white">
-            Help {org.name} reach more people
-          </h2>
-          <p className="max-w-[640px] text-lg leading-[27.9px] tracking-[-0.02em] text-white/90">
-            One share puts their work in front of someone who has never heard of it. Every share
-            matters.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={copyLink}
-              className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-ink-contrast transition-opacity hover:opacity-90"
-            >
+        <section
+          className={`${panelClass} flex flex-col items-start gap-6 p-6 md:flex-row md:items-center md:justify-between md:p-10`}
+        >
+          <div className="flex max-w-[620px] flex-col gap-2">
+            <h2 className={sectionTitleClass}>Help {org.name} reach more people</h2>
+            <p className="text-base leading-[1.6] text-ink-soft">
+              One share puts their work in front of someone who has never heard of it.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={copyLink} className={btnSecondary}>
               <Link2 className="h-4 w-4" strokeWidth={1.5} /> Copy link
             </button>
             {ongoing[0] ? (
@@ -227,14 +219,14 @@ function OrgProfile() {
                 to="/donate/$id"
                 params={{ id: ongoing[0].id }}
                 search={{ freq: ongoing[0].frequencies?.[0] ?? "monthly" }}
-                className="inline-flex items-center gap-2 rounded-full border-2 border-white px-[22px] py-3 text-base font-medium leading-5 tracking-[-0.02em] text-white transition-colors hover:bg-paper hover:text-ink"
+                className={btnPrimary}
               >
-                Become a supporter
+                Become a regular giver
               </Link>
             ) : null}
           </div>
-        </div>
-      </section>
+        </section>
+      </Container>
     </AppShell>
   );
 }

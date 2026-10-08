@@ -1,8 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, HeartHandshake, LogOut, Menu, Shield, User, X } from "lucide-react";
+import { Building2, HeartHandshake, LogOut, Menu, Plus, Shield, User, X } from "lucide-react";
 import logo from "@/assets/landing/logo.svg";
-import iconAdd from "@/assets/landing/icon-add.svg";
 import iconChevron from "@/assets/landing/icon-chevron-down.svg";
 import {
   DropdownMenu,
@@ -17,9 +16,8 @@ import { me } from "@/lib/mock";
 
 const navLinks = [
   { label: "Discover", to: "/discover" },
-  { label: "Start New campaign", to: "/create", icon: iconAdd },
+  { label: "My giving", to: "/my-giving" },
   { label: "Manage", to: "/dashboard" },
-  { label: "My Giving", to: "/my-giving" },
 ];
 
 const menuItemClass =
@@ -61,19 +59,22 @@ export function AppNav({ active }: { active?: string }) {
                 key={link.label}
                 to={link.to}
                 className={`flex items-center gap-1 px-2.5 py-2.5 font-gsf text-base font-semibold leading-[35px] transition-colors hover:text-white ${
-                  current === link.label
-                    ? "border-b-4 border-[#FE5102] text-white"
-                    : "text-white/70"
+                  current === link.label ? "border-b-4 border-brand text-white" : "text-white/70"
                 }`}
               >
-                {link.icon ? <img src={link.icon} alt="" className="h-[18px] w-[18px]" /> : null}
                 {link.label}
               </Link>
             ))}
           </nav>
         </div>
 
-        <div className="flex items-center gap-1 lg:gap-2">
+        <div className="flex items-center gap-1 lg:gap-4">
+          <Link
+            to="/create"
+            className="press hidden h-9 items-center gap-1.5 rounded-full bg-paper px-4 font-gsf text-sm font-semibold text-ink transition-colors hover:bg-ink-contrast lg:inline-flex"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} /> Start a campaign
+          </Link>
           <>
             <DropdownMenu>
               <DropdownMenuTrigger className="hidden cursor-pointer items-center gap-2.5 px-2.5 py-2.5 text-left outline-none lg:flex">
@@ -148,21 +149,27 @@ export function AppNav({ active }: { active?: string }) {
                 current === link.label ? "text-white" : "text-white/70"
               }`}
             >
-              {link.icon ? <img src={link.icon} alt="" className="h-[18px] w-[18px]" /> : null}
               {link.label}
               {current === link.label ? (
-                <span className="ml-auto h-2 w-2 rounded-full bg-[#FE5102]" />
+                <span className="ml-auto h-2 w-2 rounded-full bg-brand" />
               ) : null}
             </Link>
           ))}
           <>
             <>
               <Link
+                to="/create"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 border-b border-white/10 py-3.5 font-gsf text-base font-semibold text-white/70"
+              >
+                <Plus className="h-4 w-4" strokeWidth={2} /> Start a campaign
+              </Link>
+              <Link
                 to="/profile"
                 onClick={() => setMenuOpen(false)}
                 className="border-b border-white/10 py-3.5 font-gsf text-base font-semibold text-white/70"
               >
-                Profile · {me.name}
+                Profile
               </Link>
               <button
                 type="button"

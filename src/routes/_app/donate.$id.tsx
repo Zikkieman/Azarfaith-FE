@@ -4,7 +4,6 @@ import {
   BellRing,
   Building2,
   Check,
-  ChevronLeft,
   CreditCard,
   Info,
   Lock,
@@ -13,19 +12,20 @@ import {
 } from "lucide-react";
 import {
   AppShell,
+  BackLink,
   ChoiceCard,
   Container,
+  FlowTitle,
   Notice,
-  Pill,
+  OptionButton,
   ProgressBar,
   Stepper,
-  btnPrimary,
-  btnSecondary,
   cardClass,
-  eyebrowClass,
   inputClass,
   labelClass,
+  pageTitleClass,
 } from "@/components/app/AppShell";
+import { btnPrimary, btnSecondary } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { formatMoney } from "@/lib/mock";
 import { toast } from "sonner";
@@ -80,7 +80,7 @@ function AzarFaithDonate() {
 
   const next = () => {
     if (step === 0 && finalAmount < 100) {
-      toast.error("Minimum donation is ₦100");
+      toast.error("The smallest gift is ₦100");
       return;
     }
     setStep((s) => s + 1);
@@ -122,11 +122,10 @@ function AzarFaithDonate() {
     return (
       <AppShell>
         <Container className="flex flex-col items-center py-20 text-center md:py-28">
-          <span className="grid h-20 w-20 place-items-center rounded-full bg-[#FE5102] text-white animate-pop">
+          <span className="grid h-20 w-20 place-items-center rounded-full bg-brand text-white animate-pop">
             <Check className="h-10 w-10" strokeWidth={2} />
           </span>
-          <p className={`${eyebrowClass} mt-8`}>Gift received</p>
-          <h1 className="mt-3 font-display text-[clamp(36px,4.4vw,64px)] leading-[1.08] tracking-[-0.03em] text-ink">
+          <h1 className={`${pageTitleClass} mt-8`}>
             Thank you{!anonymous && name ? `, ${name.split(" ")[0]}` : ""}
           </h1>
           <p className="mt-4 max-w-[560px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
@@ -174,14 +173,7 @@ function AzarFaithDonate() {
       </button>
     );
 
-  const stepTitle = (title: string, sub?: string) => (
-    <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.03em] text-ink">
-        {title}
-      </h1>
-      {sub ? <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p> : null}
-    </div>
-  );
+  const stepTitle = (title: string, sub?: string) => <FlowTitle title={title} sub={sub} />;
 
   return (
     <AppShell
@@ -198,24 +190,23 @@ function AzarFaithDonate() {
       }
     >
       <Container className="py-10 md:py-14">
-        <button
-          type="button"
-          onClick={() =>
-            step > 0 ? setStep((s) => s - 1) : nav({ to: "/campaign/$id", params: { id } })
-          }
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-        >
-          <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-          {step > 0 ? "Back" : "Back to campaign"}
-        </button>
+        <div className="mb-6">
+          <BackLink
+            onClick={() =>
+              step > 0 ? setStep((s) => s - 1) : nav({ to: "/campaign/$id", params: { id } })
+            }
+          >
+            {step > 0 ? "Back" : "Back to campaign"}
+          </BackLink>
+        </div>
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-10">
-            <div className="flex items-center gap-3 rounded-xl border border-line-soft p-3 lg:hidden">
+            <div className={`${cardClass} flex items-center gap-3 p-3 lg:hidden`}>
               <img
                 src={campaign.cover}
                 alt=""
-                className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                className="h-12 w-12 shrink-0 rounded-xl object-cover"
               />
               <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-heading">
                 {campaign.title}
@@ -235,22 +226,17 @@ function AzarFaithDonate() {
                   {presets.map((p) => {
                     const selected = amount === p && !customAmount;
                     return (
-                      <button
+                      <OptionButton
                         key={p}
-                        type="button"
-                        aria-pressed={selected}
+                        selected={selected}
                         onClick={() => {
                           setAmount(p);
                           setCustomAmount("");
                         }}
-                        className={`rounded-xl border py-3.5 font-display text-base transition-colors sm:py-4 sm:text-xl ${
-                          selected
-                            ? "border-ink bg-ink text-ink-contrast"
-                            : "border-line-soft text-ink hover:border-ink/40"
-                        }`}
+                        className="h-14 font-display text-base sm:h-16 sm:text-xl"
                       >
                         {formatMoney(p)}
-                      </button>
+                      </OptionButton>
                     );
                   })}
                 </div>
@@ -365,9 +351,9 @@ function AzarFaithDonate() {
                   <p className={labelClass}>Add a tip to AzarFaith?</p>
                   <div className="flex flex-wrap gap-2">
                     {[0, 500, 1000, 2500].map((t) => (
-                      <Pill key={t} active={tip === t} onClick={() => setTip(t)}>
+                      <OptionButton key={t} selected={tip === t} onClick={() => setTip(t)}>
                         {t === 0 ? "No tip" : formatMoney(t)}
-                      </Pill>
+                      </OptionButton>
                     ))}
                   </div>
                 </div>
@@ -419,12 +405,10 @@ function AzarFaithDonate() {
                 <img
                   src={campaign.cover}
                   alt=""
-                  className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  className="h-16 w-16 shrink-0 rounded-xl object-cover"
                 />
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold uppercase tracking-[0.1em] text-ink-soft">
-                    {campaign.faithCategory}
-                  </p>
+                  <p className="text-[13px] text-muted-ink">{campaign.faithCategory}</p>
                   <p className="line-clamp-2 text-base font-semibold leading-[22px] text-heading">
                     {campaign.title}
                   </p>
@@ -454,8 +438,8 @@ function AzarFaithDonate() {
                 </div>
               </dl>
               <p className="flex items-center gap-2 text-[13px] text-muted-ink">
-                <ShieldCheck className="h-4 w-4 text-[#00B67A]" strokeWidth={1.5} />
-                Secured by Paystack · verified organization
+                <ShieldCheck className="h-4 w-4 shrink-0 text-verified" strokeWidth={1.5} />
+                Secured by Paystack. Every organization is verified.
               </p>
             </div>
           </aside>

@@ -496,10 +496,10 @@ export const companyPages: PageDoc[] = [
         type: "bullets",
         items: [
           "Churches and parishes — congregations collecting for building, welfare and community work.",
-          "Missions and missionary societies — organisations supporting evangelism and rural outreach.",
+          "Missions and missionary societies — organizations supporting evangelism and rural outreach.",
           "Orphanages and child welfare homes — residential and day care programmes for children.",
           "Schools and faith-based education — nurseries, primary and secondary institutions with assisted places.",
-          "Ministries and fellowships — youth, women's and campus groups with a formal organisational structure.",
+          "Ministries and fellowships — youth, women's and campus groups with a formal organizational structure.",
         ],
       },
     ],

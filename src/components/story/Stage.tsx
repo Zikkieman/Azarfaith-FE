@@ -695,7 +695,7 @@ export function Stage() {
           <OrgCard verified={checksDone >= 6} />
         </Placed>
         <Headline p={p} range={[0.285, 0.43]}>
-          Every organisation is verified before it receives a naira.
+          Every organization is verified before it receives a naira.
         </Headline>
 
         {/* Scene 3 */}

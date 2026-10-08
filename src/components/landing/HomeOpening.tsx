@@ -72,7 +72,7 @@ function Finale() {
         Start with AzarFaith
       </Link>
       <p className="font-gsf text-[12px] text-[#4A4660]">
-        *Weekly average across verified organisations.
+        *Weekly average across verified organizations.
       </p>
     </>
   );

@@ -1,39 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
 import { ArrowRight, BadgeCheck, Link2, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
 import { Photo } from "@/components/app/Photo";
-import { useInView } from "@/lib/motion";
+import { Segments } from "@/components/app/Segments";
+import { Tag } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/mock";
 import { cn } from "@/lib/utils";
-
-const SEGMENTS = 20;
-
-/** Goal progress drawn as receipt-style perforations that fill one by one on view. */
-function Segments({ pct }: { pct: number }) {
-  const [ref, inView] = useInView<HTMLDivElement>("0px");
-  const on = Math.round((pct / 100) * SEGMENTS);
-  return (
-    <div
-      ref={ref}
-      data-segments=""
-      data-shown={inView ? "" : undefined}
-      className="flex gap-[3px]"
-      role="img"
-      aria-label={`${pct}% funded`}
-    >
-      {Array.from({ length: SEGMENTS }, (_, i) => (
-        <span
-          key={i}
-          data-on={i < on ? "" : undefined}
-          style={{ "--i": i } as CSSProperties}
-          className={cn("h-2 flex-1 rounded-[2px]", i < on ? "bg-[#FE5102]" : "bg-line-soft")}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** Latest word from the field in one quiet line: the newest update, or the newest gift. */
 function Proof({ c }: { c: Campaign }) {
@@ -42,7 +16,7 @@ function Proof({ c }: { c: Campaign }) {
   if (!update && !gift) return null;
   return (
     <p className="flex items-center gap-2 text-[13px] text-ink-soft">
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FE5102]" />
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
       <span className="truncate">
         {update ? update.title : `${gift.donor} gave ${formatMoney(gift.amount)}`}
       </span>
@@ -72,7 +46,7 @@ export function CampaignCard({
   };
 
   return (
-    <article className="group @container flex h-full w-full flex-col overflow-hidden rounded-[20px] border border-line-soft bg-paper font-gsf transition-colors hover:border-line">
+    <article className="group @container flex h-full w-full flex-col overflow-hidden rounded-2xl border border-line-soft bg-paper font-gsf transition-colors hover:border-line">
       <Link
         to="/campaign/$id"
         params={{ id: c.id }}
@@ -83,12 +57,12 @@ export function CampaignCard({
       >
         <Photo
           src={c.cover}
-          className="absolute inset-0 bg-[#F1EFEA]"
+          className="absolute inset-0 bg-panel"
           imgClassName="halftone group-hover:scale-[1.03]"
         />
         {c.urgency === "critical" || c.type === "emergency" ? (
-          <span className="absolute left-3 top-3 rounded-full bg-[#FE5102] px-2.5 py-1 text-[12px] font-semibold text-white">
-            Urgent
+          <span className="absolute left-3 top-3">
+            <Tag tone="brand">Urgent</Tag>
           </span>
         ) : null}
       </Link>
@@ -100,7 +74,7 @@ export function CampaignCard({
             <span className="truncate font-medium text-heading">{name}</span>
             {verified ? (
               <BadgeCheck
-                className="h-4 w-4 shrink-0 text-[#00B67A]"
+                className="h-4 w-4 shrink-0 text-verified"
                 strokeWidth={2}
                 aria-label="Verified"
               />
@@ -129,21 +103,21 @@ export function CampaignCard({
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-1.5">
-              {(c.frequencies ?? ["monthly"]).map((f) => (
-                <span
-                  key={f}
-                  className="inline-flex items-center gap-1 rounded-full bg-panel px-2.5 py-1 text-[12px] font-medium capitalize text-ink-soft"
-                >
-                  <Repeat2 className="h-3 w-3" strokeWidth={2} /> {f}
-                </span>
-              ))}
-            </div>
+            {c.mode === "ongoing" ? (
+              <div className="flex flex-wrap gap-1.5">
+                {(c.frequencies ?? ["monthly"]).map((f) => (
+                  <Tag key={f}>
+                    <Repeat2 className="h-3 w-3" strokeWidth={2} />
+                    <span className="capitalize">{f}</span>
+                  </Tag>
+                ))}
+              </div>
+            ) : null}
             <p className="text-[13px] text-muted-ink">
               <span className="text-[15px] font-semibold text-heading">
                 {formatMoney(c.raised)}
               </span>{" "}
-              given so far · ongoing support
+              {c.mode === "ongoing" ? "given so far · ongoing support" : "given so far"}
             </p>
           </div>
         )}
@@ -176,7 +150,7 @@ export function CampaignCard({
             type="button"
             onClick={share}
             aria-label="Copy campaign link"
-            className="press grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line text-ink transition-colors hover:border-ink"
+            className="press grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line-input text-ink transition-colors hover:border-ink"
           >
             <Link2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -184,7 +158,7 @@ export function CampaignCard({
             to="/donate/$id"
             params={{ id: c.id }}
             search={{ freq: "" }}
-            className="press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-btn px-4 text-[14px] font-semibold text-btn-fg transition-opacity hover:opacity-90"
+            className={btn("primary", "sm")}
           >
             Give <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </Link>

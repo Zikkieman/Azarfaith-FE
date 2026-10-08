@@ -2,17 +2,20 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   AppShell,
+  BackLink,
   ChoiceCard,
   Container,
+  FieldError,
+  FlowTitle,
   Notice,
   Stepper,
-  btnPrimary,
-  btnSecondary,
+  Tag,
   cardClass,
-  eyebrowClass,
   inputClass,
   labelClass,
+  smallHeadingClass,
 } from "@/components/app/AppShell";
+import { btnPrimary, btnSecondary } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { toast } from "sonner";
 import { Church, Globe, Baby, GraduationCap, Users, ImagePlus } from "lucide-react";
@@ -100,7 +103,7 @@ function RegisterOrg() {
   };
 
   const field = (key: keyof typeof errors) =>
-    errors[key] ? <p className="text-[13px] text-[#D92D20]">{errors[key]}</p> : null;
+    errors[key] ? <FieldError>{errors[key]}</FieldError> : null;
   const selectedCategory = orgCategories.find((c) => c.v === orgDraft.category);
 
   return (
@@ -108,13 +111,9 @@ function RegisterOrg() {
       <Container className="py-10 md:py-14">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
           <div className="flex min-w-0 flex-col gap-10">
-            <div className="flex flex-col gap-4">
-              <p className={eyebrowClass}>Register your org</p>
+            <div className="flex flex-col gap-6">
+              <BackLink to="/dashboard">Back to Manage</BackLink>
               <Stepper steps={steps} current={step} />
-              <p className="text-[13px] text-muted-ink sm:hidden">
-                Step {step + 1} of {steps.length} ·{" "}
-                <span className="font-semibold text-ink">{steps[step]}</span>
-              </p>
             </div>
 
             {step === 0 ? (
@@ -230,7 +229,7 @@ function RegisterOrg() {
                   title="Add photos and videos"
                   sub="Show givers the work. Nothing builds trust faster."
                 />
-                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-panel-olive px-6 py-12 text-center">
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-line-input bg-panel px-6 py-12 text-center">
                   <span className="grid h-12 w-12 place-items-center rounded-full bg-paper text-ink">
                     <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
                   </span>
@@ -276,7 +275,7 @@ function RegisterOrg() {
                     {(orgDraft.videos ?? []).map((v, i) => (
                       <li
                         key={i}
-                        className="truncate rounded-lg bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
+                        className="truncate rounded-xl bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
                       >
                         {v}
                       </li>
@@ -299,7 +298,7 @@ function RegisterOrg() {
               </div>
             ) : null}
 
-            <div className="flex items-center justify-between gap-3 border-t border-line pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
+            <div className="flex items-center justify-between gap-3 border-t border-line-soft pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
               {step > 0 ? (
                 <button
                   type="button"
@@ -326,20 +325,14 @@ function RegisterOrg() {
           <aside
             className={`lg:sticky lg:top-24 lg:block lg:self-start ${step === 3 ? "" : "hidden"}`}
           >
-            <p className="pb-3 text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
-              Live preview
-            </p>
+            <p className={`${smallHeadingClass} pb-3`}>Preview</p>
             <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-              <div className="grid h-[180px] w-full place-items-center rounded-lg bg-panel text-[#B6BA95]">
+              <div className="grid h-[180px] w-full place-items-center rounded-xl bg-panel text-muted-ink">
                 <ImagePlus className="h-8 w-8" strokeWidth={1.5} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-ink-soft">
-                  {selectedCategory?.label ?? "Category"}
-                </span>
-                <span className="rounded-full bg-panel px-2.5 py-0.5 text-xs font-medium text-muted-ink">
-                  Unverified
-                </span>
+                <Tag>{selectedCategory?.label ?? "Category"}</Tag>
+                <Tag>Unverified</Tag>
               </div>
               <p className="font-display text-2xl leading-[1.2] text-ink">
                 {orgDraft.name || "Your organization"}
@@ -370,12 +363,5 @@ function RegisterOrg() {
 }
 
 function StepTitle({ title, sub }: { title: string; sub: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.03em] text-ink">
-        {title}
-      </h1>
-      <p className="text-base leading-[25.6px] text-ink-soft">{sub}</p>
-    </div>
-  );
+  return <FlowTitle title={title} sub={sub} />;
 }

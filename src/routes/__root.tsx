@@ -11,7 +11,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
-import { btnPrimary, btnSecondary } from "@/components/app/AppShell";
+import { btnPrimary, btnSecondary } from "@/components/app/btn";
 
 function StatusScreen({
   code,

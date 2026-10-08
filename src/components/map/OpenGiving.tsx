@@ -78,7 +78,7 @@ function NigeriaMap({
     <svg
       viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
       role="img"
-      aria-label="Map of Nigeria showing where verified organisations are receiving gifts"
+      aria-label="Map of Nigeria showing where verified organizations are receiving gifts"
       className="h-auto w-full cursor-pointer touch-manipulation select-none"
       onPointerMove={(e) => {
         if (e.pointerType === "mouse") onHover(stateFrom(e));
@@ -144,7 +144,7 @@ function StatePanel({ id }: { id: string }) {
   if (!s) {
     return (
       <p className="text-[15px] leading-[23px] text-ink-soft">
-        No verified organisations in {stateName[id]} yet. If you lead a church or ministry here,{" "}
+        No verified organizations in {stateName[id]} yet. If you lead a church or ministry here,{" "}
         <Link to="/signup" className="font-semibold text-ink underline underline-offset-2">
           register it
         </Link>
@@ -159,7 +159,7 @@ function StatePanel({ id }: { id: string }) {
           {formatCompactMoney(s.givenWeek)}
         </p>
         <p className="text-[15px] leading-[23px] text-ink-soft">
-          given this week to {orgCount(s, "all")} verified organisations
+          given this week to {orgCount(s, "all")} verified organizations
         </p>
       </div>
       {s.featured ? (
@@ -318,7 +318,7 @@ export function OpenGivingSection({
             <strong className="font-semibold text-ink">
               <CountUp value={`${totals.orgs}`} />
             </strong>{" "}
-            verified organisations, with{" "}
+            verified organizations, with{" "}
             <strong className="font-semibold text-ink">
               <CountUp value={`${totals.receipts}`} />
             </strong>{" "}
@@ -345,7 +345,7 @@ export function OpenGivingSection({
                   />
                   {hovered && hovered !== selected ? (
                     <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
-                      {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
+                      {stateName[hovered]} · {orgCount(stats[hovered], "all")} organizations
                     </p>
                   ) : null}
                   <div className="mt-3 border-t border-line-soft pt-3 sm:mt-5 sm:pt-4">

@@ -111,7 +111,7 @@ const photos: Shot[] = [
 
 const HEADLINE = "Your gift, your impact. Verified by your org. Shared with every giver.";
 const BODY =
-  "One giving history for every church, missionary and faith-based organisation you support, so you always know exactly where your money went.";
+  "One giving history for every church, missionary and faith-based organization you support, so you always know exactly where your money went.";
 
 type Ranges = { headline: [number, number]; body: [number, number]; cta: [number, number] };
 

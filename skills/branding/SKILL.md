@@ -85,8 +85,8 @@ No gradients, no glass, no colored shadows.
 - **Secondary button**: same geometry, transparent, `text-[#130E30]`, hover `bg-[#130E30]/5`.
 - **Dark solid CTA** (hero): `rounded-[18px] bg-black px-8 py-[23px] text-[17px] font-semibold`, white text;
   outlined sibling uses `border-2 border-white`.
-- **Eyebrow**: `14px/600 uppercase tracking-[0.1em]`, color `#130E30` or `#4A4660`.
-- **Card (content)**: `rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-6`, hover lifts border.
+- **Eyebrow**: website section labels only (`14px/600 uppercase tracking-[0.1em]`). Never in the app.
+- **Card (content)**: `rounded-2xl border border-line-soft bg-paper`, hover lifts border.
 - **FAQ row**: `border-t border-[#D9DDBC]`, `py-[17px]`, question `16px` `#130E30`, chevron `18px` right.
 - **Rating**: five `28px` square tiles in `#00B67A` with white stars (empty `#DCDCE6`), the last tile
   filled to the decimal, then "4.7 out of 5 from givers". No seal or badge boxes.
@@ -113,7 +113,10 @@ No gradients, no glass, no colored shadows.
   (GoFundMe, Ditto, Panxo, Modash, EcoVadis, CDP, Crowdr…).
 - Currency is **₦**. Short, plain, confident sentences. Faith vocabulary: giver, church, ministry,
   missionary, orphanage, faith-based organization, stewardship, impact, verified.
-- Buttons are verbs: `Start giving`, `Donate now`, `Register your org`, `Share campaign`.
+- Buttons are verbs: `Start giving`, `Give now`, `Register your org`, `Start a campaign`, `Share`.
+- Say **give / gift / giver**, never donate / donation / donor, in anything a person reads.
+- Spelling is **organization** (US), matching the URLs (`for-organizations`). Sentence case everywhere:
+  `My giving`, `Start a campaign`, `Back to campaign`.
 - Never ship placeholder names in shipped copy (`Adedamolamoses` is a demo user for now; `name@church.org`
   is the newsletter placeholder).
 
@@ -150,14 +153,27 @@ Set `<title>` via the route `head`. Keep the exact tokens above; do not invent n
 
 ## 7b. App surfaces (signed-in product)
 
-Every app route (`discover`, `dashboard`, `my-giving`, `profile`, `campaign/$id`, `org/$id`, `donate/$id`,
-`register-org`) wraps in `AppShell` from `src/components/app/AppShell.tsx` — brand `Nav` (route-aware,
+Every app route (`discover`, `dashboard` (Manage), `my-giving`, `profile`, `campaign/$id`, `org/$id`,
+`donate/$id`, `register-org`, `create`) wraps in `AppShell` from `src/components/app/AppShell.tsx` — brand `Nav` (route-aware,
 mobile menu, user dropdown) + `font-gsf` root. **No footer in the app**: the landing `Footer` belongs to the
 website only (landing + `/$page` content pages). Primary mobile actions go in `AppShell`'s `bottomBar`
 (fixed below `lg`) — see campaign detail and donate.
-Build from its primitives instead of inline styles: `PageHeader`, `Container`, `SectionHeading`, `Pill`,
-`ChoiceCard`, `Stepper`, `ProgressBar`, `StatTile`, `EmptyState`, `Notice`, and the class recipes
-`btnPrimary`, `btnSecondary`, `inputClass`, `labelClass`, `eyebrowClass`, `cardClass`.
+Build from its kit instead of inline styles. Nothing on an app page should need its own radius, colour
+or button classes:
+- Layout: `Container`, `PageHeader` (title, one-line lead, actions; no eyebrow label), `SectionHeading`,
+  `FlowTitle` (a step inside give / register / create), `BackLink` (`Back`, `Back to …`).
+- Controls: `btn(variant, size)` from `components/app/btn.ts` (`primary` | `secondary` | `quiet`,
+  `sm` | `md` | `lg`, always `rounded-full`; `btnPrimary`/`btnSecondary` are the `md` shortcuts),
+  `Tabs` (underline tabs, the only list filter; no pill chips), `OptionButton` (amounts, tips, causes),
+  `ChoiceCard`, `Stepper` (the one stepper for every flow; it prints "Step 2 of 4" on phones).
+- Status: `Tag` (`neutral` | `brand` | `verified`), `VerifiedBadge` (green tick), `FieldError`.
+- Data: `ProgressBar` / `Segments` (the perforated goal bar, the only progress style), `StatTile`.
+- Surfaces: `cardClass` (white, hairline, `rounded-2xl`), `panelClass` (tinted `bg-panel`,
+  `rounded-2xl`), `EmptyState`, `Notice`. No peach, olive or yellow boxes inside the app.
+- Type: `pageTitleClass`, `flowTitleClass`, `sectionTitleClass`, `smallHeadingClass`, `labelClass`,
+  `inputClass`. Small headings are sentence case, never all caps.
+- Radius scale: `rounded-full` (buttons, tags, avatars), `rounded-2xl` (cards, panels, photos),
+  `rounded-xl` (inputs, options, thumbnails). Nothing else.
 Campaign tiles always use `src/components/CampaignCard.tsx`. Auth screens (`signup`, `login`,
 `forgot-password`) share `components/auth/AuthLayout.tsx`. Selection state is ink (`#130E30`), never
 orange; category icons are lucide (from `categories` in `lib/mock.ts`), never emoji.
@@ -166,8 +182,9 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
 
 - **Light only.** No dark mode. Colours are semantic tokens defined once in `src/styles.css` (`:root`):
   `paper` `panel` `panel-olive` `peach` `ink` `ink-contrast` `heading` `ink-soft` `muted-ink` `subtle`
-  `line` `line-soft` `line-input` `line-strong` `btn` `btn-fg`. Use `text-ink`, `bg-panel`, `border-line`…
-  instead of hex. Orange `#FE5102`, yellow `#FFE228` and success `#00B67A` stay literal.
+  `line` `line-soft` `line-input` `line-strong` `btn` `btn-fg` `brand` (orange) `verified` (green)
+  `verified-ink` (green text) `danger`. Use `bg-brand`, `text-verified`, `border-line`… instead of hex.
+  Only the landing's yellow `#FFE228` stays literal.
 - **Two navs.** Website (landing + `/$page`) uses `components/landing/SiteNav.tsx` (How it works,
   Discover causes, Ways to give, For organizations, Trust & safety, About + Log in / Start giving).
   The signed-in app uses `components/app/AppNav.tsx` via `AppShell`. Never mix them. Both are sticky and
