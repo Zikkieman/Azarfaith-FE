@@ -61,7 +61,7 @@ function NigeriaMap({
   filter: Filter;
   selected: string | null;
   hovered: string | null;
-  pulse: { id: number; state: string; label: string } | null;
+  pulse: { id: number; state: string } | null;
   onHover: (s: string | null) => void;
   onSelect: (s: string) => void;
 }) {
@@ -79,54 +79,39 @@ function NigeriaMap({
   const pulseAt = pulse ? project(states.find((s) => s.id === pulse.state)!.at) : null;
 
   return (
-    <div className="relative">
-      <svg
-        viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
-        role="img"
-        aria-label="Map of Nigeria showing where verified organisations are receiving gifts"
-        className="h-auto w-full cursor-pointer touch-manipulation select-none"
-        onPointerMove={(e) => {
-          if (e.pointerType === "mouse") onHover(stateFrom(e));
-        }}
-        onPointerLeave={() => onHover(null)}
-        onClick={(e) => {
-          const s = stateFrom(e);
-          if (s) onSelect(s);
-        }}
-      >
-        {states.map(({ id }) => {
-          const n = orgCount(stats[id], filter);
-          const isSel = selected === id;
-          const isHov = hovered === id;
-          const fill = isSel || isHov ? "#130E30" : n > 0 ? "#FE5102" : "var(--af-line)";
-          const opacity = isSel ? 1 : isHov ? 0.75 : n > 0 ? 0.3 + 0.7 * Math.sqrt(n / max) : 1;
-          return <StateDots key={id} id={id} fill={fill} opacity={opacity} />;
-        })}
-        {pulseAt ? (
-          <g
-            key={pulse!.id}
-            transform={`translate(${pulseAt.x} ${pulseAt.y})`}
-            className="pointer-events-none"
-          >
-            <circle r={6} fill="#FE5102" className="map-pulse" />
-            <circle r={4} fill="#130E30" />
-          </g>
-        ) : null}
-      </svg>
+    <svg
+      viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+      role="img"
+      aria-label="Map of Nigeria showing where verified organisations are receiving gifts"
+      className="h-auto w-full cursor-pointer touch-manipulation select-none"
+      onPointerMove={(e) => {
+        if (e.pointerType === "mouse") onHover(stateFrom(e));
+      }}
+      onPointerLeave={() => onHover(null)}
+      onClick={(e) => {
+        const s = stateFrom(e);
+        if (s) onSelect(s);
+      }}
+    >
+      {states.map(({ id }) => {
+        const n = orgCount(stats[id], filter);
+        const isSel = selected === id;
+        const isHov = hovered === id;
+        const fill = isSel || isHov ? "#130E30" : n > 0 ? "#FE5102" : "var(--af-line)";
+        const opacity = isSel ? 1 : isHov ? 0.75 : n > 0 ? 0.3 + 0.7 * Math.sqrt(n / max) : 1;
+        return <StateDots key={id} id={id} fill={fill} opacity={opacity} />;
+      })}
       {pulseAt ? (
-        <span
+        <g
           key={pulse!.id}
-          aria-hidden
-          className="map-label pointer-events-none absolute -translate-x-1/2 whitespace-nowrap rounded-full bg-[#130E30] px-2.5 py-1 font-gsf text-[12px] font-semibold text-[#EFF2E5]"
-          style={{
-            left: `${(pulseAt.x / VIEW.w) * 100}%`,
-            top: `calc(${(pulseAt.y / VIEW.h) * 100}% - 34px)`,
-          }}
+          transform={`translate(${pulseAt.x} ${pulseAt.y})`}
+          className="pointer-events-none"
         >
-          {pulse!.label}
-        </span>
+          <circle r={6} fill="#FE5102" className="map-pulse" />
+          <circle r={4} fill="#130E30" />
+        </g>
       ) : null}
-    </div>
+    </svg>
   );
 }
 
@@ -220,7 +205,7 @@ function StatePanel({ id, filter }: { id: string; filter: Filter }) {
   );
 }
 
-function useFeed(onGift: (gift: (typeof feed)[number]) => void) {
+function useFeed(onGift: (state: string) => void) {
   const [head, setHead] = useState(0);
   useEffect(() => {
     if (reducedMotion()) return;
@@ -229,27 +214,41 @@ function useFeed(onGift: (gift: (typeof feed)[number]) => void) {
     }, 2800);
     return () => window.clearInterval(t);
   }, []);
-  useEffect(() => onGift(feed[head]), [head, onGift]);
+  useEffect(() => onGift(feed[head].state), [head, onGift]);
   return head;
 }
 
 function LiveFeed({ head }: { head: number }) {
-  const g = feed[head];
+  const items = Array.from(
+    { length: 4 },
+    (_, k) => feed[(head - k + feed.length * 2) % feed.length],
+  );
   return (
-    <div
-      aria-live="off"
-      className="flex items-center gap-3 rounded-full border border-line-soft bg-paper py-2 pl-3 pr-4 font-gsf"
-    >
-      <span className="relative flex h-2 w-2 shrink-0">
-        <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
-        <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
-      </span>
-      <span className="shrink-0 text-[13px] font-semibold text-ink">Live</span>
-      <span className="h-4 w-px shrink-0 bg-line" />
-      <span key={head} className="feed-in min-w-0 truncate text-[14px] text-ink-soft">
-        <span className="font-semibold text-heading">{formatMoney(g.amount)}</span> to {g.place}
-      </span>
-      <span className="ml-auto shrink-0 text-[12px] text-muted-ink">just now</span>
+    <div className="flex flex-col gap-3">
+      <p className="flex items-center gap-2 font-gsf text-[13px] font-semibold text-ink">
+        <span className="relative flex h-2 w-2">
+          <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
+          <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
+        </span>
+        Gifts landing now
+      </p>
+      <ol className="flex flex-col">
+        {items.map((g, k) => (
+          <li
+            key={`${head}-${k}`}
+            className={cn(
+              "flex items-center justify-between gap-3 border-t border-line-soft py-2.5 font-gsf text-[14px]",
+              k === 0 && "feed-in",
+            )}
+            style={{ opacity: 1 - k * 0.2 }}
+          >
+            <span className="min-w-0 truncate text-heading">
+              <span className="font-semibold">{formatMoney(g.amount)}</span> to {g.place}
+            </span>
+            <span className="shrink-0 text-[12px] text-muted-ink">{ago[k]}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -266,16 +265,11 @@ export function OpenGivingSection({
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<string>("PL");
   const [hovered, setHovered] = useState<string | null>(null);
-  const [pulse, setPulse] = useState<{ id: number; state: string; label: string } | null>(null);
+  const [pulse, setPulse] = useState<{ id: number; state: string } | null>(null);
 
   const onGift = useMemo(() => {
     let n = 0;
-    return (g: (typeof feed)[number]) =>
-      setPulse({
-        id: ++n,
-        state: g.state,
-        label: `${formatMoney(g.amount)} · ${stateName[g.state]}`,
-      });
+    return (state: string) => setPulse({ id: ++n, state });
   }, []);
   const head = useFeed(onGift);
 
@@ -319,42 +313,26 @@ export function OpenGivingSection({
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="relative rounded-3xl bg-panel px-4 pb-12 pt-14 sm:px-8 sm:pb-14 sm:pt-16">
-            <label className="absolute left-5 top-5 flex items-baseline gap-1.5 font-gsf text-[15px] text-ink-soft sm:left-8 sm:top-6">
-              Showing
-              <span className="relative inline-flex items-baseline gap-0.5 font-semibold text-ink">
-                <span className="underline decoration-[#FE5102] decoration-2 underline-offset-4">
-                  {filter === "all" ? "all causes" : causeLabel[filter].toLowerCase()}
-                </span>
-                <ChevronDown className="h-4 w-4 translate-y-0.5" strokeWidth={2.25} />
-                <select
-                  aria-label="Filter the map by cause"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value as Filter)}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                >
-                  {filters.map((f) => (
-                    <option key={f} value={f}>
-                      {f === "all" ? "All causes" : causeLabel[f]}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </label>
-            <p
-              aria-hidden
-              className="absolute bottom-5 left-5 flex items-center gap-1.5 font-gsf text-[12px] text-muted-ink sm:bottom-6 sm:left-8"
-            >
-              Fewer
-              {[0.3, 0.55, 0.8, 1].map((o) => (
-                <span
-                  key={o}
-                  className="h-2 w-2 rounded-full bg-[#FE5102]"
-                  style={{ opacity: o }}
-                />
-              ))}
-              More organisations
-            </p>
+          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+            {filters.map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                  filter === f
+                    ? "border-ink bg-ink text-ink-contrast"
+                    : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink",
+                )}
+              >
+                {f === "all" ? "All causes" : causeLabel[f]}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative rounded-3xl bg-panel p-4 sm:p-8">
             <NigeriaMap
               filter={filter}
               selected={selected}
@@ -364,7 +342,7 @@ export function OpenGivingSection({
               onSelect={setSelected}
             />
             {hovered && hovered !== selected ? (
-              <p className="pointer-events-none absolute right-5 top-5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast sm:right-8 sm:top-6">
+              <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
                 {stateName[hovered]} · {orgCount(stats[hovered], filter)}{" "}
                 {filter === "all" ? "organisations" : causeLabel[filter].toLowerCase()}
               </p>

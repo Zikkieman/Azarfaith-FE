@@ -249,10 +249,7 @@
   .map-live {
     animation: map-ping 1.8s ease-out infinite;
   }
-  /* The newest gift's amount rises from its state on the map, then fades. */
-  .map-label {
-    animation: map-label 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
+
   .feed-in {
     animation: feed-in 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
@@ -360,24 +357,6 @@
   to {
     transform: scale(2.4);
     opacity: 0;
-  }
-}
-@keyframes map-label {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, 8px);
-  }
-  12% {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-  78% {
-    opacity: 1;
-    transform: translate(-50%, -4px);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -10px);
   }
 }
 @keyframes feed-in {

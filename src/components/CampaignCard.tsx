@@ -51,7 +51,14 @@ function Proof({ c }: { c: Campaign }) {
 }
 
 /** Campaign card: who is behind it, the latest proof, and progress you can trust. */
-export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
+export function CampaignCard({
+  campaign: c,
+  compact = false,
+}: {
+  campaign: Campaign;
+  /** Shorter photo and tighter spacing, for places that must fit one screen. */
+  compact?: boolean;
+}) {
   const org = useApp((s) => (c.orgId ? s.orgs.find((o) => o.id === c.orgId) : undefined));
   const pct = c.goal ? Math.min(100, Math.round((c.raised / c.goal) * 100)) : 0;
   const verified = c.verificationStatus === "verified";
@@ -69,7 +76,10 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
       <Link
         to="/campaign/$id"
         params={{ id: c.id }}
-        className="relative block aspect-[4/3] overflow-hidden"
+        className={cn(
+          "relative block overflow-hidden",
+          compact ? "aspect-[2/1] max-h-[17vh] w-full" : "aspect-[4/3]",
+        )}
       >
         <Photo
           src={c.cover}
@@ -83,7 +93,7 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
         ) : null}
       </Link>
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
+      <div className={cn("flex flex-1 flex-col text-left", compact ? "gap-3 p-4" : "gap-4 p-5")}>
         <div className="flex flex-col gap-1.5">
           <p className="flex items-center gap-2 text-[13px] text-muted-ink">
             <img src={avatar} alt="" className="h-5 w-5 shrink-0 rounded-full object-cover" />
@@ -97,11 +107,11 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
             ) : null}
           </p>
           <Link to="/campaign/$id" params={{ id: c.id }}>
-            <h3 className="line-clamp-2 min-h-[48px] font-gsf text-[18px] font-semibold leading-[24px] tracking-[-0.01em] text-heading hover:underline">
+            <h3 className="line-clamp-2 font-gsf text-[18px] font-semibold leading-[24px] tracking-[-0.01em] text-heading hover:underline">
               {c.title}
             </h3>
           </Link>
-          <Proof c={c} />
+          {compact ? null : <Proof c={c} />}
         </div>
 
         {c.goal ? (
@@ -138,7 +148,12 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
           </div>
         )}
 
-        <div className="mt-auto flex items-center gap-3 border-t border-line-soft pt-4">
+        <div
+          className={cn(
+            "mt-auto flex items-center gap-3 border-t border-line-soft",
+            compact ? "pt-3" : "pt-4",
+          )}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {initials.length ? (
               <span className="flex -space-x-2 @max-[360px]:hidden">

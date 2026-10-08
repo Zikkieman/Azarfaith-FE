@@ -8,16 +8,13 @@ import {
   useSpring,
   useTransform,
 } from "motion/react";
-import { BadgeCheck } from "lucide-react";
 import logoMark from "@/assets/signup/logo-mark.svg";
 import { useApp } from "@/lib/store";
+import { CampaignCard } from "@/components/CampaignCard";
 import { FruitCycler } from "./FruitCycler";
-import { formatMoney } from "@/lib/mock";
 
 const EASE = { ease: easeInOut };
 const CAMPAIGN_ID = "gfc5";
-const PHOTO =
-  "https://images.unsplash.com/photo-1710093072218-0024b8391475?auto=format&fit=crop&w=900&q=80";
 
 function HeroCopy() {
   return (
@@ -53,31 +50,10 @@ function HeroCopy() {
 function CampaignShowcase() {
   const c = useApp((s) => s.campaigns.find((x) => x.id === CAMPAIGN_ID));
   if (!c) return null;
-  const pct = c.goal ? Math.min(100, Math.round((c.raised / c.goal) * 100)) : 0;
   return (
-    <Link
-      to="/campaign/$id"
-      params={{ id: c.id }}
-      className="group block w-[min(440px,88vw)] overflow-hidden rounded-2xl border border-[#130E30]/10 bg-white text-left"
-    >
-      <img src={PHOTO} alt="" className="aspect-[2/1] max-h-[24vh] w-full object-cover" />
-      <div className="flex flex-col gap-2.5 p-4 md:p-5">
-        <p className="flex items-center gap-1.5 font-gsf text-[13px] text-[#667085]">
-          <BadgeCheck className="h-4 w-4 text-[#00B67A]" strokeWidth={1.5} />
-          Grace Harvest Orphanage · Jos
-        </p>
-        <p className="font-gsf text-[17px] font-semibold leading-[24px] text-[#130E30] group-hover:underline">
-          {c.title}
-        </p>
-        <div className="h-2 overflow-hidden rounded-full bg-[#EBECEC]">
-          <div className="h-2 rounded-full bg-[#FE5102]" style={{ width: `${pct}%` }} />
-        </div>
-        <p className="font-gsf text-[13px] text-[#667085]">
-          <span className="font-semibold text-[#130E30]">{formatMoney(c.raised)}</span> raised of{" "}
-          {c.goal ? formatMoney(c.goal) : ""} · {c.donors} givers
-        </p>
-      </div>
-    </Link>
+    <div className="w-[min(440px,88vw)]">
+      <CampaignCard campaign={c} compact />
+    </div>
   );
 }
 
