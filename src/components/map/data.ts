@@ -18,7 +18,7 @@ export type StateStats = {
   featured?: { org: string; place: string; text: string; photo: string; to?: string };
 };
 
-const u = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=600&q=80`;
+const u = (id: string) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=960&q=80`;
 const o = (church: number, mission: number, orphanage: number, school: number) => ({
   church,
   mission,

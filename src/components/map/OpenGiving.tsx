@@ -11,7 +11,7 @@ import { formatCompactMoney, formatMoney } from "@/lib/mock";
 import { reducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { VIEW, dots, project, stateAt, states, type Dot } from "./nigeria";
-import { causeLabel, feed, orgCount, stats, totals, type Cause } from "./data";
+import { feed, orgCount, stats, totals, type Cause } from "./data";
 
 const stateName = Object.fromEntries(states.map((s) => [s.id, s.name]));
 const dotsByState = dots.reduce<Record<string, Dot[]>>((acc, d) => {
@@ -20,7 +20,6 @@ const dotsByState = dots.reduce<Record<string, Dot[]>>((acc, d) => {
 }, {});
 
 type Filter = Cause | "all";
-const ago = ["just now", "1 min ago", "3 min ago", "6 min ago"];
 
 /** One state's dots. Memoised so hovering a state repaints only the states that change. */
 const StateDots = memo(function StateDots({
@@ -138,7 +137,8 @@ function StatePicker({ selected, onChange }: { selected: string; onChange: (id: 
   );
 }
 
-function StatePanel({ id, filter }: { id: string; filter: Filter }) {
+/** One state's week in three beats: how much, the latest proof, and where to go next. */
+function StatePanel({ id }: { id: string }) {
   const s = stats[id];
   if (!s) {
     return (
@@ -152,43 +152,33 @@ function StatePanel({ id, filter }: { id: string; filter: Filter }) {
     );
   }
   return (
-    <div className="flex flex-col gap-5">
-      <p className="text-[15px] leading-[23px] text-ink-soft">
-        <span className="font-semibold text-ink">{formatCompactMoney(s.givenWeek)}</span> given this
-        week to{" "}
-        <span className="sm:hidden">
-          <span className="font-semibold text-ink">{orgCount(s, "all")} organisations</span>.
-        </span>
-        <span className="hidden sm:inline">
-          {(Object.keys(causeLabel) as Cause[]).map((c, i, all) => (
-            <span key={c}>
-              <span
-                className={cn(
-                  filter === "all" || filter === c ? "font-semibold text-ink" : "text-muted-ink",
-                )}
-              >
-                {s.orgs[c]} {causeLabel[c].toLowerCase()}
-              </span>
-              {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : "."}
-            </span>
-          ))}
-        </span>
-      </p>
+    <div key={id} className="feed-in flex flex-col gap-7">
+      <div className="flex flex-col gap-2">
+        <p className="font-display text-[clamp(48px,4.6vw,76px)] leading-[0.95] tracking-[-0.04em] text-ink">
+          {formatCompactMoney(s.givenWeek)}
+        </p>
+        <p className="text-[15px] leading-[23px] text-ink-soft">
+          given this week to {orgCount(s, "all")} verified organisations
+        </p>
+      </div>
       {s.featured ? (
-        <Link to={s.featured.to ?? "/discover"} className="group flex items-center gap-4">
-          <img
-            src={s.featured.photo}
-            alt=""
-            className="h-16 w-16 shrink-0 rounded-xl object-cover"
-          />
-          <span className="min-w-0">
-            <span className="flex items-center gap-1.5 text-[13px] text-muted-ink">
-              <BadgeCheck className="h-3.5 w-3.5 text-[#00B67A]" strokeWidth={2} />
-              {s.featured.org}
+        <Link to={s.featured.to ?? "/discover"} className="group flex flex-col gap-3">
+          <span className="block aspect-[16/10] overflow-hidden rounded-2xl bg-[#F1EFEA]">
+            <img
+              src={s.featured.photo}
+              alt=""
+              loading="lazy"
+              className="halftone h-full w-full object-cover group-hover:scale-[1.03]"
+            />
+          </span>
+          <span className="flex items-center gap-1.5 pt-1 text-[13px] text-muted-ink">
+            <BadgeCheck className="h-4 w-4 shrink-0 text-[#00B67A]" strokeWidth={2} />
+            <span className="truncate">
+              {s.featured.org}, {s.featured.place}
             </span>
-            <span className="block text-[15px] leading-[21px] text-heading group-hover:underline">
-              {s.featured.text}
-            </span>
+          </span>
+          <span className="text-balance font-display text-[clamp(20px,1.5vw,24px)] leading-[1.25] tracking-[-0.02em] text-heading decoration-1 underline-offset-4 group-hover:underline">
+            {s.featured.text}
           </span>
         </Link>
       ) : null}
@@ -219,42 +209,7 @@ function useFeed(onGift: (state: string) => void) {
   return head;
 }
 
-function LiveFeed({ head }: { head: number }) {
-  const items = Array.from(
-    { length: 4 },
-    (_, k) => feed[(head - k + feed.length * 2) % feed.length],
-  );
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="flex items-center gap-2 font-gsf text-[13px] font-semibold text-ink">
-        <span className="relative flex h-2 w-2">
-          <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
-          <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
-        </span>
-        Gifts landing now
-      </p>
-      <ol className="flex flex-col">
-        {items.map((g, k) => (
-          <li
-            key={`${head}-${k}`}
-            className={cn(
-              "flex items-center justify-between gap-3 border-t border-line-soft py-2.5 font-gsf text-[14px]",
-              k === 0 && "feed-in",
-            )}
-            style={{ opacity: 1 - k * 0.2 }}
-          >
-            <span className="min-w-0 truncate text-heading">
-              <span className="font-semibold">{formatMoney(g.amount)}</span> to {g.place}
-            </span>
-            <span className="shrink-0 text-[12px] text-muted-ink">{ago[k]}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/** Phones: just the newest gift, swapping in as the next one lands. */
+/** The newest gift, swapping in as the next one lands. */
 function LiveTicker({ head }: { head: number }) {
   const g = feed[head];
   return (
@@ -337,24 +292,20 @@ export function OpenGivingSection({
                 {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
               </p>
             ) : null}
-            <div className="mt-3 border-t border-line-soft pt-3 lg:hidden">
+            <div className="mt-3 border-t border-line-soft pt-3 sm:mt-5 sm:pt-4">
               <LiveTicker head={head} />
             </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-5 pt-6 lg:col-start-1 lg:gap-7 lg:row-start-1 lg:pt-2">
+          <div className="flex min-w-0 flex-col gap-5 pt-6 lg:col-start-1 lg:row-start-1 lg:gap-8 lg:self-center lg:pt-0">
             <StatePicker selected={selected} onChange={setSelected} />
-            <StatePanel id={selected} filter="all" />
-
-            <div className="hidden border-t border-line pt-6 lg:block">
-              <LiveFeed head={head} />
-            </div>
-
-            <p className="text-[12px] text-subtle">
-              Prototype: figures are sample data. Gifts are shown without names or exact locations.
-            </p>
+            <StatePanel id={selected} />
           </div>
         </div>
+
+        <p className="-mt-6 text-center text-[12px] text-subtle lg:-mt-10">
+          Prototype: figures are sample data. Gifts are shown without names or exact locations.
+        </p>
       </div>
     </section>
   );
