@@ -18,9 +18,6 @@ const dotsByState = dots.reduce<Record<string, Dot[]>>((acc, d) => {
   (acc[d.state] ??= []).push(d);
   return acc;
 }, {});
-const ranked = Object.entries(stats)
-  .sort((a, b) => b[1].givenWeek - a[1].givenWeek)
-  .map(([id]) => id);
 
 type Filter = Cause | "all";
 const ago = ["just now", "1 min ago", "3 min ago", "6 min ago"];
@@ -159,18 +156,23 @@ function StatePanel({ id, filter }: { id: string; filter: Filter }) {
       <p className="text-[15px] leading-[23px] text-ink-soft">
         <span className="font-semibold text-ink">{formatCompactMoney(s.givenWeek)}</span> given this
         week to{" "}
-        {(Object.keys(causeLabel) as Cause[]).map((c, i, all) => (
-          <span key={c}>
-            <span
-              className={cn(
-                filter === "all" || filter === c ? "font-semibold text-ink" : "text-muted-ink",
-              )}
-            >
-              {s.orgs[c]} {causeLabel[c].toLowerCase()}
+        <span className="sm:hidden">
+          <span className="font-semibold text-ink">{orgCount(s, "all")} organisations</span>.
+        </span>
+        <span className="hidden sm:inline">
+          {(Object.keys(causeLabel) as Cause[]).map((c, i, all) => (
+            <span key={c}>
+              <span
+                className={cn(
+                  filter === "all" || filter === c ? "font-semibold text-ink" : "text-muted-ink",
+                )}
+              >
+                {s.orgs[c]} {causeLabel[c].toLowerCase()}
+              </span>
+              {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : "."}
             </span>
-            {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : "."}
-          </span>
-        ))}
+          ))}
+        </span>
       </p>
       {s.featured ? (
         <Link to={s.featured.to ?? "/discover"} className="group flex items-center gap-4">
@@ -252,6 +254,23 @@ function LiveFeed({ head }: { head: number }) {
   );
 }
 
+/** Phones: just the newest gift, swapping in as the next one lands. */
+function LiveTicker({ head }: { head: number }) {
+  const g = feed[head];
+  return (
+    <p className="flex items-center gap-2.5 font-gsf text-[14px]">
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
+        <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
+      </span>
+      <span key={head} className="feed-in min-w-0 flex-1 truncate text-heading">
+        <span className="font-semibold">{formatMoney(g.amount)}</span> to {g.place}
+      </span>
+      <span className="shrink-0 text-[12px] text-muted-ink">just now</span>
+    </p>
+  );
+}
+
 /** The live map block, shared by /map (as the page's h1) and the homepage (as an h2). */
 export function OpenGivingSection({
   heading = "h2",
@@ -318,35 +337,16 @@ export function OpenGivingSection({
                 {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
               </p>
             ) : null}
+            <div className="mt-3 border-t border-line-soft pt-3 lg:hidden">
+              <LiveTicker head={head} />
+            </div>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-7 pt-6 lg:col-start-1 lg:row-start-1 lg:pt-2">
+          <div className="flex min-w-0 flex-col gap-5 pt-6 lg:col-start-1 lg:gap-7 lg:row-start-1 lg:pt-2">
             <StatePicker selected={selected} onChange={setSelected} />
             <StatePanel id={selected} filter="all" />
 
-            <div className="lg:hidden">
-              <p className="pb-3 text-[13px] font-semibold text-ink">Most given this week</p>
-              <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {ranked.slice(0, 10).map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setSelected(id)}
-                    className={cn(
-                      "flex w-[150px] shrink-0 snap-start flex-col gap-1 rounded-xl border p-3 text-left transition-colors",
-                      selected === id ? "border-ink bg-panel" : "border-line-soft bg-paper",
-                    )}
-                  >
-                    <span className="text-[14px] font-semibold text-heading">{stateName[id]}</span>
-                    <span className="text-[12px] text-muted-ink">
-                      {formatCompactMoney(stats[id].givenWeek)} · {orgCount(stats[id], "all")} orgs
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-line pt-6">
+            <div className="hidden border-t border-line pt-6 lg:block">
               <LiveFeed head={head} />
             </div>
 
