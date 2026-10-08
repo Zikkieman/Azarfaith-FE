@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useMotionValueEvent, useScroll } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeCheck, ChevronDown } from "lucide-react";
 import { SiteNav } from "@/components/landing/SiteNav";
@@ -152,7 +153,7 @@ function StatePanel({ id }: { id: string }) {
     );
   }
   return (
-    <div key={id} className="feed-in flex flex-col gap-7">
+    <div key={id} className="state-in flex flex-col gap-7">
       <div className="flex flex-col gap-2">
         <p className="font-display text-[clamp(48px,4.6vw,76px)] leading-[0.95] tracking-[-0.04em] text-ink">
           {formatCompactMoney(s.givenWeek)}
@@ -226,7 +227,17 @@ function LiveTicker({ head }: { head: number }) {
   );
 }
 
-/** The live map block, shared by /map (as the page's h1) and the homepage (as an h2). */
+/** States the section walks through as the visitor scrolls. */
+const TOUR = ["PL", "FC", "RI"];
+/** Scroll distance (svh) each toured state holds the stage for on desktop. */
+const STEP_SVH = 50;
+const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
+
+/**
+ * The live map block, shared by /map (as the page's h1) and the homepage (as an h2).
+ * Desktop: the stage pins and scrolling steps through TOUR in place. Phones: the map sticks to
+ * the top while one story per toured state scrolls up beneath it.
+ */
 export function OpenGivingSection({
   heading = "h2",
   className,
@@ -235,9 +246,13 @@ export function OpenGivingSection({
   className?: string;
 }) {
   const Heading = heading;
-  const [selected, setSelected] = useState<string>("PL");
+  const [selected, setSelected] = useState<string>(TOUR[0]);
   const [hovered, setHovered] = useState<string | null>(null);
   const [pulse, setPulse] = useState<{ id: number; state: string } | null>(null);
+  const [step, setStep] = useState(0);
+  const stepRef = useRef(0);
+  const pinRef = useRef<HTMLDivElement>(null);
+  const storyRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const onGift = useMemo(() => {
     let n = 0;
@@ -245,14 +260,49 @@ export function OpenGivingSection({
   }, []);
   const head = useFeed(onGift);
 
+  const { scrollYProgress } = useScroll({ target: pinRef, offset: ["start start", "end end"] });
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (!isDesktop()) return;
+    const i = Math.min(TOUR.length - 1, Math.max(0, Math.floor(v * TOUR.length)));
+    if (i === stepRef.current) return;
+    stepRef.current = i;
+    setStep(i);
+    setSelected(TOUR[i]);
+  });
+
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (isDesktop()) return;
+        for (const e of entries) {
+          if (e.isIntersecting) setSelected((e.target as HTMLElement).dataset.state ?? TOUR[0]);
+        }
+      },
+      { rootMargin: "-62% 0px -36% 0px" },
+    );
+    storyRefs.current.forEach((el) => el && io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  const jump = (i: number) => {
+    const el = pinRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    const range = el.offsetHeight - window.innerHeight;
+    window.scrollTo({
+      top: top + (range * (i + 0.5)) / TOUR.length,
+      behavior: reducedMotion() ? "auto" : "smooth",
+    });
+  };
+
   return (
     <section
       className={cn(
-        "px-6 pb-16 pt-10 sm:px-10 md:pb-24 md:pt-14 lg:px-[clamp(40px,6vw,120px)]",
+        "px-6 pb-16 pt-10 sm:px-10 md:pb-24 md:pt-14 lg:px-[clamp(40px,6vw,120px)] lg:pb-10",
         className,
       )}
     >
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-12 lg:gap-16">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-10 lg:gap-6">
         <div className="mx-auto flex max-w-[760px] flex-col items-center gap-4 text-center">
           <p className="font-gsf text-sm font-semibold uppercase tracking-[0.1em] text-ink-soft">
             Open giving
@@ -276,36 +326,79 @@ export function OpenGivingSection({
           </p>
         </div>
 
-        {/* Phones: the map, then the state story. Desktop: the state story beside the map. */}
-        <div className="grid gap-y-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-x-14">
-          <div className="relative min-w-0 self-start rounded-3xl bg-panel p-4 sm:p-8 lg:col-start-2 lg:row-start-1">
-            <NigeriaMap
-              filter="all"
-              selected={selected}
-              hovered={hovered}
-              pulse={pulse}
-              onHover={setHovered}
-              onSelect={setSelected}
-            />
-            {hovered && hovered !== selected ? (
-              <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
-                {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
-              </p>
-            ) : null}
-            <div className="mt-3 border-t border-line-soft pt-3 sm:mt-5 sm:pt-4">
-              <LiveTicker head={head} />
-            </div>
-          </div>
+        <div ref={pinRef} className="lg:h-[calc(100svh+150svh)]">
+          <div className="flex flex-col gap-6 lg:sticky lg:top-0 lg:h-svh lg:justify-center lg:py-6">
+            <div className="grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-x-14">
+              <div className="sticky top-0 z-10 -mx-6 bg-paper px-6 py-3 sm:-mx-10 sm:px-10 lg:static lg:col-start-2 lg:row-start-1 lg:m-0 lg:w-full lg:max-w-[calc((100svh-210px)*1.232+64px)] lg:justify-self-center lg:bg-transparent lg:p-0">
+                <div className="relative rounded-3xl bg-panel p-4 sm:p-8">
+                  <NigeriaMap
+                    filter="all"
+                    selected={selected}
+                    hovered={hovered}
+                    pulse={pulse}
+                    onHover={setHovered}
+                    onSelect={setSelected}
+                  />
+                  {hovered && hovered !== selected ? (
+                    <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
+                      {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
+                    </p>
+                  ) : null}
+                  <div className="mt-3 border-t border-line-soft pt-3 sm:mt-5 sm:pt-4">
+                    <LiveTicker head={head} />
+                  </div>
+                </div>
+              </div>
 
-          <div className="flex min-w-0 flex-col gap-5 pt-6 lg:col-start-1 lg:row-start-1 lg:gap-8 lg:self-center lg:pt-0">
-            <StatePicker selected={selected} onChange={setSelected} />
-            <StatePanel id={selected} />
+              <div className="hidden min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1 lg:flex lg:self-center">
+                <div className="-my-2 flex gap-1.5">
+                  {TOUR.map((id, i) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => jump(i)}
+                      aria-label={`Show ${stateName[id]}`}
+                      aria-current={step === i ? "step" : undefined}
+                      className="group py-2"
+                    >
+                      <span
+                        className={cn(
+                          "block h-[3px] w-10 rounded-full transition-colors duration-300",
+                          i <= step ? "bg-[#FE5102]" : "bg-line group-hover:bg-line-strong",
+                        )}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <StatePicker selected={selected} onChange={setSelected} />
+                <StatePanel id={selected} />
+              </div>
+
+              <div className="flex flex-col lg:hidden">
+                {TOUR.map((id, i) => (
+                  <div
+                    key={id}
+                    ref={(el) => {
+                      storyRefs.current[i] = el;
+                    }}
+                    data-state={id}
+                    className="flex flex-col gap-5 border-t border-line py-10 first:border-t-0 first:pt-6"
+                  >
+                    <p className="font-display text-[clamp(24px,2vw,32px)] font-medium leading-[1.2] tracking-[-0.03em] text-ink">
+                      What&rsquo;s happening in{" "}
+                      <span className="text-[#FE5102]">{stateName[id]}</span>
+                    </p>
+                    <StatePanel id={id} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-center text-[12px] text-subtle">
+              Prototype: figures are sample data. Gifts are shown without names or exact locations.
+            </p>
           </div>
         </div>
-
-        <p className="-mt-6 text-center text-[12px] text-subtle lg:-mt-10">
-          Prototype: figures are sample data. Gifts are shown without names or exact locations.
-        </p>
       </div>
     </section>
   );

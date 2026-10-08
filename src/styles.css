@@ -245,6 +245,11 @@
     animation: feed-in 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 
+  /* Map tour: each state's story rises in as the scroll hands over to it. */
+  .state-in {
+    animation: state-in 560ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
   /* Trust receipt: the slip prints downward, then the stamp lands (shared .stamp rule). */
   .js [data-reveal]:not([data-shown]) .receipt-print {
     clip-path: inset(0 0 100% 0);
@@ -343,6 +348,12 @@
   to {
     transform: scale(2.4);
     opacity: 0;
+  }
+}
+@keyframes state-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
 }
 @keyframes feed-in {

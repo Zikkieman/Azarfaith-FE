@@ -99,7 +99,17 @@ export const stats: Record<string, StateStats> = {
       to: "/campaign/gfc1",
     },
   },
-  RI: { orgs: o(27, 3, 3, 4), givenWeek: 2_000_000, receipts: 41 },
+  RI: {
+    orgs: o(27, 3, 3, 4),
+    givenWeek: 2_000_000,
+    receipts: 41,
+    featured: {
+      org: "Living Waters Medical Outreach",
+      place: "Port Harcourt",
+      text: "Free clinic day saw 240 patients in Diobu.",
+      photo: u("1536064479547-7ee40b74b807"),
+    },
+  },
   EN: { orgs: o(19, 2, 3, 4), givenWeek: 1_300_000, receipts: 30 },
   AN: { orgs: o(21, 1, 2, 3), givenWeek: 1_400_000, receipts: 33 },
   KN: { orgs: o(7, 8, 2, 1), givenWeek: 1_200_000, receipts: 27 },
