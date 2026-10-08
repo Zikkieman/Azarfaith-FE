@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeCheck, ChevronDown } from "lucide-react";
@@ -230,7 +230,7 @@ function LiveTicker({ head }: { head: number }) {
 /** States the section walks through as the visitor scrolls. */
 const TOUR = ["PL", "FC", "RI"];
 /** Scroll distance (svh) each toured state holds the stage for on desktop. */
-const STEP_SVH = 50;
+const STEP_SVH = 22;
 const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
 
 /**
@@ -326,7 +326,11 @@ export function OpenGivingSection({
           </p>
         </div>
 
-        <div ref={pinRef} className="lg:h-[calc(100svh+150svh)]">
+        <div
+          ref={pinRef}
+          style={{ "--tour": `${TOUR.length * STEP_SVH}svh` } as CSSProperties}
+          className="lg:h-[calc(100svh+var(--tour))]"
+        >
           <div className="flex flex-col gap-6 lg:sticky lg:top-0 lg:h-svh lg:justify-center lg:py-6">
             <div className="grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-x-14">
               <div className="sticky top-0 z-10 -mx-6 bg-paper px-6 py-3 sm:-mx-10 sm:px-10 lg:static lg:col-start-2 lg:row-start-1 lg:m-0 lg:w-full lg:max-w-[calc((100svh-210px)*1.232+64px)] lg:justify-self-center lg:bg-transparent lg:p-0">
@@ -382,7 +386,7 @@ export function OpenGivingSection({
                       storyRefs.current[i] = el;
                     }}
                     data-state={id}
-                    className="flex flex-col gap-5 border-t border-line py-10 first:border-t-0 first:pt-6"
+                    className="flex flex-col gap-5 border-t border-line py-7 first:border-t-0 first:pt-5"
                   >
                     <p className="font-display text-[clamp(24px,2vw,32px)] font-medium leading-[1.2] tracking-[-0.03em] text-ink">
                       What&rsquo;s happening in{" "}
