@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/landing/SiteNav";
 import { HomeOpening } from "@/components/landing/HomeOpening";
+import { fruitFontsHref } from "@/components/landing/fruit-words";
 import { Stats } from "@/components/landing/Stats";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FeaturePanel } from "@/components/landing/FeaturePanel";
@@ -20,6 +21,11 @@ export const Route = createFileRoute("/")({
         content:
           "Support churches, missionaries, orphanages and faith-based schools in Nigeria. Give once or set up a standing order.",
       },
+    ],
+    // Display faces for the hero's cycling word, subset to its letters (homepage only).
+    links: [
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: fruitFontsHref },
     ],
   }),
   component: AzarFaithLanding,

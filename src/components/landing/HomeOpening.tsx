@@ -11,6 +11,7 @@ import {
 import { BadgeCheck } from "lucide-react";
 import logoMark from "@/assets/signup/logo-mark.svg";
 import { useApp } from "@/lib/store";
+import { FruitCycler } from "./FruitCycler";
 import { formatMoney } from "@/lib/mock";
 
 const EASE = { ease: easeInOut };
@@ -23,7 +24,9 @@ function HeroCopy() {
     <>
       <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.03em] text-ink">
         <span className="block">You give in faith.</span>
-        <span className="block">See the fruit.</span>
+        <span className="block">
+          See the <FruitCycler />.
+        </span>
       </h1>
       <p className="max-w-[640px] text-pretty font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">
         Give to verified churches, missions and orphanages across Nigeria, and get the receipt, the
