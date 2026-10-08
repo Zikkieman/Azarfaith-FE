@@ -23,7 +23,6 @@ const ranked = Object.entries(stats)
   .map(([id]) => id);
 
 type Filter = Cause | "all";
-const filters: Filter[] = ["all", "church", "mission", "orphanage", "school"];
 const ago = ["just now", "1 min ago", "3 min ago", "6 min ago"];
 
 /** One state's dots. Memoised so hovering a state repaints only the states that change. */
@@ -118,7 +117,7 @@ function NigeriaMap({
 /** "What's happening in [Plateau ▾]": a native select dressed as the state name. */
 function StatePicker({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
   return (
-    <label className="flex flex-wrap items-baseline gap-x-2 border-t border-line pt-6 font-display text-[clamp(24px,2vw,32px)] font-medium leading-[1.2] tracking-[-0.03em] text-ink">
+    <label className="flex flex-wrap items-baseline gap-x-2 font-display text-[clamp(24px,2vw,32px)] font-medium leading-[1.2] tracking-[-0.03em] text-ink">
       <span>What&rsquo;s happening in</span>
       <span className="relative inline-flex items-baseline gap-1 text-[#FE5102]">
         <span className="underline decoration-2 underline-offset-[6px]">{stateName[selected]}</span>
@@ -262,7 +261,6 @@ export function OpenGivingSection({
   className?: string;
 }) {
   const Heading = heading;
-  const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<string>("PL");
   const [hovered, setHovered] = useState<string | null>(null);
   const [pulse, setPulse] = useState<{ id: number; state: string } | null>(null);
@@ -280,61 +278,35 @@ export function OpenGivingSection({
         className,
       )}
     >
-      <div className="mx-auto grid w-full max-w-[1440px] gap-10 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] lg:gap-14">
-        <div className="flex flex-col gap-7 lg:pt-6">
-          <div className="flex flex-col gap-4">
-            <p className="font-gsf text-sm font-semibold uppercase tracking-[0.1em] text-ink-soft">
-              Open giving
-            </p>
-            <Heading className="font-display text-[clamp(38px,4.2vw,68px)] leading-[1.02] tracking-[-0.03em] text-ink">
-              Watch giving land across Nigeria.
-            </Heading>
-            <p className="text-lg leading-[1.6] tracking-[-0.02em] text-ink-soft">
-              <strong className="font-semibold text-ink">
-                <CountUp value={formatCompactMoney(totals.givenWeek)} />
-              </strong>{" "}
-              given this week to{" "}
-              <strong className="font-semibold text-ink">
-                <CountUp value={`${totals.orgs}`} />
-              </strong>{" "}
-              verified organisations, with{" "}
-              <strong className="font-semibold text-ink">
-                <CountUp value={`${totals.receipts}`} />
-              </strong>{" "}
-              receipts posted. Every gift comes back with proof.
-            </p>
-          </div>
-
-          <StatePicker selected={selected} onChange={setSelected} />
-
-          <div className="hidden lg:block">
-            <StatePanel id={selected} filter={filter} />
-          </div>
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-12 lg:gap-16">
+        <div className="mx-auto flex max-w-[760px] flex-col items-center gap-4 text-center">
+          <p className="font-gsf text-sm font-semibold uppercase tracking-[0.1em] text-ink-soft">
+            Open giving
+          </p>
+          <Heading className="text-balance font-display text-[clamp(38px,4.2vw,68px)] leading-[1.02] tracking-[-0.03em] text-ink">
+            Watch giving land across Nigeria.
+          </Heading>
+          <p className="max-w-[620px] text-pretty text-lg leading-[1.6] tracking-[-0.02em] text-ink-soft">
+            <strong className="font-semibold text-ink">
+              <CountUp value={formatCompactMoney(totals.givenWeek)} />
+            </strong>{" "}
+            given this week to{" "}
+            <strong className="font-semibold text-ink">
+              <CountUp value={`${totals.orgs}`} />
+            </strong>{" "}
+            verified organisations, with{" "}
+            <strong className="font-semibold text-ink">
+              <CountUp value={`${totals.receipts}`} />
+            </strong>{" "}
+            receipts posted. Every gift comes back with proof.
+          </p>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {filters.map((f) => (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={filter === f}
-                onClick={() => setFilter(f)}
-                className={cn(
-                  "shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                  filter === f
-                    ? "border-ink bg-ink text-ink-contrast"
-                    : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink",
-                )}
-              >
-                {f === "all" ? "All causes" : causeLabel[f]}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative rounded-3xl bg-panel p-4 sm:p-8">
+        {/* Phones: the map, then the state story. Desktop: the state story beside the map. */}
+        <div className="grid gap-y-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-x-14">
+          <div className="relative min-w-0 self-start rounded-3xl bg-panel p-4 sm:p-8 lg:col-start-2 lg:row-start-1">
             <NigeriaMap
-              filter={filter}
+              filter="all"
               selected={selected}
               hovered={hovered}
               pulse={pulse}
@@ -343,45 +315,45 @@ export function OpenGivingSection({
             />
             {hovered && hovered !== selected ? (
               <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
-                {stateName[hovered]} · {orgCount(stats[hovered], filter)}{" "}
-                {filter === "all" ? "organisations" : causeLabel[filter].toLowerCase()}
+                {stateName[hovered]} · {orgCount(stats[hovered], "all")} organisations
               </p>
             ) : null}
           </div>
 
-          <div className="lg:hidden">
-            <StatePanel id={selected} filter={filter} />
-          </div>
+          <div className="flex min-w-0 flex-col gap-7 pt-6 lg:col-start-1 lg:row-start-1 lg:pt-2">
+            <StatePicker selected={selected} onChange={setSelected} />
+            <StatePanel id={selected} filter="all" />
 
-          <div className="lg:hidden">
-            <p className="pb-3 text-[13px] font-semibold text-ink">Most given this week</p>
-            <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {ranked.slice(0, 10).map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setSelected(id)}
-                  className={cn(
-                    "flex w-[150px] shrink-0 snap-start flex-col gap-1 rounded-xl border p-3 text-left transition-colors",
-                    selected === id ? "border-ink bg-panel" : "border-line-soft bg-paper",
-                  )}
-                >
-                  <span className="text-[14px] font-semibold text-heading">{stateName[id]}</span>
-                  <span className="text-[12px] text-muted-ink">
-                    {formatCompactMoney(stats[id].givenWeek)} · {orgCount(stats[id], "all")} orgs
-                  </span>
-                </button>
-              ))}
+            <div className="lg:hidden">
+              <p className="pb-3 text-[13px] font-semibold text-ink">Most given this week</p>
+              <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {ranked.slice(0, 10).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setSelected(id)}
+                    className={cn(
+                      "flex w-[150px] shrink-0 snap-start flex-col gap-1 rounded-xl border p-3 text-left transition-colors",
+                      selected === id ? "border-ink bg-panel" : "border-line-soft bg-paper",
+                    )}
+                  >
+                    <span className="text-[14px] font-semibold text-heading">{stateName[id]}</span>
+                    <span className="text-[12px] text-muted-ink">
+                      {formatCompactMoney(stats[id].givenWeek)} · {orgCount(stats[id], "all")} orgs
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="lg:max-w-[560px]">
-            <LiveFeed head={head} />
-          </div>
+            <div className="border-t border-line pt-6">
+              <LiveFeed head={head} />
+            </div>
 
-          <p className="text-[12px] text-subtle">
-            Prototype: figures are sample data. Gifts are shown without names or exact locations.
-          </p>
+            <p className="text-[12px] text-subtle">
+              Prototype: figures are sample data. Gifts are shown without names or exact locations.
+            </p>
+          </div>
         </div>
       </div>
     </section>
