@@ -198,7 +198,7 @@ function Profile() {
           </div>
 
           <div className={`${cardClass} flex flex-col gap-4 p-6`}>
-            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[-0.03em] text-ink-soft">
+            <p className="text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-ink-soft">
               Organizations you support
             </p>
             <ul className="flex flex-col gap-3">
@@ -226,7 +226,7 @@ function Profile() {
             <p className="font-display text-2xl leading-[1.2] text-ink">
               Lead a church or ministry?
             </p>
-            <p className="text-base leading-[25.6px] tracking-[-0.03em] text-ink">
+            <p className="text-base leading-[25.6px] tracking-[-0.02em] text-ink">
               Register it on AzarFaith to raise support with a verified badge.
             </p>
             <Link to="/register-org" className={`${btnPrimary} self-start`}>

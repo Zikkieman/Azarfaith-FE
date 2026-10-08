@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/landing/SiteNav";
 import { HomeOpening } from "@/components/landing/HomeOpening";
 import { fruitFontsHref } from "@/components/landing/fruit-words";
-import { Stats } from "@/components/landing/Stats";
+import { OpenGivingSection } from "@/components/map/OpenGiving";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { FeaturePanel } from "@/components/landing/FeaturePanel";
 import { YellowPanel } from "@/components/landing/YellowPanel";
@@ -36,7 +36,7 @@ function AzarFaithLanding() {
     <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
       <SiteNav />
       <HomeOpening />
-      <Stats />
+      <OpenGivingSection className="pt-20 md:pt-28" />
       <HowItWorks />
       <FeaturePanel />
       <YellowPanel />

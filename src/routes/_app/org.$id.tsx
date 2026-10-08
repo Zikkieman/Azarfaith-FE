@@ -77,7 +77,7 @@ function OrgProfile() {
             <h1 className="font-display text-[clamp(32px,3.7vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink">
               {org.name}
             </h1>
-            <p className="text-lg leading-[27.9px] tracking-[-0.03em] text-ink-soft">
+            <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
               {org.tagline}
             </p>
             <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
@@ -137,7 +137,7 @@ function OrgProfile() {
 
         <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
           <SectionHeading>About</SectionHeading>
-          <p className="max-w-[820px] text-lg leading-[27.9px] tracking-[-0.03em] text-ink-soft">
+          <p className="max-w-[820px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
             {org.bio}
           </p>
         </section>

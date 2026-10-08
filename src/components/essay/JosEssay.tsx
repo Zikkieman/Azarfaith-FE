@@ -30,7 +30,7 @@ function P({ children, first }: { children: ReactNode; first?: boolean }) {
   return (
     <p
       className={cn(
-        "font-gsf text-[clamp(17px,1.25vw,19px)] leading-[1.75] tracking-[-0.03em] text-heading",
+        "font-gsf text-[clamp(17px,1.25vw,19px)] leading-[1.75] tracking-[-0.01em] text-heading",
         first &&
           "first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:font-display first-letter:text-[68px] first-letter:font-bold first-letter:leading-[0.8] first-letter:text-ink",
       )}
@@ -272,7 +272,7 @@ function Receipt() {
       <p className="pr-24 pt-4 text-[12px] text-muted-ink">
         Uploaded by Grace Harvest · matched to budget line &ldquo;20 bunk beds&rdquo;
       </p>
-      <span className="stamp absolute bottom-4 right-4 rotate-[-12deg] rounded-md border-[3px] border-[#00B67A] px-3 py-1 font-gsf text-[13px] font-bold uppercase tracking-[-0.03em] text-[#00B67A] sm:right-6">
+      <span className="stamp absolute bottom-4 right-4 rotate-[-12deg] rounded-md border-[3px] border-[#00B67A] px-3 py-1 font-gsf text-[13px] font-bold uppercase tracking-[0.12em] text-[#00B67A] sm:right-6">
         Verified
       </span>
     </Reveal>
