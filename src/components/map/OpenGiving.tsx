@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, BadgeCheck, MapPin, ReceiptText } from "lucide-react";
+import { ArrowRight, BadgeCheck, ChevronDown } from "lucide-react";
 import { SiteNav } from "@/components/landing/SiteNav";
 import { Footer } from "@/components/landing/Footer";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -61,7 +61,7 @@ function NigeriaMap({
   filter: Filter;
   selected: string | null;
   hovered: string | null;
-  pulse: { id: number; state: string } | null;
+  pulse: { id: number; state: string; label: string } | null;
   onHover: (s: string | null) => void;
   onSelect: (s: string) => void;
 }) {
@@ -79,117 +79,148 @@ function NigeriaMap({
   const pulseAt = pulse ? project(states.find((s) => s.id === pulse.state)!.at) : null;
 
   return (
-    <svg
-      viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
-      role="img"
-      aria-label="Map of Nigeria showing where verified organisations are receiving gifts"
-      className="h-auto w-full cursor-pointer touch-manipulation select-none"
-      onPointerMove={(e) => {
-        if (e.pointerType === "mouse") onHover(stateFrom(e));
-      }}
-      onPointerLeave={() => onHover(null)}
-      onClick={(e) => {
-        const s = stateFrom(e);
-        if (s) onSelect(s);
-      }}
-    >
-      {states.map(({ id }) => {
-        const n = orgCount(stats[id], filter);
-        const isSel = selected === id;
-        const isHov = hovered === id;
-        const fill = isSel || isHov ? "#130E30" : n > 0 ? "#FE5102" : "var(--af-line)";
-        const opacity = isSel ? 1 : isHov ? 0.75 : n > 0 ? 0.3 + 0.7 * Math.sqrt(n / max) : 1;
-        return <StateDots key={id} id={id} fill={fill} opacity={opacity} />;
-      })}
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+        role="img"
+        aria-label="Map of Nigeria showing where verified organisations are receiving gifts"
+        className="h-auto w-full cursor-pointer touch-manipulation select-none"
+        onPointerMove={(e) => {
+          if (e.pointerType === "mouse") onHover(stateFrom(e));
+        }}
+        onPointerLeave={() => onHover(null)}
+        onClick={(e) => {
+          const s = stateFrom(e);
+          if (s) onSelect(s);
+        }}
+      >
+        {states.map(({ id }) => {
+          const n = orgCount(stats[id], filter);
+          const isSel = selected === id;
+          const isHov = hovered === id;
+          const fill = isSel || isHov ? "#130E30" : n > 0 ? "#FE5102" : "var(--af-line)";
+          const opacity = isSel ? 1 : isHov ? 0.75 : n > 0 ? 0.3 + 0.7 * Math.sqrt(n / max) : 1;
+          return <StateDots key={id} id={id} fill={fill} opacity={opacity} />;
+        })}
+        {pulseAt ? (
+          <g
+            key={pulse!.id}
+            transform={`translate(${pulseAt.x} ${pulseAt.y})`}
+            className="pointer-events-none"
+          >
+            <circle r={6} fill="#FE5102" className="map-pulse" />
+            <circle r={4} fill="#130E30" />
+          </g>
+        ) : null}
+      </svg>
       {pulseAt ? (
-        <g
+        <span
           key={pulse!.id}
-          transform={`translate(${pulseAt.x} ${pulseAt.y})`}
-          className="pointer-events-none"
+          aria-hidden
+          className="map-label pointer-events-none absolute -translate-x-1/2 whitespace-nowrap rounded-full bg-[#130E30] px-2.5 py-1 font-gsf text-[12px] font-semibold text-[#EFF2E5]"
+          style={{
+            left: `${(pulseAt.x / VIEW.w) * 100}%`,
+            top: `calc(${(pulseAt.y / VIEW.h) * 100}% - 34px)`,
+          }}
         >
-          <circle r={6} fill="#FE5102" className="map-pulse" />
-          <circle r={4} fill="#130E30" />
-        </g>
+          {pulse!.label}
+        </span>
       ) : null}
-    </svg>
+    </div>
+  );
+}
+
+/** "What's happening in [Plateau ▾]": a native select dressed as the state name. */
+function StatePicker({ selected, onChange }: { selected: string; onChange: (id: string) => void }) {
+  return (
+    <label className="flex flex-wrap items-baseline gap-x-2 border-t border-line pt-6 font-display text-[clamp(24px,2vw,32px)] font-medium leading-[1.2] tracking-[-0.03em] text-ink">
+      <span>What&rsquo;s happening in</span>
+      <span className="relative inline-flex items-baseline gap-1 text-[#FE5102]">
+        <span className="underline decoration-2 underline-offset-[6px]">{stateName[selected]}</span>
+        <ChevronDown className="h-5 w-5 translate-y-0.5" strokeWidth={2.25} />
+        <select
+          aria-label="Choose a state"
+          value={selected}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 cursor-pointer opacity-0"
+        >
+          {[...states]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((st) => (
+              <option key={st.id} value={st.id}>
+                {st.name}
+              </option>
+            ))}
+        </select>
+      </span>
+    </label>
   );
 }
 
 function StatePanel({ id, filter }: { id: string; filter: Filter }) {
   const s = stats[id];
+  if (!s) {
+    return (
+      <p className="text-[15px] leading-[23px] text-ink-soft">
+        No verified organisations in {stateName[id]} yet. If you lead a church or ministry here,{" "}
+        <Link to="/signup" className="font-semibold text-ink underline underline-offset-2">
+          register it
+        </Link>
+        .
+      </p>
+    );
+  }
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-line-soft bg-paper p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="flex items-center gap-1.5 font-gsf text-[13px] text-muted-ink">
-            <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} /> State
-          </p>
-          <p className="font-display text-[28px] leading-[1.1] text-ink">{stateName[id]}</p>
-        </div>
-        {s ? (
-          <div className="text-right">
-            <p className="font-display text-[22px] font-bold leading-none text-ink">
-              {formatCompactMoney(s.givenWeek)}
-            </p>
-            <p className="text-[12px] text-muted-ink">given this week</p>
-          </div>
-        ) : null}
-      </div>
-
-      {s ? (
-        <>
-          <dl className="grid grid-cols-4 gap-2 border-y border-line-soft py-3 text-center">
-            {(Object.keys(causeLabel) as Cause[]).map((c) => (
-              <div key={c} className={cn(filter !== "all" && filter !== c && "opacity-40")}>
-                <dd className="font-gsf text-lg font-semibold text-heading">{s.orgs[c]}</dd>
-                <dt className="text-[11px] text-muted-ink">{causeLabel[c]}</dt>
-              </div>
-            ))}
-          </dl>
-          {s.featured ? (
-            <Link to={s.featured.to ?? "/discover"} className="group flex gap-3">
-              <img
-                src={s.featured.photo}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-lg object-cover"
-              />
-              <span className="min-w-0">
-                <span className="flex items-center gap-1 text-[12px] text-muted-ink">
-                  <BadgeCheck className="h-3.5 w-3.5 text-[#00B67A]" strokeWidth={1.5} />
-                  {s.featured.org} · {s.featured.place}
-                </span>
-                <span className="block font-gsf text-[14px] leading-[20px] text-heading group-hover:underline">
-                  {s.featured.text}
-                </span>
-              </span>
-            </Link>
-          ) : (
-            <p className="flex items-center gap-2 text-[13px] text-ink-soft">
-              <ReceiptText className="h-4 w-4" strokeWidth={1.5} /> {s.receipts} receipts posted
-              this month
-            </p>
-          )}
-          <Link
-            to="/discover"
-            className="press inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 font-gsf text-[15px] font-medium text-ink-contrast hover:opacity-90"
-          >
-            See causes in {stateName[id]} <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
-          </Link>
-        </>
-      ) : (
-        <p className="text-[14px] leading-[21px] text-ink-soft">
-          No verified organisations here yet. If you lead a church or ministry in {stateName[id]},{" "}
-          <Link to="/register-org" className="font-medium text-ink underline underline-offset-2">
-            register it
-          </Link>
-          .
-        </p>
-      )}
+    <div className="flex flex-col gap-5">
+      <p className="text-[15px] leading-[23px] text-ink-soft">
+        <span className="font-semibold text-ink">{formatCompactMoney(s.givenWeek)}</span> given this
+        week to{" "}
+        {(Object.keys(causeLabel) as Cause[]).map((c, i, all) => (
+          <span key={c}>
+            <span
+              className={cn(
+                filter === "all" || filter === c ? "font-semibold text-ink" : "text-muted-ink",
+              )}
+            >
+              {s.orgs[c]} {causeLabel[c].toLowerCase()}
+            </span>
+            {i < all.length - 2 ? ", " : i === all.length - 2 ? " and " : "."}
+          </span>
+        ))}
+      </p>
+      {s.featured ? (
+        <Link to={s.featured.to ?? "/discover"} className="group flex items-center gap-4">
+          <img
+            src={s.featured.photo}
+            alt=""
+            className="h-16 w-16 shrink-0 rounded-xl object-cover"
+          />
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-[13px] text-muted-ink">
+              <BadgeCheck className="h-3.5 w-3.5 text-[#00B67A]" strokeWidth={2} />
+              {s.featured.org}
+            </span>
+            <span className="block text-[15px] leading-[21px] text-heading group-hover:underline">
+              {s.featured.text}
+            </span>
+          </span>
+        </Link>
+      ) : null}
+      <Link
+        to="/discover"
+        className="group inline-flex items-center gap-1.5 self-start text-[15px] font-semibold text-ink"
+      >
+        See causes in {stateName[id]}
+        <ArrowRight
+          className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none"
+          strokeWidth={2}
+        />
+      </Link>
     </div>
   );
 }
 
-function useFeed(onGift: (state: string) => void) {
+function useFeed(onGift: (gift: (typeof feed)[number]) => void) {
   const [head, setHead] = useState(0);
   useEffect(() => {
     if (reducedMotion()) return;
@@ -198,41 +229,27 @@ function useFeed(onGift: (state: string) => void) {
     }, 2800);
     return () => window.clearInterval(t);
   }, []);
-  useEffect(() => onGift(feed[head].state), [head, onGift]);
+  useEffect(() => onGift(feed[head]), [head, onGift]);
   return head;
 }
 
 function LiveFeed({ head }: { head: number }) {
-  const items = Array.from(
-    { length: 4 },
-    (_, k) => feed[(head - k + feed.length * 2) % feed.length],
-  );
+  const g = feed[head];
   return (
-    <div className="flex flex-col gap-3">
-      <p className="flex items-center gap-2 font-gsf text-[13px] font-semibold text-ink">
-        <span className="relative flex h-2 w-2">
-          <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
-          <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
-        </span>
-        Gifts landing now
-      </p>
-      <ol className="flex flex-col">
-        {items.map((g, k) => (
-          <li
-            key={`${head}-${k}`}
-            className={cn(
-              "flex items-center justify-between gap-3 border-t border-line-soft py-2.5 font-gsf text-[14px]",
-              k === 0 && "feed-in",
-            )}
-            style={{ opacity: 1 - k * 0.2 }}
-          >
-            <span className="min-w-0 truncate text-heading">
-              <span className="font-semibold">{formatMoney(g.amount)}</span> to {g.place}
-            </span>
-            <span className="shrink-0 text-[12px] text-muted-ink">{ago[k]}</span>
-          </li>
-        ))}
-      </ol>
+    <div
+      aria-live="off"
+      className="flex items-center gap-3 rounded-full border border-line-soft bg-paper py-2 pl-3 pr-4 font-gsf"
+    >
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className="map-live absolute inset-0 rounded-full bg-[#FE5102]" />
+        <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
+      </span>
+      <span className="shrink-0 text-[13px] font-semibold text-ink">Live</span>
+      <span className="h-4 w-px shrink-0 bg-line" />
+      <span key={head} className="feed-in min-w-0 truncate text-[14px] text-ink-soft">
+        <span className="font-semibold text-heading">{formatMoney(g.amount)}</span> to {g.place}
+      </span>
+      <span className="ml-auto shrink-0 text-[12px] text-muted-ink">just now</span>
     </div>
   );
 }
@@ -249,11 +266,16 @@ export function OpenGivingSection({
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<string>("PL");
   const [hovered, setHovered] = useState<string | null>(null);
-  const [pulse, setPulse] = useState<{ id: number; state: string } | null>(null);
+  const [pulse, setPulse] = useState<{ id: number; state: string; label: string } | null>(null);
 
   const onGift = useMemo(() => {
     let n = 0;
-    return (state: string) => setPulse({ id: ++n, state });
+    return (g: (typeof feed)[number]) =>
+      setPulse({
+        id: ++n,
+        state: g.state,
+        label: `${formatMoney(g.amount)} · ${stateName[g.state]}`,
+      });
   }, []);
   const head = useFeed(onGift);
 
@@ -273,43 +295,23 @@ export function OpenGivingSection({
             <Heading className="font-display text-[clamp(38px,4.2vw,68px)] leading-[1.02] tracking-[-0.03em] text-ink">
               Watch giving land across Nigeria.
             </Heading>
-            <p className="text-lg leading-[1.55] tracking-[-0.02em] text-ink-soft">
-              Every gift goes to a verified organisation and comes back with a receipt. This is what
-              that looked like this week.
+            <p className="text-lg leading-[1.6] tracking-[-0.02em] text-ink-soft">
+              <strong className="font-semibold text-ink">
+                <CountUp value={formatCompactMoney(totals.givenWeek)} />
+              </strong>{" "}
+              given this week to{" "}
+              <strong className="font-semibold text-ink">
+                <CountUp value={`${totals.orgs}`} />
+              </strong>{" "}
+              verified organisations, with{" "}
+              <strong className="font-semibold text-ink">
+                <CountUp value={`${totals.receipts}`} />
+              </strong>{" "}
+              receipts posted. Every gift comes back with proof.
             </p>
           </div>
 
-          <dl className="grid grid-cols-3 gap-4 border-y border-line py-5">
-            {[
-              { v: formatCompactMoney(totals.givenWeek), l: "given this week" },
-              { v: `${totals.orgs}`, l: "verified organisations" },
-              { v: `${totals.receipts}`, l: "receipts posted" },
-            ].map((s) => (
-              <div key={s.l} className="flex flex-col gap-1">
-                <dd className="font-display text-[clamp(20px,1.75vw,28px)] font-bold leading-none text-ink">
-                  <CountUp value={s.v} />
-                </dd>
-                <dt className="text-[13px] leading-[17px] text-muted-ink">{s.l}</dt>
-              </div>
-            ))}
-          </dl>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Your state</span>
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              className="w-full rounded-lg border border-line-input bg-paper px-3.5 py-3 text-[15px] text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
-            >
-              {[...states]
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          <StatePicker selected={selected} onChange={setSelected} />
 
           <div className="hidden lg:block">
             <StatePanel id={selected} filter={filter} />
@@ -317,26 +319,42 @@ export function OpenGivingSection({
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {filters.map((f) => (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={filter === f}
-                onClick={() => setFilter(f)}
-                className={cn(
-                  "shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                  filter === f
-                    ? "border-ink bg-ink text-ink-contrast"
-                    : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink",
-                )}
-              >
-                {f === "all" ? "All causes" : causeLabel[f]}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative rounded-3xl bg-panel p-4 sm:p-8">
+          <div className="relative rounded-3xl bg-panel px-4 pb-12 pt-14 sm:px-8 sm:pb-14 sm:pt-16">
+            <label className="absolute left-5 top-5 flex items-baseline gap-1.5 font-gsf text-[15px] text-ink-soft sm:left-8 sm:top-6">
+              Showing
+              <span className="relative inline-flex items-baseline gap-0.5 font-semibold text-ink">
+                <span className="underline decoration-[#FE5102] decoration-2 underline-offset-4">
+                  {filter === "all" ? "all causes" : causeLabel[filter].toLowerCase()}
+                </span>
+                <ChevronDown className="h-4 w-4 translate-y-0.5" strokeWidth={2.25} />
+                <select
+                  aria-label="Filter the map by cause"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value as Filter)}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                >
+                  {filters.map((f) => (
+                    <option key={f} value={f}>
+                      {f === "all" ? "All causes" : causeLabel[f]}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
+            <p
+              aria-hidden
+              className="absolute bottom-5 left-5 flex items-center gap-1.5 font-gsf text-[12px] text-muted-ink sm:bottom-6 sm:left-8"
+            >
+              Fewer
+              {[0.3, 0.55, 0.8, 1].map((o) => (
+                <span
+                  key={o}
+                  className="h-2 w-2 rounded-full bg-[#FE5102]"
+                  style={{ opacity: o }}
+                />
+              ))}
+              More organisations
+            </p>
             <NigeriaMap
               filter={filter}
               selected={selected}
@@ -346,7 +364,7 @@ export function OpenGivingSection({
               onSelect={setSelected}
             />
             {hovered && hovered !== selected ? (
-              <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
+              <p className="pointer-events-none absolute right-5 top-5 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast sm:right-8 sm:top-6">
                 {stateName[hovered]} · {orgCount(stats[hovered], filter)}{" "}
                 {filter === "all" ? "organisations" : causeLabel[filter].toLowerCase()}
               </p>

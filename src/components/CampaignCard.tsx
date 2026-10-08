@@ -73,8 +73,8 @@ export function CampaignCard({ campaign: c }: { campaign: Campaign }) {
       >
         <Photo
           src={c.cover}
-          className="absolute inset-0"
-          imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transition-none"
+          className="absolute inset-0 bg-[#F1EFEA]"
+          imgClassName="halftone group-hover:scale-[1.03]"
         />
         {c.urgency === "critical" || c.type === "emergency" ? (
           <span className="absolute left-3 top-3 rounded-full bg-[#FE5102] px-2.5 py-1 text-[12px] font-semibold text-white">
