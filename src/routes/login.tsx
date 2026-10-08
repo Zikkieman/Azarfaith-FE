@@ -1,126 +1,114 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthField } from "@/components/auth/AuthField";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { SocialButton } from "@/components/auth/SocialButton";
 import { useApp } from "@/lib/store";
-import { Flame } from "lucide-react";
+import googleIcon from "@/assets/signup/google-icon.svg";
+import facebookIcon from "@/assets/signup/facebook-icon.svg";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({ meta: [{ title: "Sign in — AzarFaith" }] }),
   component: Login,
 });
+
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(1, "Enter your password"),
+});
+type LoginForm = z.infer<typeof loginSchema>;
 
 function Login() {
   const nav = useNavigate();
   const setAuthed = useApp((s) => s.setAuthed);
   const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
+
+  const authenticate = () => {
+    setAuthed(true);
+    nav({ to: "/dashboard" });
+  };
+
+  const submit = handleSubmit(() => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      authenticate();
+    }, 600);
+  });
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <main className="flex-1 flex">
-        <div className="hidden md:flex flex-1 flex-col justify-center items-center bg-gradient-to-br from-amber-500 to-amber-600 text-white p-12">
-          <div className="max-w-md">
-            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur grid place-items-center mb-6">
-              <Flame className="w-8 h-8 fill-white text-white" />
-            </div>
-            <h2 className="font-display text-3xl tracking-tight">Welcome back</h2>
-            <p className="mt-4 text-white/80 text-lg leading-relaxed">
-              Sign in to give, manage your recurring support, and track the causes you care about.
-            </p>
-          </div>
+    <AuthLayout prompt="New to AzarFaith?" linkLabel="Create an account" linkTo="/signup">
+      <AuthCard>
+        <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+          <p className="w-full text-[14px] font-medium leading-[26.25px]">Welcome back</p>
+          <h1 className="w-full font-display text-[clamp(40px,5vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
+            Sign in
+          </h1>
+          <p className="w-full text-[14px] leading-[26.25px]">
+            Give, manage your recurring support, and follow the causes you care about.
+          </p>
         </div>
-        <div className="flex-1 flex flex-col justify-center px-6 py-14 md:px-16">
-          <div className="w-full max-w-md mx-auto">
-            <h1 className="font-display text-3xl tracking-tight">Log in</h1>
-            <p className="mt-2 text-muted-foreground">
-              Enter your credentials to access your account.
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setLoading(true);
-                setTimeout(() => {
-                  setAuthed(true);
-                  nav({ to: "/" });
-                }, 800);
-              }}
-              className="mt-8 space-y-5"
-            >
-              <div>
-                <label className="text-sm font-medium">Email or phone</label>
-                <input
-                  defaultValue="tunde@azarfaith.com"
-                  className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium flex justify-between">
-                  Password{" "}
-                  <Link to="/forgot-password" className="text-xs text-amber-600">
-                    Forgot?
-                  </Link>
-                </label>
-                <input
-                  type="password"
-                  defaultValue="demo1234"
-                  className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                />
-              </div>
-              <button
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl font-semibold disabled:opacity-60 transition bg-amber-500 text-white hover:bg-amber-600"
-              >
-                {loading ? "Signing in…" : "Log in"}
-              </button>
-              <div className="flex items-center gap-3 my-3">
-                <span className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <span className="flex-1 h-px bg-border" />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthed(true);
-                  nav({ to: "/" });
-                }}
-                className="w-full py-3.5 rounded-xl bg-card border border-border font-medium flex items-center justify-center gap-2 hover:bg-muted transition"
-              >
-                <GoogleIcon /> Continue with Google
-              </button>
-            </form>
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              New here?{" "}
-              <Link to="/signup" className="font-medium hover:underline text-amber-600">
-                Create an account
-              </Link>
-            </p>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
-  );
-}
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <path
-        fill="#4285F4"
-        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.83z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z"
-      />
-    </svg>
+        <div className="flex w-full flex-col gap-[9px]">
+          <SocialButton
+            icon={<img src={googleIcon} alt="" className="h-5 w-5" />}
+            onClick={authenticate}
+          >
+            Continue with Google
+          </SocialButton>
+          <SocialButton
+            icon={<img src={facebookIcon} alt="" className="h-5 w-5" />}
+            onClick={authenticate}
+          >
+            Continue with Facebook
+          </SocialButton>
+        </div>
+
+        <div className="flex w-full items-center gap-3">
+          <span className="h-px flex-1 bg-[#ebebeb]" />
+          <span className="text-xs text-[#667085]">or sign in with email</span>
+          <span className="h-px flex-1 bg-[#ebebeb]" />
+        </div>
+
+        <form onSubmit={submit} className="flex w-full flex-col items-start gap-[11px]">
+          <AuthField
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@email.com"
+            {...register("email")}
+            error={errors.email?.message}
+          />
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Your password"
+            {...register("password")}
+            error={errors.password?.message}
+          />
+          <Link
+            to="/forgot-password"
+            className="self-end text-[12px] text-[#fe5102] underline underline-offset-2"
+          >
+            Forgot your password?
+          </Link>
+          <SocialButton variant="solid" type="submit" disabled={loading} className="mt-[10px]">
+            {loading ? "Signing in…" : "Sign in"}
+          </SocialButton>
+        </form>
+      </AuthCard>
+    </AuthLayout>
   );
 }

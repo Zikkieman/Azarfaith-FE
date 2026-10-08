@@ -19,6 +19,7 @@ import modeOngoing from "@/assets/create/mode-ongoing.png";
 import typeSticker from "@/assets/create/type-sticker.png";
 
 export const Route = createFileRoute("/create")({
+  head: () => ({ meta: [{ title: "Start a campaign — AzarFaith" }] }),
   component: AzarFaithCreate,
 });
 
@@ -136,7 +137,7 @@ function AzarFaithCreate() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white font-gsf">
       <aside className="hidden w-[310px] shrink-0 bg-black px-10 py-14 lg:block">
         <Link to="/">
           <AuthLogo className="flex items-center gap-[3px] [&_img:last-child]:brightness-0 [&_img:last-child]:invert" />
@@ -157,12 +158,47 @@ function AzarFaithCreate() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <div className="px-6 pt-6 lg:hidden">
-          <Link to="/">
-            <AuthLogo />
-          </Link>
+        <div className="sticky top-0 z-20 border-b border-[#EBECEC] bg-white px-6 pb-4 pt-5 lg:hidden">
+          <div className="flex items-center justify-between gap-3">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s - 1)}
+                aria-label="Back"
+                className="-ml-2 grid h-10 w-10 place-items-center text-[#232323]"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            ) : (
+              <Link to="/">
+                <AuthLogo />
+              </Link>
+            )}
+            <div className="flex items-center gap-4 text-sm text-[#232323]">
+              <button
+                type="button"
+                onClick={() => toast("Draft saved")}
+                className="font-bold underline underline-offset-2"
+              >
+                Save draft
+              </button>
+              <Link to="/dashboard">Close</Link>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[13px] text-[#667085]">
+            <span className="font-semibold text-[#130E30]">{stepLabels[step]}</span>
+            <span>
+              Step {step + 1} of {totalSteps}
+            </span>
+          </div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#EBECEC]">
+            <div
+              className="h-1 rounded-full bg-[#FE5102] transition-[width] duration-300"
+              style={{ width: `${((step + 1) / totalSteps) * 100}%` }}
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between px-6 py-4 md:px-12">
+        <div className="hidden items-center justify-between px-6 py-4 md:px-12 lg:flex">
           {step > 0 ? (
             <button
               type="button"
@@ -247,9 +283,9 @@ function AzarFaithCreate() {
             <div className="mt-8 flex justify-end">
               <button
                 onClick={next}
-                className="rounded-[8px] bg-black px-6 py-3 text-sm font-semibold text-white hover:bg-black/90"
+                className="w-full rounded-[8px] bg-black px-6 py-3.5 text-sm font-semibold text-white hover:bg-black/90 sm:w-auto sm:py-3"
               >
-                Sign Up
+                Continue
               </button>
             </div>
           )}
@@ -259,7 +295,7 @@ function AzarFaithCreate() {
       {done && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-5">
           <div className="flex w-full max-w-[460px] flex-col items-center gap-8 bg-white p-8 text-center">
-            <PartyPopper className="h-12 w-12 text-[#fe5102]" />
+            <PartyPopper className="h-12 w-12 text-[#fe5102]" strokeWidth={1.5} />
             <div className="flex flex-col gap-2.5">
               <p className="font-display text-3xl text-[#232323]">Completed.</p>
               <p className="text-sm text-[#232323]">
@@ -274,7 +310,7 @@ function AzarFaithCreate() {
               }}
               className="w-full rounded-[8px] bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90"
             >
-              Sign Up
+              View campaign
             </button>
           </div>
         </div>
@@ -285,8 +321,10 @@ function AzarFaithCreate() {
 
 function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex flex-col gap-3 pb-10 pt-6">
-      <h1 className="font-display text-4xl tracking-tight text-[#232323] sm:text-5xl">{title}</h1>
+    <div className="flex flex-col gap-3 pb-7 pt-6 sm:pb-10">
+      <h1 className="font-display text-[clamp(32px,8.5vw,48px)] leading-[1.08] tracking-[-0.01em] text-[#130E30]">
+        {title}
+      </h1>
       <p className="text-sm text-[#232323]">{subtitle}</p>
     </div>
   );
@@ -311,14 +349,14 @@ function ModeStep({
         <ModeCard
           sticker={modeOnetime}
           label="One-time campaign"
-          desc="You have a clear target in mind and are determined to close the deal successfully."
+          desc="You need a set amount for one thing, like a roof, a vehicle or an outreach."
           selected={mode === "one-time"}
           onClick={() => onSelect("one-time")}
         />
         <ModeCard
           sticker={modeOngoing}
-          label="One-time campaign"
-          desc="You have a clear target in mind and are determined to close the deal successfully."
+          label="Ongoing support"
+          desc="Your work needs steady giving every week, month or quarter, with no end date."
           selected={mode === "ongoing"}
           onClick={() => onSelect("ongoing")}
         />
@@ -345,16 +383,23 @@ function ModeCard({
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-3 rounded-lg px-7 py-8 text-center transition ${
+      aria-pressed={selected}
+      className={`flex items-center gap-4 rounded-lg px-5 py-5 text-left transition sm:flex-col sm:gap-3 sm:px-7 sm:py-8 sm:text-center ${
         selected ? "bg-[#fff6f2] ring-1 ring-[#fe5102]" : "bg-[#fafafa] hover:bg-[#f2f2f2]"
       }`}
     >
-      <img src={sticker} alt="" className="h-[99px] w-auto object-contain" />
-      <div className="flex items-center gap-1.5 text-sm font-bold text-[#232323]">
-        {label}
-        {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
-      </div>
-      <p className="text-sm text-[#232323]">{desc}</p>
+      <img
+        src={sticker}
+        alt=""
+        className="h-16 w-16 shrink-0 object-contain sm:h-[99px] sm:w-auto"
+      />
+      <span className="flex flex-col gap-1.5 sm:items-center sm:gap-3">
+        <span className="flex items-center gap-1.5 text-sm font-bold text-[#232323]">
+          {label}
+          {selected && <Check className="h-4 w-4 text-[#fe5102]" />}
+        </span>
+        <span className="text-sm text-[#232323]">{desc}</span>
+      </span>
     </button>
   );
 }
@@ -501,18 +546,19 @@ function DetailsStep({
             Faith category
           </label>
           <div className="flex flex-wrap gap-2">
-            {categories.map(({ label, icon }) => (
+            {categories.map(({ label, icon: Icon }) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => onChange({ faithCategory: label })}
-                className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
+                aria-pressed={faithCategory === label}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   faithCategory === label
-                    ? "bg-[#fef3c6] text-[#bb4d00]"
-                    : "bg-[#f0f4f5] text-[#4e5a62]"
+                    ? "border-[#130E30] bg-[#130E30] text-[#EFF2E5]"
+                    : "border-[#D9DDBC] bg-white text-[#4A4660] hover:border-[#130E30]"
                 }`}
               >
-                <span>{icon}</span> {label}
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.5} /> {label}
               </button>
             ))}
           </div>
@@ -654,7 +700,7 @@ function PreviewStep({
 }) {
   return (
     <div>
-      <h1 className="pt-6 text-4xl font-semibold tracking-tight text-[#232323] sm:text-[40px]">
+      <h1 className="pt-6 font-display text-[clamp(30px,8vw,40px)] font-normal leading-[1.1] tracking-[-0.01em] text-[#130E30]">
         {draft.title || "Your campaign title"}
       </h1>
 
@@ -670,12 +716,12 @@ function PreviewStep({
 
       <div className="mt-5 flex items-center gap-2">
         <span
-          className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-[#fef3c6] text-[#bb4d00]" : "bg-muted text-foreground"}`}
+          className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-[#130E30] text-[#EFF2E5]" : "bg-[#F7F5F3] text-[#130E30]"}`}
         >
           {isOngoing ? "Ongoing" : "One-time"}
         </span>
         {draft.faithCategory && (
-          <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
+          <span className="rounded-full bg-[#F7F5F3] px-2.5 py-1 text-xs text-[#130E30]">
             {draft.faithCategory}
           </span>
         )}
@@ -694,14 +740,14 @@ function PreviewStep({
         <p className="mt-4 text-xs text-[#667085]">Give: {draft.frequencies.join(" · ")}</p>
       )}
 
-      <div className="mt-6 rounded-2xl border border-[#fde3cd] bg-[#fff6f2] p-4 text-sm text-[#bb4d00]">
+      <div className="mt-6 rounded-xl border border-[#D9DDBC] bg-[#F7F8F2] p-4 text-sm text-[#4A4660]">
         Your campaign goes live with an <strong>unverified</strong> badge. You can request
         verification from the campaign page after publishing.
       </div>
 
       {draft.type === "emergency" && (
-        <div className="mt-3 flex items-center gap-2 rounded-xl border border-urgent/20 bg-urgent/10 p-3 text-sm">
-          <Flame className="h-4 w-4 shrink-0 text-urgent" />
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-[#FE5102]/30 bg-[#FFEFE7] p-3 text-sm text-[#130E30]">
+          <Flame className="h-4 w-4 shrink-0 text-[#FE5102]" strokeWidth={1.5} />
           <span>This will be marked as an emergency campaign and shown with an urgent badge.</span>
         </div>
       )}
@@ -718,7 +764,7 @@ function PreviewStep({
           type="button"
           disabled={publishing}
           onClick={onPublish}
-          className="flex flex-1 items-center justify-center rounded-[8px] bg-gradient-to-r from-[#fe5102] to-[#cc04b1] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="flex flex-1 items-center justify-center rounded-[8px] bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-black/90 disabled:opacity-60"
         >
           {publishing ? "Submitting…" : "Submit for Review"}
         </button>

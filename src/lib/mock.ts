@@ -1,3 +1,15 @@
+import {
+  Church,
+  Globe,
+  GraduationCap,
+  Handshake,
+  Home,
+  Siren,
+  Stethoscope,
+  Wheat,
+  type LucideIcon,
+} from "lucide-react";
+
 export type CampaignType = "money" | "item" | "volunteer" | "professional" | "emergency";
 
 export type Update = { id: string; date: string; title: string; body: string };
@@ -93,6 +105,13 @@ export type RecurringDonation = {
 export const formatMoney = (amount: number, currency: Campaign["currency"] = "NGN") => {
   const symbols: Record<Campaign["currency"], string> = { NGN: "₦" };
   return `${symbols[currency]}${amount.toLocaleString()}`;
+};
+
+/** Short form for stat moments: ₦480K, ₦12.4M. */
+export const formatCompactMoney = (amount: number) => {
+  if (amount >= 1_000_000) return `₦${+(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 10_000) return `₦${Math.round(amount / 1_000)}K`;
+  return `₦${amount.toLocaleString()}`;
 };
 
 export const orgs: Org[] = [
@@ -429,15 +448,15 @@ export const campaigns: Campaign[] = [
   },
 ];
 
-export const categories: { label: Category; icon: string }[] = [
-  { label: "Church Building", icon: "⛪" },
-  { label: "Missions & Outreach", icon: "🌍" },
-  { label: "Orphanage", icon: "🏠" },
-  { label: "Education", icon: "📚" },
-  { label: "Food & Relief", icon: "🍚" },
-  { label: "Medical Mission", icon: "🩺" },
-  { label: "Emergency", icon: "🚨" },
-  { label: "Community Development", icon: "🤝" },
+export const categories: { label: Category; icon: LucideIcon }[] = [
+  { label: "Church Building", icon: Church },
+  { label: "Missions & Outreach", icon: Globe },
+  { label: "Orphanage", icon: Home },
+  { label: "Education", icon: GraduationCap },
+  { label: "Food & Relief", icon: Wheat },
+  { label: "Medical Mission", icon: Stethoscope },
+  { label: "Emergency", icon: Siren },
+  { label: "Community Development", icon: Handshake },
 ];
 
 export const myRecurringDonations: RecurringDonation[] = [

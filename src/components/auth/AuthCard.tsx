@@ -10,7 +10,7 @@ export function AuthCard({
   return (
     <div
       className={cn(
-        "flex w-full max-w-[503px] flex-col items-start gap-[32px] border border-[#ebebeb] bg-white p-[32px]",
+        "flex w-full max-w-[503px] flex-col items-start gap-7 bg-white sm:gap-[32px] sm:border sm:border-[#ebebeb] sm:p-[32px]",
         className,
       )}
     >

@@ -13,11 +13,21 @@ import {
   Linkedin,
 } from "lucide-react";
 import { toast } from "sonner";
-import { AppHeader } from "@/components/AppHeader";
+import { AppShell, Container } from "@/components/app/AppShell";
 import { useApp } from "@/lib/store";
-import { formatMoney, type Campaign, type Donation } from "@/lib/mock";
+import {
+  campaigns as campaignSeed,
+  formatCompactMoney,
+  formatMoney,
+  type Campaign,
+  type Donation,
+} from "@/lib/mock";
 
 export const Route = createFileRoute("/campaign/$id")({
+  head: ({ params }) => {
+    const c = campaignSeed.find((x) => x.id === params.id);
+    return { meta: [{ title: c ? `${c.title} — AzarFaith` : "Campaign — AzarFaith" }] };
+  },
   component: CampaignDetail,
 });
 
@@ -34,10 +44,8 @@ function CampaignDetail() {
   const visibleUpdates = showAllUpdates ? campaign.updates : campaign.updates.slice(0, 1);
 
   return (
-    <div className="min-h-screen bg-white">
-      <AppHeader />
-
-      <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
+    <AppShell bottomBar={<MobileDonateBar campaign={campaign} />}>
+      <Container className="py-6 md:py-14">
         <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
           <main className="flex min-w-0 flex-col gap-10">
             <button
@@ -53,7 +61,9 @@ function CampaignDetail() {
             {campaign.updates.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[28px] font-medium text-[#232323]">Updates</h2>
+                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+                    Updates
+                  </h2>
                   <span className="rounded bg-[#e9e9e9] px-2 py-0.5 text-sm text-[#424242]">
                     {campaign.updates.length}
                   </span>
@@ -82,7 +92,9 @@ function CampaignDetail() {
             {campaign.comments.length > 0 && (
               <section className="flex flex-col gap-6">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[28px] font-medium text-[#232323]">Comments</h2>
+                  <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+                    Comments
+                  </h2>
                   <span className="rounded bg-[#e9e9e9] px-2 py-0.5 text-sm text-[#424242]">
                     {campaign.comments.length}
                   </span>
@@ -101,7 +113,46 @@ function CampaignDetail() {
             <DonateSidebar campaign={campaign} />
           </aside>
         </div>
+      </Container>
+    </AppShell>
+  );
+}
+
+function MobileDonateBar({ campaign }: { campaign: Campaign }) {
+  const pct = campaign.goal
+    ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
+    : null;
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <p className="truncate text-sm text-[#667085]">
+          <span className="font-semibold text-[#130E30]">
+            {formatCompactMoney(campaign.raised)}
+          </span>{" "}
+          raised{pct === null ? "" : ` · ${pct}%`}
+        </p>
+        {pct === null ? (
+          <p className="text-[13px] text-[#667085]">{campaign.donors.toLocaleString()} givers</p>
+        ) : null}
+        {pct !== null ? (
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#EBECEC]">
+            <div className="h-1.5 rounded-full bg-[#FE5102]" style={{ width: `${pct}%` }} />
+          </div>
+        ) : null}
       </div>
+      <ShareButton
+        campaign={campaign}
+        iconOnly
+        className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-[#ebebeb] bg-white text-[#232323]"
+      />
+      <Link
+        to="/donate/$id"
+        params={{ id: campaign.id }}
+        search={{ freq: "" }}
+        className="flex h-12 shrink-0 items-center justify-center rounded-lg bg-black px-5 text-sm font-semibold text-white"
+      >
+        Donate now
+      </Link>
     </div>
   );
 }
@@ -118,11 +169,11 @@ function HeroSection({
 
   return (
     <section className="flex flex-col gap-6">
-      <h1 className="text-[32px] font-semibold tracking-[-0.5px] text-[#232323] sm:text-[40px] sm:leading-[48px]">
+      <h1 className="font-display text-[clamp(32px,3.2vw,48px)] font-normal leading-[1.08] tracking-[-0.01em] text-[#130E30]">
         {campaign.title}
       </h1>
 
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-muted">
+      <div className="relative -mx-6 aspect-[4/3] w-[calc(100%+48px)] overflow-hidden bg-muted sm:mx-0 sm:aspect-[16/9] sm:w-full sm:rounded-2xl">
         <img src={photos[index]} alt="" className="h-full w-full object-cover" />
         {photos.length > 1 && (
           <div className="absolute bottom-4 right-4 flex gap-2">
@@ -130,7 +181,7 @@ function HeroSection({
               type="button"
               aria-label="Previous photo"
               onClick={() => setIndex((i) => (i - 1 + photos.length) % photos.length)}
-              className="grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur"
+              className="grid h-10 w-10 place-items-center rounded-full bg-black/55 text-white sm:h-8 sm:w-8"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -138,7 +189,7 @@ function HeroSection({
               type="button"
               aria-label="Next photo"
               onClick={() => setIndex((i) => (i + 1) % photos.length)}
-              className="grid h-8 w-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur"
+              className="grid h-10 w-10 place-items-center rounded-full bg-black/55 text-white sm:h-8 sm:w-8"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -146,10 +197,13 @@ function HeroSection({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-[16px] text-[#232323]">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[16px] text-[#232323]">
         <img src={campaign.raiser.avatar} alt="" className="h-6 w-6 rounded-full object-cover" />
         <span className="font-medium">{campaign.raiser.name}</span>
-        <span className="text-[#6f6f6f]">· {campaign.location}</span>
+        <span className="w-full pl-8 text-[#6f6f6f] sm:w-auto sm:pl-0">
+          <span className="hidden sm:inline">· </span>
+          {campaign.location}
+        </span>
         {org && (
           <Link to="/org/$id" params={{ id: org.id }} className="text-[#fe5102] underline">
             Part of {org.name}
@@ -161,7 +215,7 @@ function HeroSection({
         {campaign.story}
       </p>
 
-      <div className="flex gap-3">
+      <div className="hidden gap-3 lg:flex">
         <ShareButton
           campaign={campaign}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[#ebebeb] bg-white px-4 py-3 text-sm font-semibold text-[#232323] hover:bg-muted"
@@ -170,7 +224,7 @@ function HeroSection({
           to="/donate/$id"
           params={{ id: campaign.id }}
           search={{ freq: "" }}
-          className="flex flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-[#fe5102] to-[#cc04b1] px-4 py-3 text-sm font-semibold text-white"
+          className="flex flex-1 items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Donate now
         </Link>
@@ -212,7 +266,9 @@ function ShareSection({ campaign }: { campaign: Campaign }) {
   ];
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[28px] font-medium text-[#232323]">Sharing helps more than you think</h2>
+      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+        Sharing helps more than you think
+      </h2>
       <p className="text-[16px] text-[#232323]">
         Sharing this campaign with your network can help {campaign.raiser.name.split(" ")[0]} reach
         more people and raise support faster.
@@ -253,10 +309,23 @@ function shareAction(label: string, campaign: Campaign) {
   if (target) window.open(target, "_blank", "noopener,noreferrer");
 }
 
-function ShareButton({ campaign, className }: { campaign: Campaign; className: string }) {
+function ShareButton({
+  campaign,
+  className,
+  iconOnly = false,
+}: {
+  campaign: Campaign;
+  className: string;
+  iconOnly?: boolean;
+}) {
   return (
-    <button type="button" onClick={() => shareAction("Copy link", campaign)} className={className}>
-      Share
+    <button
+      type="button"
+      onClick={() => shareAction("Copy link", campaign)}
+      aria-label={iconOnly ? "Share campaign" : undefined}
+      className={className}
+    >
+      {iconOnly ? <Link2 className="h-5 w-5" strokeWidth={1.5} /> : "Share"}
     </button>
   );
 }
@@ -264,7 +333,9 @@ function ShareButton({ campaign, className }: { campaign: Campaign; className: s
 function OrganiserSection({ name, location }: { name: string; location: string }) {
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-[28px] font-medium text-[#232323]">Organiser</h2>
+      <h2 className="font-display text-[28px] font-normal leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+        Organiser
+      </h2>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-[#f5f5f5] text-sm font-semibold text-[#667085]">
@@ -341,7 +412,7 @@ function DonateSidebar({ campaign }: { campaign: Campaign }) {
           to="/donate/$id"
           params={{ id: campaign.id }}
           search={{ freq: "" }}
-          className="flex items-center justify-center rounded-lg bg-gradient-to-r from-[#fe5102] to-[#cc04b1] px-4 py-3 text-sm font-semibold text-white"
+          className="flex items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Donate now
         </Link>

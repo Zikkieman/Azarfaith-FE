@@ -5,17 +5,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthField } from "@/components/auth/AuthField";
-import { AuthLogo } from "@/components/auth/AuthLogo";
+import { AuthLayout } from "@/components/auth/AuthLayout";
 import { OtpInputs } from "@/components/auth/OtpInputs";
 import { SocialButton } from "@/components/auth/SocialButton";
-import { TestimonialPanel } from "@/components/auth/TestimonialPanel";
 import { useApp } from "@/lib/store";
 import { ChevronLeft } from "lucide-react";
 import googleIcon from "@/assets/signup/google-icon.svg";
 import facebookIcon from "@/assets/signup/facebook-icon.svg";
-import backgroundIllustration from "@/assets/signup/background.svg";
 
-export const Route = createFileRoute("/signup")({ component: Signup });
+export const Route = createFileRoute("/signup")({
+  head: () => ({ meta: [{ title: "Create an account — AzarFaith" }] }),
+  component: Signup,
+});
 
 const signUpSchema = z.object({
   firstName: z.string().min(1, "Required"),
@@ -39,41 +40,20 @@ function Signup() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white">
-      <img
-        src={backgroundIllustration}
-        alt=""
-        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-70"
-      />
-
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
-        <Link to="/">
-          <AuthLogo />
-        </Link>
-        <p className="text-[16px] leading-[35px] text-[#232323]">
-          Already have an account?{" "}
-          <Link to="/login" className="font-bold underline underline-offset-2">
-            Sign in
-          </Link>
-        </p>
-      </header>
-
-      <main className="mx-auto flex max-w-6xl flex-col items-center gap-[45px] px-5 pb-16 pt-6 sm:px-8 lg:flex-row lg:items-start lg:justify-center">
-        {step === "choose" && <ChooseStep onEmail={() => setStep("form")} onOAuth={authenticate} />}
-        {step === "form" && (
-          <FormStep
-            onSubmit={(data) => {
-              setEmail(data.email);
-              setStep("otp");
-            }}
-          />
-        )}
-        {step === "otp" && (
-          <OtpStep email={email} onBack={() => setStep("form")} onVerified={authenticate} />
-        )}
-        <TestimonialPanel />
-      </main>
-    </div>
+    <AuthLayout prompt="Already have an account?" linkLabel="Sign in" linkTo="/login">
+      {step === "choose" && <ChooseStep onEmail={() => setStep("form")} onOAuth={authenticate} />}
+      {step === "form" && (
+        <FormStep
+          onSubmit={(data) => {
+            setEmail(data.email);
+            setStep("otp");
+          }}
+        />
+      )}
+      {step === "otp" && (
+        <OtpStep email={email} onBack={() => setStep("form")} onVerified={authenticate} />
+      )}
+    </AuthLayout>
   );
 }
 
@@ -191,7 +171,7 @@ function OtpStep({
         <button type="button" onClick={onBack} aria-label="Back">
           <ChevronLeft className="h-6 w-6" />
         </button>
-        <p className="font-display w-full text-[58px] font-normal leading-[53px] tracking-[-1.23px]">
+        <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
           Verify your email
         </p>
         <p className="w-full text-[14px] leading-[26.25px]">
@@ -211,8 +191,10 @@ function OtpStep({
 function HeadingBlock() {
   return (
     <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
-      <p className="w-full text-[14px] font-medium leading-[26.25px]">More than $54M 💰 Raised</p>
-      <p className="font-display w-full text-[58px] font-normal leading-[53px] tracking-[-1.23px]">
+      <p className="w-full text-[14px] font-medium leading-[26.25px]">
+        More than ₦250M given to ministries
+      </p>
+      <p className="w-full font-display text-[clamp(40px,11vw,58px)] font-normal leading-[0.92] tracking-[-1.23px]">
         Create an account
       </p>
       <p className="w-full text-[14px] font-normal leading-[26.25px]">
@@ -227,17 +209,22 @@ function AuthFootnotes() {
   return (
     <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
       <p className="w-full text-[12px] leading-[26.25px]">
-        Forgot your <FootLink>email</FootLink> or <FootLink>password</FootLink>?
+        Forgot your <FootLink to="/forgot-password">password</FootLink>?
       </p>
       <p className="w-full text-[12px] leading-[20px]">
-        By continuing, I agree to Azarfaith&rsquo;s <FootLink>terms</FootLink>,{" "}
-        <FootLink>privacy policy</FootLink>, and <FootLink>cookie policy</FootLink>
+        By continuing, I agree to AzarFaith&rsquo;s <FootLink to="/terms">terms</FootLink>,{" "}
+        <FootLink to="/privacy">privacy policy</FootLink>, and{" "}
+        <FootLink to="/cookies">cookie policy</FootLink>
         <span className="text-[#fe5102]">.</span>
       </p>
     </div>
   );
 }
 
-function FootLink({ children }: { children: React.ReactNode }) {
-  return <span className="text-[#fe5102] underline underline-offset-2">{children}</span>;
+function FootLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link to={to as "/"} className="text-[#fe5102] underline underline-offset-2">
+      {children}
+    </Link>
+  );
 }

@@ -1,41 +1,95 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { MailCheck } from "lucide-react";
+import { AuthCard } from "@/components/auth/AuthCard";
+import { AuthField } from "@/components/auth/AuthField";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { SocialButton } from "@/components/auth/SocialButton";
 
-export const Route = createFileRoute("/forgot-password")({ component: ForgotPassword });
+export const Route = createFileRoute("/forgot-password")({
+  head: () => ({ meta: [{ title: "Reset your password — AzarFaith" }] }),
+  component: ForgotPassword,
+});
+
+const resetSchema = z.object({ email: z.string().email("Enter a valid email address") });
+type ResetForm = z.infer<typeof resetSchema>;
 
 function ForgotPassword() {
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ResetForm>({ resolver: zodResolver(resetSchema) });
+
+  const submit = handleSubmit(({ email }) => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setSentTo(email);
+    }, 600);
+  });
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center px-6 py-14">
-        <div className="w-full max-w-md">
-          <h1 className="font-display text-3xl tracking-tight">Reset your password</h1>
-          <p className="mt-2 text-muted-foreground">
-            Enter your email and we'll send you a link to reset your password.
-          </p>
-          <form onSubmit={(e) => e.preventDefault()} className="mt-8 space-y-5">
-            <div>
-              <label className="text-sm font-medium">Email address</label>
-              <input
-                type="email"
-                placeholder="you@email.com"
-                className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-              />
+    <AuthLayout prompt="Remember your password?" linkLabel="Sign in" linkTo="/login">
+      <AuthCard>
+        {sentTo ? (
+          <>
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-[#FFEFE7] text-[#fe5102]">
+              <MailCheck className="h-6 w-6" strokeWidth={1.5} />
+            </span>
+            <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
+                Check your inbox
+              </h1>
+              <p className="w-full text-[14px] leading-[26.25px]">
+                If an account exists for <span className="font-bold">{sentTo}</span>, a reset link
+                is on its way. It expires in 30 minutes.
+              </p>
             </div>
-            <button className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600">
-              Send reset link
-            </button>
-          </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Remember your password?{" "}
-            <Link to="/login" className="text-amber-600 font-medium hover:underline">
-              Log in
-            </Link>
-          </p>
-        </div>
-      </main>
-      <Footer />
-    </div>
+            <div className="flex w-full flex-col gap-[9px]">
+              <Link
+                to="/login"
+                className="flex w-full items-center justify-center rounded-[8px] bg-black px-4 py-3 text-sm font-semibold leading-5 text-white hover:bg-black/90"
+              >
+                Back to sign in
+              </Link>
+              <SocialButton onClick={() => setSentTo(null)}>Use a different email</SocialButton>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex w-full flex-col items-start gap-[11px] text-[#232323]">
+              <p className="w-full text-[14px] font-medium leading-[26.25px]">Account help</p>
+              <h1 className="w-full font-display text-[clamp(36px,4.4vw,52px)] font-normal leading-[0.98] tracking-[-1.23px]">
+                Reset your password
+              </h1>
+              <p className="w-full text-[14px] leading-[26.25px]">
+                Enter the email you signed up with and we&rsquo;ll send you a link to choose a new
+                password.
+              </p>
+            </div>
+            <form onSubmit={submit} className="flex w-full flex-col items-start gap-[11px]">
+              <AuthField
+                id="email"
+                label="Email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@email.com"
+                {...register("email")}
+                error={errors.email?.message}
+              />
+              <SocialButton variant="solid" type="submit" disabled={loading} className="mt-[21px]">
+                {loading ? "Sending…" : "Send reset link"}
+              </SocialButton>
+            </form>
+          </>
+        )}
+      </AuthCard>
+    </AuthLayout>
   );
 }

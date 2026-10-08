@@ -1,12 +1,25 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Navbar } from "@/components/Navbar";
+import {
+  AppShell,
+  ChoiceCard,
+  Container,
+  Notice,
+  Stepper,
+  btnPrimary,
+  btnSecondary,
+  cardClass,
+  eyebrowClass,
+  inputClass,
+  labelClass,
+} from "@/components/app/AppShell";
 import { useApp } from "@/lib/store";
 import { toast } from "sonner";
-import { Check, Church, Globe, Baby, GraduationCap, Users, ImagePlus } from "lucide-react";
+import { Church, Globe, Baby, GraduationCap, Users, ImagePlus } from "lucide-react";
 import type { Org } from "@/lib/mock";
 
 export const Route = createFileRoute("/register-org")({
+  head: () => ({ meta: [{ title: "Register your org — AzarFaith" }] }),
   component: RegisterOrg,
 });
 
@@ -40,7 +53,7 @@ function RegisterOrg() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (step === 0) {
-      if (!orgDraft.name?.trim()) e.name = "Org name is required";
+      if (!orgDraft.name?.trim()) e.name = "Organization name is required";
       if (!orgDraft.category) e.category = "Select a category";
       if (!orgDraft.denomination?.trim()) e.denomination = "Denomination or tradition is required";
       if (!orgDraft.location?.trim()) e.location = "Location is required";
@@ -86,289 +99,285 @@ function RegisterOrg() {
     }, 1000);
   };
 
+  const field = (key: keyof typeof errors) =>
+    errors[key] ? <p className="text-[13px] text-[#D92D20]">{errors[key]}</p> : null;
+  const selectedCategory = orgCategories.find((c) => c.v === orgDraft.category);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="mx-auto max-w-xl px-5 py-10">
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
-          {steps.map((label, i) => (
-            <div key={label} className="flex items-center gap-2 flex-1 last:flex-none">
-              <div
-                className={`w-7 h-7 rounded-full text-xs font-semibold grid place-items-center shrink-0 ${i < step ? "bg-amber-500 text-white" : i === step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
-              >
-                {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
-              </div>
-              <span
-                className={`text-xs hidden sm:block ${i === step ? "text-foreground font-medium" : "text-muted-foreground"}`}
-              >
-                {label}
-              </span>
-              {i < steps.length - 1 && (
-                <div className={`h-px flex-1 ${i < step ? "bg-amber-400" : "bg-border"}`} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Step 0: Basic details */}
-        {step === 0 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Tell us about your org</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Basic information donors will see on your profile.
+    <AppShell>
+      <Container className="py-10 md:py-14">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
+          <div className="flex min-w-0 flex-col gap-10">
+            <div className="flex flex-col gap-4">
+              <p className={eyebrowClass}>Register your org</p>
+              <Stepper steps={steps} current={step} />
+              <p className="text-[13px] text-[#667085] sm:hidden">
+                Step {step + 1} of {steps.length} ·{" "}
+                <span className="font-semibold text-[#130E30]">{steps[step]}</span>
               </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Organisation name</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. ECWA Mission Board, Grace Harvest Orphanage"
-                value={orgDraft.name ?? ""}
-                onChange={(e) => setOrgDraft({ name: e.target.value })}
-              />
-              {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
-              <div className="grid grid-cols-1 gap-2">
-                {orgCategories.map(({ v, icon: Icon, label, desc }) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setOrgDraft({ category: v })}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition ${orgDraft.category === v ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${orgDraft.category === v ? "bg-amber-100" : "bg-muted"}`}
-                    >
-                      <Icon
-                        className={`w-4.5 h-4.5 ${orgDraft.category === v ? "text-amber-600" : "text-muted-foreground"}`}
+            {step === 0 ? (
+              <div className="flex flex-col gap-6">
+                <StepTitle
+                  title="Tell us about your org"
+                  sub="The basics givers will see on your profile."
+                />
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Organization name</span>
+                  <input
+                    className={inputClass}
+                    placeholder="e.g. Grace Harvest Orphanage"
+                    value={orgDraft.name ?? ""}
+                    onChange={(e) => setOrgDraft({ name: e.target.value })}
+                  />
+                  {field("name")}
+                </label>
+
+                <fieldset className="flex flex-col gap-2">
+                  <legend className={`${labelClass} pb-2`}>Category</legend>
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    {orgCategories.map(({ v, icon: Icon, label, desc }) => (
+                      <ChoiceCard
+                        key={v}
+                        selected={orgDraft.category === v}
+                        onClick={() => setOrgDraft({ category: v })}
+                        icon={<Icon className="h-5 w-5" strokeWidth={1.5} />}
+                        title={label}
+                        description={desc}
                       />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">{label}</div>
-                      <div className="text-xs text-muted-foreground">{desc}</div>
-                    </div>
-                    {orgDraft.category === v && (
-                      <Check className="w-4 h-4 text-amber-600 ml-auto" />
-                    )}
-                  </button>
-                ))}
-              </div>
-              {errors.category && (
-                <p className="text-xs text-destructive mt-1">{errors.category}</p>
-              )}
-            </div>
+                    ))}
+                  </div>
+                  {field("category")}
+                </fieldset>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Denomination / tradition</label>
-                <input
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. ECWA, Baptist, Pentecostal"
-                  value={orgDraft.denomination ?? ""}
-                  onChange={(e) => setOrgDraft({ denomination: e.target.value })}
-                />
-                {errors.denomination && (
-                  <p className="text-xs text-destructive mt-1">{errors.denomination}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Year founded</label>
-                <input
-                  className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                  placeholder="e.g. 2008"
-                  value={orgDraft.founded ?? ""}
-                  onChange={(e) => setOrgDraft({ founded: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Location</label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Lagos, Nigeria"
-                value={orgDraft.location ?? ""}
-                onChange={(e) => setOrgDraft({ location: e.target.value })}
-              />
-              {errors.location && (
-                <p className="text-xs text-destructive mt-1">{errors.location}</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Step 1: Mission / bio */}
-        {step === 1 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Your mission</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Help donors understand who you are and what you do.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                Tagline <span className="text-muted-foreground font-normal">(one sentence)</span>
-              </label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="e.g. Every Sunday, under the bridge, for the forgotten"
-                value={orgDraft.tagline ?? ""}
-                onChange={(e) => setOrgDraft({ tagline: e.target.value })}
-              />
-              {errors.tagline && <p className="text-xs text-destructive mt-1">{errors.tagline}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">About your org</label>
-              <textarea
-                rows={6}
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background resize-none"
-                placeholder="Tell donors who you are, what you do, who you serve, and why it matters. Be specific — share real stories, numbers, and impact."
-                value={orgDraft.bio ?? ""}
-                onChange={(e) => setOrgDraft({ bio: e.target.value })}
-              />
-              <div className="flex items-center justify-between mt-1">
-                {errors.bio ? <p className="text-xs text-destructive">{errors.bio}</p> : <span />}
-                <span className="text-xs text-muted-foreground">
-                  {orgDraft.bio?.length ?? 0} chars
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Media */}
-        {step === 2 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Add photos &amp; videos</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Show donors the work. This is the most convincing thing you can do.
-              </p>
-            </div>
-            <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center">
-              <ImagePlus className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-medium">Upload photos of your work</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Buildings, team, community, events — real photos build trust
-              </p>
-              <button
-                type="button"
-                onClick={() => toast("Photo upload coming soon")}
-                className="mt-4 px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
-              >
-                Choose photos
-              </button>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                YouTube or Vimeo links{" "}
-                <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <input
-                className="w-full border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-background"
-                placeholder="https://youtube.com/watch?v=..."
-                onBlur={(e) => {
-                  if (e.target.value.trim()) {
-                    setOrgDraft({ videos: [...(orgDraft.videos ?? []), e.target.value.trim()] });
-                    e.target.value = "";
-                  }
-                }}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Paste a link and press Tab or click away to add it
-              </p>
-              {(orgDraft.videos ?? []).length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {(orgDraft.videos ?? []).map((v, i) => (
-                    <div
-                      key={i}
-                      className="text-xs text-muted-foreground truncate bg-muted rounded-lg px-3 py-2"
-                    >
-                      {v}
-                    </div>
-                  ))}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Denomination or tradition</span>
+                    <input
+                      className={inputClass}
+                      placeholder="e.g. ECWA, Baptist, Pentecostal"
+                      value={orgDraft.denomination ?? ""}
+                      onChange={(e) => setOrgDraft({ denomination: e.target.value })}
+                    />
+                    {field("denomination")}
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Year founded</span>
+                    <input
+                      className={inputClass}
+                      inputMode="numeric"
+                      placeholder="e.g. 2008"
+                      value={orgDraft.founded ?? ""}
+                      onChange={(e) => setOrgDraft({ founded: e.target.value })}
+                    />
+                  </label>
                 </div>
+
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Location</span>
+                  <input
+                    className={inputClass}
+                    placeholder="e.g. Jos, Plateau State"
+                    value={orgDraft.location ?? ""}
+                    onChange={(e) => setOrgDraft({ location: e.target.value })}
+                  />
+                  {field("location")}
+                </label>
+              </div>
+            ) : null}
+
+            {step === 1 ? (
+              <div className="flex flex-col gap-6">
+                <StepTitle
+                  title="Your mission"
+                  sub="Help givers understand who you are and what you do."
+                />
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>
+                    Tagline <span className="font-normal text-[#667085]">(one sentence)</span>
+                  </span>
+                  <input
+                    className={inputClass}
+                    placeholder="e.g. Every Sunday, under the bridge, for the forgotten"
+                    value={orgDraft.tagline ?? ""}
+                    onChange={(e) => setOrgDraft({ tagline: e.target.value })}
+                  />
+                  {field("tagline")}
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>About your org</span>
+                  <textarea
+                    rows={7}
+                    className={`${inputClass} resize-none`}
+                    placeholder="Who you are, who you serve, and why it matters. Real stories and numbers build trust."
+                    value={orgDraft.bio ?? ""}
+                    onChange={(e) => setOrgDraft({ bio: e.target.value })}
+                  />
+                  <span className="flex items-center justify-between">
+                    {field("bio") ?? <span />}
+                    <span className="text-[13px] text-[#667085]">
+                      {orgDraft.bio?.length ?? 0} / 60 minimum
+                    </span>
+                  </span>
+                </label>
+              </div>
+            ) : null}
+
+            {step === 2 ? (
+              <div className="flex flex-col gap-6">
+                <StepTitle
+                  title="Add photos and videos"
+                  sub="Show givers the work. Nothing builds trust faster."
+                />
+                <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#B6BA95] bg-[#F7F8F2] px-6 py-12 text-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-[#130E30]">
+                    <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
+                  </span>
+                  <p className="text-base font-semibold text-[#130E30]">
+                    Upload photos of your work
+                  </p>
+                  <p className="text-sm text-[#667085]">
+                    Buildings, team, community, events — real photos, not stock.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => toast("Photo upload is coming soon")}
+                    className={`${btnSecondary} mt-2`}
+                  >
+                    Choose photos
+                  </button>
+                </div>
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>
+                    YouTube or Vimeo link{" "}
+                    <span className="font-normal text-[#667085]">(optional)</span>
+                  </span>
+                  <input
+                    className={inputClass}
+                    placeholder="https://youtube.com/watch?v=…"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value.trim()) {
+                        setOrgDraft({
+                          videos: [...(orgDraft.videos ?? []), e.target.value.trim()],
+                        });
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  <span className="text-[13px] text-[#667085]">Press Enter to add a link.</span>
+                </label>
+                {(orgDraft.videos ?? []).length > 0 ? (
+                  <ul className="flex flex-col gap-2">
+                    {(orgDraft.videos ?? []).map((v, i) => (
+                      <li
+                        key={i}
+                        className="truncate rounded-lg bg-[#F7F5F3] px-3.5 py-2.5 text-sm text-[#4A4660]"
+                      >
+                        {v}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+
+            {step === 3 ? (
+              <div className="flex flex-col gap-6">
+                <StepTitle
+                  title="Review before publishing"
+                  sub="Your profile goes live straight away. You can edit everything later."
+                />
+                <Notice>
+                  Your profile starts with an <strong>unverified</strong> badge. Our team will
+                  contact you within 5 business days to verify your organization.
+                </Notice>
+              </div>
+            ) : null}
+
+            <div className="flex items-center justify-between gap-3 border-t border-[#D9DDBC] pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
+              {step > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setStep((s) => s - 1)}
+                  className={btnSecondary}
+                >
+                  Back
+                </button>
+              ) : (
+                <span />
+              )}
+              {step < steps.length - 1 ? (
+                <button type="button" onClick={next} className={btnPrimary}>
+                  Continue
+                </button>
+              ) : (
+                <button type="button" onClick={submit} disabled={submitting} className={btnPrimary}>
+                  {submitting ? "Publishing…" : "Publish org profile"}
+                </button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              You can always add more photos and videos after registration from your org profile.
-            </p>
           </div>
-        )}
 
-        {/* Step 3: Preview */}
-        {step === 3 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Review before publishing</h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Your org goes live immediately. You can edit everything later.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-2xl p-5 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-display text-xl">{orgDraft.name}</span>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                  {orgDraft.category}
+          <aside
+            className={`lg:sticky lg:top-6 lg:block lg:self-start ${step === 3 ? "" : "hidden"}`}
+          >
+            <p className="pb-3 text-[13px] font-semibold uppercase leading-[19.5px] tracking-[0.1em] text-[#4A4660]">
+              Live preview
+            </p>
+            <div className={`${cardClass} flex flex-col gap-4 p-6`}>
+              <div className="grid h-[180px] w-full place-items-center rounded-lg bg-[#F7F5F3] text-[#B6BA95]">
+                <ImagePlus className="h-8 w-8" strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[#F7F5F3] px-2.5 py-0.5 text-xs font-medium text-[#4A4660]">
+                  {selectedCategory?.label ?? "Category"}
+                </span>
+                <span className="rounded-full bg-[#F7F5F3] px-2.5 py-0.5 text-xs font-medium text-[#667085]">
+                  Unverified
                 </span>
               </div>
-              <p className="text-muted-foreground italic">{orgDraft.tagline}</p>
-              <div className="text-xs text-muted-foreground flex items-center gap-3">
-                <span>{orgDraft.denomination}</span>
-                <span>·</span>
-                <span>{orgDraft.location}</span>
-                {orgDraft.founded && (
-                  <>
-                    <span>·</span>
-                    <span>Est. {orgDraft.founded}</span>
-                  </>
-                )}
-              </div>
-              <p className="text-sm leading-relaxed">{orgDraft.bio}</p>
+              <p className="font-display text-2xl leading-[1.2] text-[#130E30]">
+                {orgDraft.name || "Your organization"}
+              </p>
+              <p className="text-sm leading-5 text-[#667085]">
+                {orgDraft.tagline || "Your one-line tagline appears here."}
+              </p>
+              <p className="text-[13px] text-[#667085]">
+                {[
+                  orgDraft.denomination,
+                  orgDraft.location,
+                  orgDraft.founded && `Est. ${orgDraft.founded}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Denomination · Location · Founded"}
+              </p>
+              {orgDraft.bio ? (
+                <p className="line-clamp-4 border-t border-[#EBECEC] pt-4 text-sm leading-[21px] text-[#4A4660]">
+                  {orgDraft.bio}
+                </p>
+              ) : null}
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-800">
-              Your profile will go live immediately with an <strong>unverified</strong> badge. To
-              get verified, our team will reach out within 5 business days.
-            </div>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <div className="mt-8 flex items-center justify-between">
-          {step > 0 ? (
-            <button
-              onClick={() => setStep((s) => s - 1)}
-              className="px-5 py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted transition"
-            >
-              Back
-            </button>
-          ) : (
-            <span />
-          )}
-          {step < steps.length - 1 ? (
-            <button
-              onClick={next}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              onClick={submit}
-              disabled={submitting}
-              className="px-7 py-3 rounded-full bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition disabled:opacity-60"
-            >
-              {submitting ? "Publishing…" : "Publish org profile"}
-            </button>
-          )}
+          </aside>
         </div>
-      </div>
+      </Container>
+    </AppShell>
+  );
+}
+
+function StepTitle({ title, sub }: { title: string; sub: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+        {title}
+      </h1>
+      <p className="text-base leading-[25.6px] text-[#4A4660]">{sub}</p>
     </div>
   );
 }

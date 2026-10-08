@@ -10,26 +10,49 @@ import {
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { btnPrimary, btnSecondary } from "@/components/app/AppShell";
+
+function StatusScreen({
+  code,
+  title,
+  body,
+  children,
+}: {
+  code?: string;
+  title: string;
+  body: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-6 text-center font-gsf">
+      {code ? (
+        <p className="font-display text-[clamp(56px,10vw,120px)] leading-none text-[#130E30]">
+          {code}
+        </p>
+      ) : null}
+      <h1 className="font-display text-[clamp(28px,2.78vw,40px)] leading-[1.14] tracking-[-0.01em] text-[#130E30]">
+        {title}
+      </h1>
+      <p className="max-w-md text-base leading-[25.6px] text-[#4A4660]">{body}</p>
+      <div className="flex flex-wrap items-center justify-center gap-3">{children}</div>
+    </div>
+  );
+}
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
-          >
-            Go home
-          </Link>
-        </div>
-      </div>
-    </div>
+    <StatusScreen
+      code="404"
+      title="Page not found"
+      body="The page you're looking for doesn't exist or has been moved."
+    >
+      <Link to="/" className={btnPrimary}>
+        Go home
+      </Link>
+      <Link to="/discover" className={btnSecondary}>
+        Browse causes
+      </Link>
+    </StatusScreen>
   );
 }
 
@@ -38,33 +61,24 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
+    <StatusScreen
+      title="This page didn't load"
+      body="Something went wrong on our end. You can try again or head back home."
+    >
+      <button
+        type="button"
+        onClick={() => {
+          router.invalidate();
+          reset();
+        }}
+        className={btnPrimary}
+      >
+        Try again
+      </button>
+      <a href="/" className={btnSecondary}>
+        Go home
+      </a>
+    </StatusScreen>
   );
 }
 

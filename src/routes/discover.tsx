@@ -1,31 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { Search, MapPin, Church, Globe, Baby, GraduationCap, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
-  Search,
-  ShieldCheck,
-  MapPin,
-  Church,
-  Globe,
-  Baby,
-  GraduationCap,
-  Users,
-} from "lucide-react";
-import { AppHeader } from "@/components/AppHeader";
+  AppShell,
+  Container,
+  EmptyState,
+  PageHeader,
+  Pill,
+  btnSecondary,
+} from "@/components/app/AppShell";
 import { CampaignCard } from "@/components/CampaignCard";
+import iconVerified from "@/assets/landing/icon-verified.svg";
 import { useApp } from "@/lib/store";
-import { formatMoney, categories } from "@/lib/mock";
+import { formatMoney, categories, type Org } from "@/lib/mock";
 
 export const Route = createFileRoute("/discover")({
+  head: () => ({ meta: [{ title: "Discover causes — AzarFaith" }] }),
   component: AzarFaithDiscover,
 });
 
-const orgCategoryIcon: Record<string, React.ReactNode> = {
-  church: <Church className="w-4 h-4" />,
-  mission: <Globe className="w-4 h-4" />,
-  orphanage: <Baby className="w-4 h-4" />,
-  school: <GraduationCap className="w-4 h-4" />,
-  other: <Users className="w-4 h-4" />,
+const orgCategoryIcon: Record<Org["category"], LucideIcon> = {
+  church: Church,
+  mission: Globe,
+  orphanage: Baby,
+  school: GraduationCap,
+  other: Users,
 };
+
+const fallbackCover =
+  "https://images.unsplash.com/photo-1532635241-17e820acc59f?auto=format&fit=crop&w=1200&q=80";
 
 const orgCategoryLabel: Record<string, string> = {
   church: "Church",
@@ -73,202 +77,171 @@ function AzarFaithDiscover() {
       label: "One time",
       count: campaigns.filter((c) => c.mode === "one-time").length,
     },
-    { v: "orgs", label: "Organization", count: orgs.length },
+    { v: "orgs", label: "Organizations", count: orgs.length },
   ];
 
-  return (
-    <div className="min-h-screen bg-white">
-      <AppHeader />
+  const clearAll = () => {
+    setSearch("");
+    setCategoryFilter(null);
+    setTab("all");
+  };
 
-      <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
-        <div className="flex flex-col gap-8">
-          <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-end">
-            <div className="flex max-w-xl flex-col gap-6">
-              <h1 className="font-display text-4xl tracking-tight text-[#232323] sm:text-5xl">
-                Discover AzarFaith causes
-              </h1>
-              <p className="text-sm text-[#232323]">
-                Find missionaries, churches, orphanages, and schools to support.
-              </p>
-            </div>
-            <div className="flex w-full items-center gap-2 border-b border-[#8c8c8c] pb-2 lg:w-80">
-              <Search className="h-4 w-4 shrink-0 text-[#8c8c8c]" />
-              <input
-                className="w-full bg-transparent text-sm text-[#232323] placeholder:text-[#8c8c8c] focus:outline-none"
-                placeholder="Search campaigns, organizations, or locations…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+  return (
+    <AppShell>
+      <PageHeader
+        eyebrow="Discover"
+        title="Discover AzarFaith causes"
+        lead="Find missionaries, churches, orphanages, and schools to support — every organization is reviewed before it can receive gifts."
+        actions={
+          <label className="flex w-full items-center gap-2 border-b border-[#B6BA95] pb-2.5 lg:w-[360px]">
+            <Search className="h-[18px] w-[18px] shrink-0 text-[#4A4660]" strokeWidth={1.5} />
+            <span className="sr-only">Search</span>
+            <input
+              className="w-full bg-transparent font-gsf text-base text-[#130E30] placeholder:text-[#8C8C8C] focus:outline-none"
+              placeholder="Search causes, orgs or places"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="-mx-6 flex items-center gap-2.5 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+            {tabs.map(({ v, label, count }) => (
+              <Pill key={v} active={tab === v} count={count} onClick={() => setTab(v)}>
+                {label}
+              </Pill>
+            ))}
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-2.5">
-              {tabs.map(({ v, label, count }) => (
-                <button
-                  key={v}
-                  onClick={() => setTab(v)}
-                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-bold transition ${
-                    tab === v ? "bg-[#667085] text-white" : "bg-[#cecece] text-[#667085]"
-                  }`}
+          {tab !== "orgs" ? (
+            <div className="-mx-6 flex items-center gap-2 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+              <CategoryChip active={!categoryFilter} onClick={() => setCategoryFilter(null)}>
+                All categories
+              </CategoryChip>
+              {categories.map(({ label, icon: Icon }) => (
+                <CategoryChip
+                  key={label}
+                  active={categoryFilter === label}
+                  onClick={() => setCategoryFilter(categoryFilter === label ? null : label)}
                 >
-                  {label}
-                  <span
-                    className={`rounded px-1 text-sm ${
-                      tab === v ? "bg-[#344054] text-white" : "bg-white text-[#667085]"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.5} /> {label}
+                </CategoryChip>
               ))}
             </div>
-
-            {tab !== "orgs" && (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setCategoryFilter(null)}
-                  className={`rounded px-3 py-1.5 text-xs font-bold transition ${
-                    !categoryFilter ? "bg-[#fef3c6] text-[#bb4d00]" : "bg-[#f0f4f5] text-[#4e5a62]"
-                  }`}
-                >
-                  All categories
-                </button>
-                {categories.map(({ label, icon }) => (
-                  <button
-                    key={label}
-                    onClick={() => setCategoryFilter(categoryFilter === label ? null : label)}
-                    className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
-                      categoryFilter === label
-                        ? "bg-[#fef3c6] text-[#bb4d00]"
-                        : "bg-[#f0f4f5] text-[#4e5a62]"
-                    }`}
-                  >
-                    <span>{icon}</span> {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Campaigns grid */}
-          {tab !== "orgs" && (
-            <>
-              {filteredCampaigns.length === 0 ? (
-                <EmptyState
-                  title="No campaigns match your filters"
-                  body="Try a different search term or category, or clear your filters to see everything."
-                  cta="Clear filters"
-                  onClick={() => {
-                    setSearch("");
-                    setCategoryFilter(null);
-                    setTab("all");
-                  }}
-                />
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredCampaigns.map((c) => (
-                    <CampaignCard key={c.id} campaign={c} />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Orgs grid */}
-          {tab === "orgs" && (
-            <>
-              {filteredOrgs.length === 0 ? (
-                <EmptyState
-                  title="No organizations match your search"
-                  body="Try a different search term, or clear your search to see everything."
-                  cta="Clear search"
-                  onClick={() => setSearch("")}
-                />
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {filteredOrgs.map((org) => (
-                    <Link
-                      key={org.id}
-                      to="/org/$id"
-                      params={{ id: org.id }}
-                      className="group block"
-                    >
-                      <article className="bg-card border border-border rounded-3xl overflow-hidden hover:border-amber-200 hover:shadow-md transition-all">
-                        <div className="aspect-[16/9] overflow-hidden">
-                          <img
-                            src={
-                              org.photos[0] ??
-                              "https://images.unsplash.com/photo-1532635241-17e820acc59f?auto=format&fit=crop&w=1200&q=80"
-                            }
-                            alt=""
-                            className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-500"
-                          />
-                        </div>
-                        <div className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
-                              {orgCategoryIcon[org.category]} {orgCategoryLabel[org.category]}
-                            </span>
-                            {org.verificationStatus === "verified" && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-trust">
-                                <ShieldCheck className="w-3.5 h-3.5" /> Verified
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="font-display text-lg leading-snug">{org.name}</h3>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {org.tagline}
-                          </p>
-                          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" /> {org.location}
-                          </div>
-                          <div className="mt-3 flex items-center gap-4 text-xs">
-                            <span>
-                              <span className="font-semibold text-foreground">
-                                {formatMoney(org.totalReceived)}
-                              </span>{" "}
-                              <span className="text-muted-foreground">received</span>
-                            </span>
-                            <span>
-                              <span className="font-semibold text-foreground">
-                                {org.supporters.toLocaleString()}
-                              </span>{" "}
-                              <span className="text-muted-foreground">supporters</span>
-                            </span>
-                          </div>
-                        </div>
-                      </article>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+          ) : null}
         </div>
-      </div>
-    </div>
+      </PageHeader>
+
+      <Container className="py-12 md:py-16">
+        {tab !== "orgs" ? (
+          filteredCampaigns.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" strokeWidth={1.5} />}
+              title="No campaigns match your filters"
+              body="Try a different search term or category, or clear your filters to see everything."
+              action={
+                <button type="button" onClick={clearAll} className={btnSecondary}>
+                  Clear filters
+                </button>
+              }
+            />
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredCampaigns.map((c) => (
+                <CampaignCard key={c.id} campaign={c} />
+              ))}
+            </div>
+          )
+        ) : filteredOrgs.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-5 w-5" strokeWidth={1.5} />}
+            title="No organizations match your search"
+            body="Try a different search term, or clear your search to see everything."
+            action={
+              <button type="button" onClick={() => setSearch("")} className={btnSecondary}>
+                Clear search
+              </button>
+            }
+          />
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {filteredOrgs.map((org) => (
+              <OrgCard key={org.id} org={org} />
+            ))}
+          </div>
+        )}
+      </Container>
+    </AppShell>
   );
 }
 
-function EmptyState({
-  title,
-  body,
-  cta,
+function CategoryChip({
+  active,
   onClick,
+  children,
 }: {
-  title: string;
-  body: string;
-  cta: string;
+  active: boolean;
   onClick: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3.5 rounded-lg bg-[#fff6f2] px-8 py-16 text-center">
-      <p className="text-sm font-bold text-[#232323]">{title}</p>
-      <p className="max-w-md text-sm text-[#232323]">{body}</p>
-      <button onClick={onClick} className="text-sm font-medium text-[#232323] underline">
-        {cta}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 font-gsf text-[13px] font-medium leading-5 transition-colors ${
+        active ? "bg-[#FFE228] text-[#130E30]" : "bg-[#F7F5F3] text-[#4A4660] hover:text-[#130E30]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function OrgCard({ org }: { org: Org }) {
+  const Icon = orgCategoryIcon[org.category];
+  return (
+    <Link
+      to="/org/$id"
+      params={{ id: org.id }}
+      className="group flex flex-col rounded-xl border border-[rgba(57,62,70,0.08)] bg-white p-6 transition-colors hover:border-[rgba(57,62,70,0.24)]"
+    >
+      <div className="relative h-[200px] w-full overflow-hidden rounded-lg">
+        <img
+          src={org.photos[0] ?? fallbackCover}
+          alt=""
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+        />
+        <span className="absolute left-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-[25px] bg-[#F8F8F8]/80 px-2 py-1 text-sm leading-5 text-black">
+          <Icon className="h-3.5 w-3.5" strokeWidth={1.5} /> {orgCategoryLabel[org.category]}
+        </span>
+        {org.verificationStatus === "verified" ? (
+          <span className="absolute bottom-3.5 left-2 flex items-center gap-1 rounded-full bg-[#F3F4F6] px-2.5 py-0.5">
+            <img src={iconVerified} alt="" className="h-4 w-4" />
+            <span className="text-xs font-medium leading-4 text-[#6B6B6B]">Verified</span>
+          </span>
+        ) : null}
+      </div>
+      <h3 className="pt-5 font-gsf text-lg font-semibold leading-[27px] text-[#0B0E0D]">
+        {org.name}
+      </h3>
+      <p className="line-clamp-2 text-sm leading-5 text-[#667085]">{org.tagline}</p>
+      <p className="flex items-center gap-1.5 pt-2 text-sm leading-5 text-[#667085]">
+        <MapPin className="h-3.5 w-3.5" strokeWidth={1.5} /> {org.location}
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#EBECEC] pt-4">
+        <div>
+          <p className="text-base font-semibold text-[#130E30]">{formatMoney(org.totalReceived)}</p>
+          <p className="text-[13px] text-[#667085]">received</p>
+        </div>
+        <div>
+          <p className="text-base font-semibold text-[#130E30]">
+            {org.supporters.toLocaleString()}
+          </p>
+          <p className="text-[13px] text-[#667085]">supporters</p>
+        </div>
+      </div>
+    </Link>
   );
 }
