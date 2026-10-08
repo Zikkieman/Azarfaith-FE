@@ -178,7 +178,7 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
 - **Motion** (`lib/motion.ts`, `components/motion/Reveal.tsx`, CSS in `styles.css`): one hero load
   sequence; `<Reveal>` (+ `data-stagger` children) for section headings and card rows only;
   `<CountUp>` for stats; `<ProgressFill>` for every progress bar; `.expand` for accordions; `.press` on
-  buttons; the collage reading reveal (`motion/react`); scroll-driven `.ink-on-scroll` / `.steps-line`. Everything
+  buttons; the collage reading reveal (`motion/react`); pinned scroll steppers (How it works, the map tour) via `useScroll`. Everything
   is gated by `prefers-reduced-motion: no-preference` and by the `js` class, so content never hides
   without JavaScript. Use `overflow-x-clip`, never `overflow-x-hidden`, on page roots (hidden breaks sticky).
 - **Loading.** App routes declare `loader: () => simulateNetwork()` + a `pendingComponent` from

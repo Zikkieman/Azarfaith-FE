@@ -202,35 +202,6 @@
     width: 0 !important;
   }
 
-  /* "How giving works": the orange line draws across the steps as they pass. */
-  @supports (animation-timeline: view()) {
-    .steps-line {
-      animation: draw-x linear both;
-      animation-timeline: view();
-      animation-range: entry 60% cover 55%;
-    }
-    /* Yellow panel: the three headline lines ink in one after another. */
-    .ink-lines > span {
-      animation: ink-line linear both;
-      animation-timeline: view();
-    }
-    .ink-lines > span:nth-child(1) {
-      animation-range: entry 40% cover 30%;
-    }
-    .ink-lines > span:nth-child(2) {
-      animation-range: entry 70% cover 38%;
-    }
-    .ink-lines > span:nth-child(3) {
-      animation-range: entry 100% cover 46%;
-    }
-    /* Stat headline: words go from muted to ink as the line crosses the viewport. */
-    .ink-on-scroll > span {
-      animation: ink-in linear both;
-      animation-timeline: view();
-      animation-range: entry 70% cover 45%;
-    }
-  }
-
   /* /map: a ring spreads from the state a gift just landed in. */
   .map-pulse {
     transform-box: fill-box;
