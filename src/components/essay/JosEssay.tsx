@@ -56,7 +56,7 @@ function Figure({ src, caption, wide }: { src: string; caption: string; wide?: b
     <figure
       className={cn(
         "my-10 flex flex-col gap-3",
-        wide ? "-mx-6 sm:mx-0 lg:-mx-[120px] xl:-mx-[150px]" : "",
+        wide ? "-mx-6 sm:mx-0 lg:-mx-[120px] xl:mx-0" : "",
       )}
     >
       <Photo
@@ -104,7 +104,7 @@ function Chapter({
 /* ─── The raise rail ──────────────────────────────────────────────────── */
 
 function useRaised(chapters: React.MutableRefObject<(HTMLElement | null)[]>) {
-  const [state, setState] = useState({ week: -1, raised: 0 });
+  const [state, setState] = useState({ week: -1, raised: 0, ended: false });
   useEffect(() => {
     let raf = 0;
     const measure = () => {
@@ -121,7 +121,10 @@ function useRaised(chapters: React.MutableRefObject<(HTMLElement | null)[]>) {
           raised = weeks[i].from + (weeks[i].to - weeks[i].from) * f;
         }
       });
-      setState({ week, raised: Math.round(raised / 1000) * 1000 });
+      // Once the last chapter has scrolled past, the rail has nothing left to track.
+      const last = chapters.current[weeks.length - 1];
+      const ended = !!last && last.getBoundingClientRect().bottom < window.innerHeight * 0.6;
+      setState({ week, raised: Math.round(raised / 1000) * 1000, ended });
     };
     const on = () => {
       if (!raf) raf = requestAnimationFrame(measure);
@@ -138,10 +141,11 @@ function useRaised(chapters: React.MutableRefObject<(HTMLElement | null)[]>) {
   return state;
 }
 
-function Rail({ week, raised }: { week: number; raised: number }) {
+function Rail({ week, raised, ended }: { week: number; raised: number; ended: boolean }) {
   const pct = Math.min(100, (raised / GOAL) * 100);
   // Sit under the site nav while it is showing (it hides on scroll down).
   const navHidden = useScrollDirection();
+  const visible = week >= 0 && !ended;
   return (
     <>
       {/* Desktop: a vertical rail beside the text. */}
@@ -149,7 +153,7 @@ function Rail({ week, raised }: { week: number; raised: number }) {
         aria-label="Amount raised so far in the story"
         className={cn(
           "fixed left-[max(24px,calc(50%-600px))] top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-4 transition-opacity duration-500 xl:flex",
-          week < 0 ? "opacity-0" : "opacity-100",
+          visible ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
         <div className="flex gap-4">
@@ -178,7 +182,7 @@ function Rail({ week, raised }: { week: number; raised: number }) {
           </ol>
         </div>
         <p className="font-gsf text-[12px] leading-[17px] text-muted-ink">
-          <span className="block font-display text-[22px] font-black leading-none text-ink tabular-nums">
+          <span className="block font-display text-[19px] font-black leading-none text-ink tabular-nums">
             {formatMoney(raised)}
           </span>
           raised of {formatMoney(GOAL)}
@@ -189,7 +193,7 @@ function Rail({ week, raised }: { week: number; raised: number }) {
       <div
         className={cn(
           "fixed inset-x-0 z-40 bg-paper/95 transition-[opacity,top] duration-300 xl:hidden",
-          week < 0 ? "pointer-events-none opacity-0" : "opacity-100",
+          visible ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         style={{ top: navHidden ? 0 : 60 }}
       >
@@ -279,7 +283,7 @@ function Receipt() {
 
 export function JosEssay() {
   const chapters = useRef<(HTMLElement | null)[]>([]);
-  const { week, raised } = useRaised(chapters);
+  const { week, raised, ended } = useRaised(chapters);
   const campaign = useApp((s) => s.campaigns.find((c) => c.id === CAMPAIGN_ID));
   const shareText = encodeURIComponent(
     "One month in Jos: how 47 children got their own beds, followed week by week on AzarFaith",
@@ -288,7 +292,7 @@ export function JosEssay() {
   return (
     <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
       <SiteNav />
-      <Rail week={week} raised={raised} />
+      <Rail week={week} raised={raised} ended={ended} />
 
       <main>
         <header className="px-6 pb-10 pt-14 sm:px-10 md:pt-24">
