@@ -19,17 +19,22 @@ function Loading({ children, label }: { children: React.ReactNode; label: string
 
 export function CampaignCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-xl border border-line-soft bg-paper p-6">
-      <Bone className="h-[240px] w-full rounded-lg" />
-      <Bone className="mt-5 h-5 w-4/5" />
-      <Bone className="mt-2 h-4 w-1/2" />
-      <div className="mt-6 flex justify-between">
-        <Bone className="h-4 w-12" />
-        <Bone className="h-4 w-28" />
+    <div className="flex flex-col overflow-hidden rounded-[20px] border border-line-soft bg-paper">
+      <Bone className="aspect-[4/3] w-full rounded-none" />
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-2">
+          <Bone className="h-3.5 w-1/2" />
+          <Bone className="h-5 w-4/5" />
+          <Bone className="h-5 w-3/5" />
+        </div>
+        <Bone className="h-2 w-full rounded-full" />
+        <div className="flex items-center gap-3 border-t border-line-soft pt-4">
+          <Bone className="h-7 w-20 rounded-full" />
+          <span className="flex-1" />
+          <Bone className="h-10 w-10 rounded-full" />
+          <Bone className="h-10 w-20 rounded-full" />
+        </div>
       </div>
-      <Bone className="mt-3 h-2 w-full rounded-full" />
-      <Bone className="mt-5 h-10 w-full" />
-      <Bone className="mt-3 h-10 w-full" />
     </div>
   );
 }
