@@ -69,14 +69,19 @@ export function PageHeader({
   lead,
   actions,
   children,
+  tabs,
 }: {
   title: ReactNode;
   lead?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  /** Tabs sit on the header's bottom line instead of drawing a second one under it. */
+  tabs?: ReactNode;
 }) {
   return (
-    <section className="border-b border-line-soft pb-10 pt-10 md:pb-12 md:pt-14">
+    <section
+      className={cn("border-b border-line-soft pt-10 md:pt-14", tabs ? "pb-0" : "pb-10 md:pb-12")}
+    >
       <Container className="flex flex-col gap-8">
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="flex max-w-[760px] flex-col gap-3">
@@ -92,6 +97,7 @@ export function PageHeader({
           ) : null}
         </div>
         {children}
+        {tabs ? <div className="-mb-px">{tabs}</div> : null}
       </Container>
     </section>
   );

@@ -53,6 +53,16 @@ function MyGiving() {
   return (
     <AppShell>
       <PageHeader
+        tabs={
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={[
+              { value: "regular", label: "Regular gifts", count: active.length },
+              { value: "history", label: "History", count: myGifts.length },
+            ]}
+          />
+        }
         title="My giving"
         lead="Your regular gifts, every past gift and its receipt."
         actions={
@@ -91,14 +101,6 @@ function MyGiving() {
             </div>
           ))}
         </dl>
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          items={[
-            { value: "regular", label: "Regular gifts", count: active.length },
-            { value: "history", label: "History", count: myGifts.length },
-          ]}
-        />
       </PageHeader>
 
       <Container className="py-8 md:py-10">
@@ -159,9 +161,17 @@ function RegularGift({ gift: g }: { gift: RecurringDonation }) {
     { label: "Since", value: g.startedAt ? shortDate(g.startedAt) : "This month" },
   ];
 
+  const status = g.paused ? (
+    <Tag>Paused</Tag>
+  ) : g.mode === "pledge" ? (
+    <Tag tone="attention">Reminder</Tag>
+  ) : (
+    <Tag tone="verified">Automatic</Tag>
+  );
+
   return (
     <article className="overflow-hidden rounded-card border border-line-soft">
-      <div className="flex items-center gap-4 p-5">
+      <div className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
         <img src={g.targetCover} alt="" className="h-12 w-12 shrink-0 rounded-field object-cover" />
         <div className="min-w-0 flex-1">
           <Link
@@ -171,17 +181,12 @@ function RegularGift({ gift: g }: { gift: RecurringDonation }) {
           >
             {g.targetName}
           </Link>
-          <p className="text-[13px] text-muted-ink">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-ink">
             {formatMoney(g.amount)} {everyLabel[g.frequency]}
+            <span className="sm:hidden">{status}</span>
           </p>
         </div>
-        {g.paused ? (
-          <Tag>Paused</Tag>
-        ) : g.mode === "pledge" ? (
-          <Tag tone="attention">Reminder</Tag>
-        ) : (
-          <Tag tone="verified">Automatic</Tag>
-        )}
+        <span className="hidden sm:block">{status}</span>
       </div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line-soft px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
         {facts.map((f) => (

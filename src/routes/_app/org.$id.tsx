@@ -75,7 +75,29 @@ function OrgProfile() {
   };
 
   return (
-    <AppShell>
+    <AppShell
+      bottomBar={
+        main ? (
+          <div className="flex items-center gap-3">
+            <p className="min-w-0 flex-1 truncate text-sm text-muted-ink">
+              <span className="font-semibold text-ink">
+                {org.supporters.toLocaleString()} givers
+              </span>{" "}
+              support {org.name}
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                document.getElementById("give")?.scrollIntoView({ behavior: "smooth" })
+              }
+              className={btn("primary")}
+            >
+              Give
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="grid h-[200px] grid-cols-3 gap-1 overflow-hidden bg-panel sm:h-[260px] md:grid-cols-4 lg:h-[300px]">
         {[...photos, ...photos].slice(0, 4).map((p, i) => (
           <Photo
@@ -89,11 +111,11 @@ function OrgProfile() {
 
       <Container className="pb-16">
         <div className="flex flex-col gap-4 border-b border-line-soft pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-end gap-4">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
             <img
               src={photos[0]}
               alt=""
-              className="-mt-14 h-24 w-24 shrink-0 rounded-card object-cover ring-4 ring-paper sm:-mt-16 sm:h-28 sm:w-28"
+              className="relative -mt-12 h-20 w-20 shrink-0 rounded-card object-cover ring-4 ring-paper sm:-mt-16 sm:h-28 sm:w-28"
             />
             <div className="min-w-0 pb-1">
               <h1 className="flex flex-wrap items-center gap-2 font-display text-[clamp(26px,2.8vw,38px)] leading-tight tracking-[-0.02em] text-ink">
@@ -211,7 +233,10 @@ function OrgProfile() {
 
           <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
             {main ? (
-              <div className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+              <div
+                id="give"
+                className={cn(cardClass, "flex scroll-mt-20 flex-col gap-4 p-5 sm:p-6")}
+              >
                 <div>
                   <p className="font-display text-[22px] leading-tight text-ink">
                     Give to {org.name}

@@ -87,7 +87,7 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
         )}
       </div>
       {reviewable && blocked && size === "md" ? (
-        <p className="w-full text-right text-[12px] text-muted-ink sm:w-auto">{blocked}</p>
+        <p className="w-full text-[12px] text-muted-ink sm:w-auto sm:text-right">{blocked}</p>
       ) : null}
 
       <AdminConfirmDialog

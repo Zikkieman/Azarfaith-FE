@@ -88,7 +88,6 @@ function Manage() {
               ? "see this page as someone without an organization"
               : "see this page as ECWA Mission Board, a verified organization"}
           </button>
-          .
         </p>
       </Container>
     </AppShell>
@@ -182,14 +181,16 @@ function QuickStart() {
         <div className="flex flex-col gap-3">
           {groups.map((g) => (
             <div key={g.title} className="overflow-hidden rounded-card border border-line-soft">
-              <div className="flex items-center gap-3 px-5 py-4">
+              <div className="flex items-center gap-3 px-4 py-4 sm:px-5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-ink-soft">
                   <g.icon className="h-4 w-4" strokeWidth={1.75} />
                 </span>
-                <p className="flex-1 text-[15px] font-semibold text-ink">{g.title}</p>
-                <span className="text-[13px] text-muted-ink">
-                  {g.steps.length} step{g.steps.length > 1 ? "s" : ""} to do
-                </span>
+                <p className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                  <span className="text-[15px] font-semibold text-ink">{g.title}</span>
+                  <span className="shrink-0 text-[13px] text-muted-ink">
+                    {g.steps.length} step{g.steps.length > 1 ? "s" : ""} to do
+                  </span>
+                </p>
               </div>
               <ul className="divide-y divide-line-soft border-t border-line-soft">
                 {g.steps.map((s) => {
@@ -200,7 +201,7 @@ function QuickStart() {
                         type="button"
                         onClick={() => setOpen(isOpen ? null : s.title)}
                         aria-expanded={isOpen}
-                        className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-panel/50"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel/50 sm:px-5"
                       >
                         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-dashed border-line-input" />
                         <span className="flex-1 text-sm text-ink">{s.title}</span>
@@ -214,7 +215,7 @@ function QuickStart() {
                       </button>
                       <div className="expand" data-open={isOpen ? "" : undefined}>
                         <div>
-                          <div className="flex flex-col items-start gap-3 px-5 pb-4 pl-[52px]">
+                          <div className="flex flex-col items-start gap-3 pb-4 pl-[48px] pr-4 sm:pl-[52px] sm:pr-5">
                             <p className="text-sm leading-[1.6] text-ink-soft">{s.body}</p>
                             <Link to={s.to as "/create"} className={btn("primary", "sm")}>
                               {s.cta}

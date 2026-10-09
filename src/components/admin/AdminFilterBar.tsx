@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ListFilter, Search, X } from "lucide-react";
 import {
@@ -22,10 +23,42 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  // On phones the views scroll sideways: keep the chosen one in sight and fade the cut edge.
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    setEdges({
+      start: el.scrollLeft > 2,
+      end: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  };
+  useEffect(() => {
+    const el = ref.current;
+    const active = el?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (el && active) {
+      const left = active.offsetLeft - 8;
+      const right = active.offsetLeft + active.offsetWidth + 8;
+      if (left < el.scrollLeft) el.scrollLeft = left;
+      else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+    }
+    measure();
+  }, [value]);
+
   return (
     <div
+      ref={ref}
       role="tablist"
-      className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-[10px] bg-panel p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      onScroll={measure}
+      className="relative inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-[10px] bg-panel p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{
+        maskImage:
+          edges.start || edges.end
+            ? `linear-gradient(to right, ${edges.start ? "transparent, black 28px" : "black"}, ${edges.end ? "black calc(100% - 28px), transparent" : "black"})`
+            : undefined,
+      }}
     >
       {items.map((it) => {
         const active = it.value === value;

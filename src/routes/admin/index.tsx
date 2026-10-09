@@ -86,7 +86,7 @@ function AdminOverview() {
       }
       crumbs={[{ label: "Overview" }]}
     >
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Queue
           title="Organizations to verify"
           count={waitingOrgs.length}
@@ -101,7 +101,9 @@ function AdminOverview() {
               meta={
                 <span className="flex items-center gap-2">
                   Applied {orgFiles[o.id] ? timeAgo(orgFiles[o.id].submittedAt) : "recently"}
-                  <span aria-hidden>·</span>
+                  <span aria-hidden className="hidden sm:inline">
+                    ·
+                  </span>
                   <CheckMeter orgId={o.id} />
                 </span>
               }
@@ -146,15 +148,15 @@ function AdminOverview() {
             <div
               key={s.label}
               className={cn(
-                "flex flex-col gap-2 p-5",
+                "flex min-w-0 flex-col gap-2 p-4 sm:p-5",
                 i % 2 === 1 && "border-l border-line-soft",
                 i >= 2 && "border-t border-line-soft lg:border-t-0",
                 i === 2 && "lg:border-l",
               )}
             >
               <dt className="text-[13px] text-muted-ink">{s.label}</dt>
-              <dd className="flex items-baseline gap-2">
-                <span className="font-display text-[26px] leading-none tracking-[-0.02em] text-ink">
+              <dd className="flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
+                <span className="font-display text-[22px] leading-none tracking-[-0.02em] text-ink sm:text-[26px]">
                   {s.value}
                 </span>
                 {s.delta ? (
@@ -224,8 +226,8 @@ function Queue({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-card border border-line-soft">
-      <div className="flex items-center justify-between gap-3 border-b border-line-soft px-5 py-3.5">
+    <section className="flex min-w-0 flex-col rounded-card border border-line-soft">
+      <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3.5 sm:px-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
           {title}
           <span
@@ -242,7 +244,9 @@ function Queue({
           search={{ view: "pending" } as never}
           className="inline-flex items-center gap-1 text-[13px] text-muted-ink transition-colors hover:text-ink"
         >
-          Open queue <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="hidden sm:inline">Open queue</span>
+          <span className="sm:hidden">All</span>{" "}
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
         </Link>
       </div>
       {count === 0 ? (
@@ -271,14 +275,14 @@ function QueueRow({
   id: string;
 }) {
   return (
-    <li className="flex items-center gap-3 px-5 py-3">
+    <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
       <img src={image} alt="" className="h-9 w-9 shrink-0 rounded-[8px] object-cover" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{title}</p>
         <div className="truncate text-[12px] text-muted-ink">{meta}</div>
       </div>
       <Link to={to as "/admin/orgs/$id"} params={{ id }} className={btn("secondary", "sm")}>
-        <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2} /> Review
+        <BadgeCheck className="hidden h-3.5 w-3.5 sm:block" strokeWidth={2} /> Review
       </Link>
     </li>
   );

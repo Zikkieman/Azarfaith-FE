@@ -62,6 +62,7 @@ export function AdminPage({
   children,
   className,
   wide = true,
+  dock = false,
 }: {
   title: ReactNode;
   count?: number;
@@ -72,6 +73,8 @@ export function AdminPage({
   children: ReactNode;
   className?: string;
   wide?: boolean;
+  /** Pin the actions to the bottom of the screen on phones, so review pages never scroll back up. */
+  dock?: boolean;
 }) {
   const paused = useApp((s) => s.givingPaused);
   return (
@@ -84,7 +87,8 @@ export function AdminPage({
       ) : null}
       <main
         className={cn(
-          "admin-rise mx-auto flex w-full flex-col gap-6 px-5 pb-16 pt-6 sm:px-8",
+          "admin-rise mx-auto flex w-full flex-col gap-6 px-4 pb-16 pt-5 sm:px-8 sm:pt-6",
+          dock && actions && "pb-36 sm:pb-16",
           wide ? "max-w-[1400px]" : "max-w-[1040px]",
           className,
         )}
@@ -101,10 +105,19 @@ export function AdminPage({
             </h1>
             {lead ? <div className="text-sm leading-[1.55] text-muted-ink">{lead}</div> : null}
           </div>
-          {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+          {actions ? (
+            <div className={cn("flex shrink-0 flex-wrap gap-2", dock && "hidden sm:flex")}>
+              {actions}
+            </div>
+          ) : null}
         </div>
         {children}
       </main>
+      {dock && actions ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line-soft bg-paper/90 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md sm:hidden [&_.flex-wrap]:flex-nowrap [&_a]:flex-1 [&_button]:flex-1 [&_p]:text-center">
+          {actions}
+        </div>
+      ) : null}
     </>
   );
 }

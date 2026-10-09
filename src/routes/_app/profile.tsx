@@ -342,11 +342,11 @@ function PaymentSection() {
           const isDefault = c.id === preferred;
           return (
             <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <span className="grid h-9 w-12 place-items-center rounded-[6px] border border-line-soft bg-panel">
+              <span className="grid h-9 w-12 shrink-0 place-items-center rounded-[6px] border border-line-soft bg-panel">
                 <CreditCard className="h-4 w-4 text-ink-soft" strokeWidth={1.5} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-ink">
                   {c.brand} ending {c.last4}
                   {isDefault ? <Tag>Default</Tag> : null}
                 </span>
@@ -357,29 +357,33 @@ function PaymentSection() {
                     : ""}
                 </span>
               </span>
-              {!isDefault ? (
+              <span className="flex w-full items-center gap-4 pl-[60px] sm:w-auto sm:pl-0">
+                {!isDefault ? (
+                  <button
+                    type="button"
+                    onClick={() => setPreferred(c.id)}
+                    className={btn("quiet", "sm")}
+                  >
+                    Make default
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setPreferred(c.id)}
-                  className={btn("quiet", "sm")}
+                  disabled={isDefault}
+                  title={
+                    isDefault
+                      ? "Make another card the default before removing this one."
+                      : undefined
+                  }
+                  onClick={() => {
+                    setCards(cards.filter((x) => x.id !== c.id));
+                    toast(`${c.brand} ending ${c.last4} removed`);
+                  }}
+                  className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
                 >
-                  Make default
+                  Remove
                 </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={isDefault}
-                title={
-                  isDefault ? "Make another card the default before removing this one." : undefined
-                }
-                onClick={() => {
-                  setCards(cards.filter((x) => x.id !== c.id));
-                  toast(`${c.brand} ending ${c.last4} removed`);
-                }}
-                className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
-              >
-                Remove
-              </button>
+              </span>
             </li>
           );
         })}

@@ -124,7 +124,7 @@ export function CommandPalette() {
 
   return (
     <Dialog open={paletteOpen} onOpenChange={setPaletteOpen}>
-      <DialogContent className="top-[18%] max-w-[600px] translate-y-0 gap-0 overflow-hidden p-0 sm:p-0 [&>button]:hidden">
+      <DialogContent className="top-[18%] max-w-[600px] translate-y-0 gap-0 overflow-hidden p-0 sm:p-0 max-sm:inset-x-3 max-sm:bottom-auto max-sm:top-3 max-sm:w-auto max-sm:rounded-card max-sm:border max-sm:pb-0 [&>button]:hidden">
         <DialogTitle className="sr-only">Search</DialogTitle>
         <div className="flex items-center gap-3 border-b border-line-soft px-4">
           <Search className="h-[18px] w-[18px] shrink-0 text-muted-ink" strokeWidth={1.75} />
@@ -145,11 +145,18 @@ export function CommandPalette() {
               }
             }}
             placeholder="Search organizations, campaigns, people or pages"
-            className="h-14 flex-1 bg-transparent font-gsf text-[15px] text-ink placeholder:text-subtle focus:outline-none"
+            className="h-14 min-w-0 flex-1 bg-transparent font-gsf text-[15px] text-ink placeholder:text-subtle focus:outline-none"
           />
-          <kbd className="rounded-[5px] border border-line-soft bg-panel px-1.5 py-0.5 font-gsf text-[11px] text-muted-ink">
+          <kbd className="hidden rounded-[5px] border border-line-soft bg-panel px-1.5 py-0.5 font-gsf text-[11px] text-muted-ink sm:block">
             esc
           </kbd>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(false)}
+            className="font-gsf text-sm font-medium text-ink-soft sm:hidden"
+          >
+            Cancel
+          </button>
         </div>
 
         <div className="max-h-[min(420px,60vh)] overflow-y-auto p-2 font-gsf">
@@ -212,7 +219,7 @@ export function CommandPalette() {
           )}
         </div>
 
-        <div className="flex items-center gap-4 border-t border-line-soft bg-panel/60 px-4 py-2.5 font-gsf text-[12px] text-muted-ink">
+        <div className="hidden items-center gap-4 border-t border-line-soft bg-panel/60 px-4 py-2.5 font-gsf text-[12px] text-muted-ink sm:flex">
           <span>
             <Kbd>↑</Kbd> <Kbd>↓</Kbd> to move
           </span>

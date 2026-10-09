@@ -109,24 +109,29 @@ function AdminOrgDetail() {
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <StatusBadge status={org.verificationStatus} />
           <span>{orgCategoryLabel[org.category]}</span>
-          <span aria-hidden>·</span>
+          <span aria-hidden className="hidden sm:inline">
+            ·
+          </span>
           <span>{org.location}</span>
           {file ? (
             <>
-              <span aria-hidden>·</span>
+              <span aria-hidden className="hidden sm:inline">
+                ·
+              </span>
               <span>Applied {timeAgo(file.submittedAt)}</span>
             </>
           ) : null}
         </span>
       }
+      dock
       actions={
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:items-end">
           <OrgActions org={org} />
         </div>
       }
     >
       <div className="grid overflow-hidden rounded-card border border-line-soft lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="border-b border-line-soft bg-panel/40 px-4 py-2 lg:border-b-0 lg:border-r">
+        <aside className="border-b border-line-soft bg-panel/40 px-3 py-2 sm:px-4 lg:border-b-0 lg:border-r">
           <FieldGroup title="Organization">
             <Field icon={Building2} label="Category">
               {orgCategoryLabel[org.category]}
@@ -183,8 +188,9 @@ function AdminOrgDetail() {
           ) : null}
         </aside>
 
-        <div className="min-w-0 px-5 pb-6 pt-4 sm:px-6">
+        <div className="min-w-0 px-4 pb-6 pt-4 sm:px-6">
           <Tabs
+            className="-mx-4 px-4"
             value={tab}
             onChange={setTab}
             items={[
