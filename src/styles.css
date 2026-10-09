@@ -50,6 +50,7 @@
   --color-verified: var(--af-verified);
   --color-verified-ink: var(--af-verified-ink);
   --color-danger: var(--af-danger);
+  --color-brand-ink: var(--af-brand-ink);
   --color-paper: var(--af-paper);
   --color-panel: var(--af-panel);
   --color-panel-olive: var(--af-panel-olive);
@@ -88,6 +89,7 @@
   --af-verified: #00b67a;
   --af-verified-ink: #00875a;
   --af-danger: #d92d20;
+  --af-brand-ink: #a63a05;
   --af-btn: #000000;
   --af-btn-fg: #ffffff;
   color-scheme: light;
@@ -512,5 +514,36 @@
     100% {
       transform: scale(1);
     }
+  }
+}
+
+/* Admin: pages rise in, table rows follow, chart columns grow from the baseline. */
+@media (prefers-reduced-motion: no-preference) {
+  .admin-rise {
+    animation: admin-rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .admin-row {
+    animation: admin-row 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .bar-rise {
+    transform-origin: bottom;
+    animation: bar-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+@keyframes admin-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes admin-row {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes bar-rise {
+  from {
+    transform: scaleY(0);
   }
 }

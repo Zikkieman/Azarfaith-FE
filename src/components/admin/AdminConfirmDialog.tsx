@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,20 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { btn } from "@/components/app/btn";
 
-type AdminConfirmDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: "default" | "destructive";
-  onConfirm: () => void;
-};
-
+/** Confirm a single action. Danger actions get the red button; everything else is ink. */
 export function AdminConfirmDialog({
   open,
   onOpenChange,
@@ -29,30 +19,40 @@ export function AdminConfirmDialog({
   cancelLabel = "Cancel",
   variant = "default",
   onConfirm,
-}: AdminConfirmDialogProps) {
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "default" | "destructive";
+  onConfirm: () => void;
+  children?: ReactNode;
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+        {children}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <button type="button" className={btn("secondary")} onClick={() => onOpenChange(false)}>
             {cancelLabel}
-          </Button>
-          <Button
-            variant={variant === "destructive" ? "destructive" : "default"}
+          </button>
+          <button
+            type="button"
+            className={btn(variant === "destructive" ? "danger" : "primary")}
             onClick={() => {
               onConfirm();
               onOpenChange(false);
             }}
-            className={cn(
-              variant !== "destructive" && "bg-amber-500 hover:bg-amber-600 text-white",
-            )}
           >
             {confirmLabel}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

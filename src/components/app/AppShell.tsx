@@ -337,11 +337,13 @@ export function StatTile({ value, label }: { value: ReactNode; label: string }) 
 
 /* ─── Status ─── */
 
-type Tone = "neutral" | "brand" | "verified";
+type Tone = "neutral" | "brand" | "verified" | "attention" | "danger";
 const tones: Record<Tone, string> = {
   neutral: "bg-panel text-ink-soft",
   brand: "bg-brand text-white",
   verified: "bg-verified/10 text-verified-ink",
+  attention: "bg-brand/10 text-brand-ink",
+  danger: "bg-danger/10 text-danger",
 };
 
 /** Small status label: Automatic, Unverified, Urgent, Latest. */

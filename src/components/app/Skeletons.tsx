@@ -2,8 +2,8 @@ import { AppShell, Container } from "@/components/app/AppShell";
 import { cn } from "@/lib/utils";
 
 /** One shimmering block. Size it with Tailwind like the element it stands in for. */
-export function Bone({ className }: { className?: string }) {
-  return <div aria-hidden className={cn("skeleton rounded-lg", className)} />;
+export function Bone({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return <div aria-hidden style={style} className={cn("skeleton rounded-lg", className)} />;
 }
 
 function Loading({ children, label }: { children: React.ReactNode; label: string }) {

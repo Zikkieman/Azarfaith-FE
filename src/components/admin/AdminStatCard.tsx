@@ -1,49 +1,52 @@
+import { Link } from "@tanstack/react-router";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { CountUp } from "@/components/motion/Reveal";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown } from "lucide-react";
 
-type AdminStatCardProps = {
+type Delta = { text: string; tone: "up" | "down" | "neutral" };
+
+/** A headline number with one line of context. Links through when `to` is given. */
+export function AdminStatCard({
+  label,
+  value,
+  delta,
+  to,
+}: {
   label: string;
   value: string;
-  icon: React.ReactNode;
-  trend?: { value: string; positive: boolean };
-  className?: string;
-};
-
-export function AdminStatCard({ label, value, icon, trend, className }: AdminStatCardProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-gray-200 bg-white p-5 transition-shadow hover:shadow-md",
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-1.5 font-display text-2xl font-bold text-gray-900">{value}</p>
-        </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-          {icon}
-        </div>
-      </div>
-      {trend && (
-        <div className="mt-3 flex items-center gap-1">
-          {trend.positive ? (
-            <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-          ) : (
-            <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+  delta?: Delta;
+  to?: string;
+}) {
+  const body = (
+    <>
+      <p className="text-[13px] text-muted-ink">{label}</p>
+      <p className="mt-3 font-display text-[clamp(26px,2.2vw,32px)] leading-none tracking-[-0.02em] text-ink">
+        <CountUp value={value} />
+      </p>
+      {delta ? (
+        <p
+          className={cn(
+            "mt-3 flex items-center gap-1 text-[13px]",
+            delta.tone === "up" && "text-verified-ink",
+            delta.tone === "down" && "text-danger",
+            delta.tone === "neutral" && "text-muted-ink",
           )}
-          <span
-            className={cn(
-              "text-xs font-medium",
-              trend.positive ? "text-emerald-600" : "text-red-600",
-            )}
-          >
-            {trend.value}
-          </span>
-          <span className="text-xs text-gray-400">vs last month</span>
-        </div>
-      )}
-    </div>
+        >
+          {delta.tone === "up" ? <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} /> : null}
+          {delta.tone === "down" ? (
+            <ArrowDownRight className="h-3.5 w-3.5" strokeWidth={2} />
+          ) : null}
+          {delta.text}
+        </p>
+      ) : null}
+    </>
+  );
+  const shell = "block rounded-card border border-line-soft bg-paper p-5 transition-colors";
+  return to ? (
+    <Link to={to as "/admin"} className={cn(shell, "hover:border-line-input")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={shell}>{body}</div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,55 +7,71 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { btn } from "@/components/app/btn";
+import { inputClass, labelClass } from "@/components/app/AppShell";
+import { cn } from "@/lib/utils";
 
-type AdminRejectDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description?: string;
-  onReject: (reason: string) => void;
-};
-
+/** A destructive action that needs a written reason (reject, revoke, suspend). */
 export function AdminRejectDialog({
   open,
   onOpenChange,
   title,
-  description = "Please provide a reason for this action.",
+  description = "Give a reason. It's shared with them and kept on record.",
+  confirmLabel = "Reject",
   onReject,
-}: AdminRejectDialogProps) {
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  onReject: (reason: string) => void;
+}) {
   const [reason, setReason] = useState("");
+  const id = useId();
 
-  const handleReject = () => {
-    if (reason.trim()) {
-      onReject(reason.trim());
-      setReason("");
-      onOpenChange(false);
-    }
+  const close = (v: boolean) => {
+    if (!v) setReason("");
+    onOpenChange(v);
+  };
+
+  const submit = () => {
+    if (!reason.trim()) return;
+    onReject(reason.trim());
+    close(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Enter reason..."
-          rows={4}
-          className="resize-none"
-        />
+        <label htmlFor={id} className="flex flex-col gap-1.5">
+          <span className={labelClass}>Reason</span>
+          <textarea
+            id={id}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. The registration certificate doesn't match the organization name."
+            rows={4}
+            autoFocus
+            className={cn(inputClass, "resize-none")}
+          />
+        </label>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <button type="button" className={btn("secondary")} onClick={() => close(false)}>
             Cancel
-          </Button>
-          <Button variant="destructive" onClick={handleReject} disabled={!reason.trim()}>
-            Reject
-          </Button>
+          </button>
+          <button
+            type="button"
+            className={btn("danger")}
+            onClick={submit}
+            disabled={!reason.trim()}
+          >
+            {confirmLabel}
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,145 +1,179 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Users, Building2, Megaphone, TrendingUp, ArrowRight } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Building2, CheckCircle2, Megaphone } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { formatMoney } from "@/lib/mock";
-import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { formatCompactMoney, formatMoney } from "@/lib/mock";
+import { pending, simulateNetwork } from "@/lib/api";
+import { AdminCard, AdminPage } from "@/components/admin/AdminLayout";
 import { AdminStatCard } from "@/components/admin/AdminStatCard";
-import { AdminBarChart } from "@/components/admin/AdminBarChart";
+import { AdminColumnChart } from "@/components/admin/AdminBarChart";
 import { AdminActivityFeed } from "@/components/admin/AdminActivityFeed";
+import { AdminDashboardSkeleton } from "@/components/admin/AdminSkeletons";
 import { StatusBadge } from "@/components/admin/AdminBadge";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/admin/")({
-  component: AdminDashboard,
+  loader: () => simulateNetwork(),
+  pendingComponent: AdminDashboardSkeleton,
+  ...pending,
+  head: () => ({ meta: [{ title: "Overview — AzarFaith admin" }] }),
+  component: AdminOverview,
 });
 
-function AdminDashboard() {
-  const { users, orgs, campaigns } = useApp();
+const giftsThisWeek = [
+  { label: "Mon", value: 245000 },
+  { label: "Tue", value: 180000 },
+  { label: "Wed", value: 320000 },
+  { label: "Thu", value: 195000 },
+  { label: "Fri", value: 410000 },
+  { label: "Sat", value: 280000 },
+  { label: "Sun", value: 150000 },
+];
+
+function AdminOverview() {
+  const users = useApp((s) => s.users);
+  const orgs = useApp((s) => s.orgs);
+  const campaigns = useApp((s) => s.campaigns);
 
   const pendingOrgs = orgs.filter((o) => o.verificationStatus === "pending").length;
-  const pendingCampaigns = campaigns.filter((c) => c.verificationStatus === "pending").length;
-  const activeCampaigns = campaigns.filter((c) => c.verificationStatus === "verified").length;
+  const verifiedOrgs = orgs.filter((o) => o.verificationStatus === "verified").length;
+  const byStatus = (s: string) => campaigns.filter((c) => c.verificationStatus === s).length;
+  const pendingCampaigns = byStatus("pending");
+  const liveCampaigns = byStatus("verified");
   const totalRaised = campaigns.reduce((sum, c) => sum + c.raised, 0);
+  const weekTotal = giftsThisWeek.reduce((sum, d) => sum + d.value, 0);
+  const today = new Date().toLocaleDateString("en-NG", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
-  const donationData = [
-    { label: "Mon", value: 245000 },
-    { label: "Tue", value: 180000 },
-    { label: "Wed", value: 320000 },
-    { label: "Thu", value: 195000 },
-    { label: "Fri", value: 410000 },
-    { label: "Sat", value: 280000 },
-    { label: "Sun", value: 150000 },
-  ];
-
-  const campaignStatusData = [
-    { label: "Verified", value: activeCampaigns },
-    { label: "Pending", value: pendingCampaigns },
-    {
-      label: "Unverified",
-      value: campaigns.filter((c) => c.verificationStatus === "unverified").length,
+  const queue = [
+    pendingOrgs > 0 && {
+      icon: Building2,
+      text: `${pendingOrgs} organization${pendingOrgs > 1 ? "s" : ""} waiting for verification`,
+      to: "/admin/orgs",
     },
-  ];
+    pendingCampaigns > 0 && {
+      icon: Megaphone,
+      text: `${pendingCampaigns} campaign${pendingCampaigns > 1 ? "s" : ""} waiting for review`,
+      to: "/admin/campaigns",
+    },
+  ].filter(Boolean) as { icon: typeof Building2; text: string; to: string }[];
+
+  const statuses = [
+    { status: "verified" as const, count: liveCampaigns },
+    { status: "pending" as const, count: pendingCampaigns },
+    { status: "unverified" as const, count: byStatus("unverified") },
+    { status: "rejected" as const, count: byStatus("rejected") },
+  ].filter((s) => s.count > 0);
 
   return (
-    <AdminPageWrapper title="Dashboard">
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <AdminStatCard
-            label="Total Users"
-            value={users.length.toString()}
-            icon={<Users className="h-5 w-5" />}
-            trend={{ value: "+3 this week", positive: true }}
-          />
-          <AdminStatCard
-            label="Verified Orgs"
-            value={`${orgs.filter((o) => o.verificationStatus === "verified").length} / ${orgs.length}`}
-            icon={<Building2 className="h-5 w-5" />}
-            trend={
-              pendingOrgs > 0 ? { value: `${pendingOrgs} pending`, positive: false } : undefined
-            }
-          />
-          <AdminStatCard
-            label="Active Campaigns"
-            value={activeCampaigns.toString()}
-            icon={<Megaphone className="h-5 w-5" />}
-            trend={
-              pendingCampaigns > 0
-                ? { value: `${pendingCampaigns} pending review`, positive: false }
-                : undefined
-            }
-          />
-          <AdminStatCard
-            label="Total Raised (MTD)"
-            value={formatMoney(totalRaised)}
-            icon={<TrendingUp className="h-5 w-5" />}
-            trend={{ value: "+18% vs last month", positive: true }}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="mb-4 text-sm font-semibold text-gray-900">Donations This Week</h3>
-            <AdminBarChart data={donationData} />
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="mb-4 text-sm font-semibold text-gray-900">Campaign Status</h3>
-            <AdminBarChart data={campaignStatusData} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Pending Actions</h3>
-            </div>
-            <div className="space-y-3">
-              {pendingOrgs > 0 && (
-                <Link
-                  to="/admin/orgs"
-                  className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">
-                      {pendingOrgs} organization{pendingOrgs > 1 ? "s" : ""} awaiting verification
-                    </p>
-                    <p className="text-xs text-amber-600">Review and verify organizations</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-amber-600" />
-                </Link>
-              )}
-              {pendingCampaigns > 0 && (
-                <Link
-                  to="/admin/campaigns"
-                  className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">
-                      {pendingCampaigns} campaign{pendingCampaigns > 1 ? "s" : ""} pending
-                      moderation
-                    </p>
-                    <p className="text-xs text-amber-600">Review and approve campaigns</p>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-amber-600" />
-                </Link>
-              )}
-              {pendingOrgs === 0 && pendingCampaigns === 0 && (
-                <p className="py-6 text-center text-sm text-gray-500">
-                  No pending actions. All caught up!
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Recent Activity</h3>
-            </div>
-            <AdminActivityFeed />
-          </div>
-        </div>
+    <AdminPage title="Overview" lead={today}>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatCard
+          label="Users"
+          value={users.length.toString()}
+          delta={{ text: "3 joined this week", tone: "up" }}
+          to="/admin/users"
+        />
+        <AdminStatCard
+          label="Verified organizations"
+          value={`${verifiedOrgs} of ${orgs.length}`}
+          delta={
+            pendingOrgs > 0
+              ? { text: `${pendingOrgs} waiting for review`, tone: "neutral" }
+              : undefined
+          }
+          to="/admin/orgs"
+        />
+        <AdminStatCard
+          label="Live campaigns"
+          value={liveCampaigns.toString()}
+          delta={
+            pendingCampaigns > 0
+              ? { text: `${pendingCampaigns} waiting for review`, tone: "neutral" }
+              : undefined
+          }
+          to="/admin/campaigns"
+        />
+        <AdminStatCard
+          label="Given this month"
+          value={formatMoney(totalRaised)}
+          delta={{ text: "18% more than last month", tone: "up" }}
+        />
       </div>
-    </AdminPageWrapper>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <AdminCard
+          title="Gifts this week"
+          action={<span className="text-sm text-muted-ink">{formatMoney(weekTotal)} in total</span>}
+          className="lg:col-span-2"
+        >
+          <AdminColumnChart
+            data={giftsThisWeek}
+            format={formatCompactMoney}
+            label="Gifts received each day this week, in naira"
+          />
+        </AdminCard>
+
+        <AdminCard title="Needs your attention">
+          {queue.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <CheckCircle2 className="h-6 w-6 text-verified" strokeWidth={1.75} />
+              <p className="text-sm text-ink-soft">Nothing is waiting. You're up to date.</p>
+            </div>
+          ) : (
+            <ul className="-mx-2 flex flex-col">
+              {queue.map((q) => (
+                <li key={q.to}>
+                  <Link
+                    to={q.to as "/admin"}
+                    className="group flex items-center gap-3 rounded-field px-2 py-3 transition-colors hover:bg-panel"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand/10 text-brand-ink">
+                      <q.icon className="h-4 w-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-medium text-ink">{q.text}</span>
+                    <ArrowRight
+                      className="h-4 w-4 text-muted-ink transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-ink"
+                      strokeWidth={2}
+                    />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </AdminCard>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <AdminCard title="Campaigns by status">
+          <ul className="flex flex-col gap-4">
+            {statuses.map((s) => {
+              const share = Math.round((s.count / campaigns.length) * 100);
+              return (
+                <li key={s.status} className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={s.status} />
+                    <span className="text-sm text-ink-soft">
+                      <span className="font-semibold text-ink">{s.count}</span> ({share}%)
+                    </span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
+                    <div
+                      className="h-full rounded-full bg-ink transition-[width] duration-700 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
+                      style={{ width: `${share}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </AdminCard>
+
+        <AdminCard title="Recent activity" className="lg:col-span-2">
+          <AdminActivityFeed />
+        </AdminCard>
+      </div>
+    </AdminPage>
   );
 }

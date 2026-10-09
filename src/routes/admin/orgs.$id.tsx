@@ -1,254 +1,237 @@
 import { useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ShieldCheck,
-  ShieldAlert,
-  Clock,
-  MapPin,
-  Calendar,
-  Users,
-  Megaphone,
-} from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Building2, Calendar, Church, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { formatMoney } from "@/lib/mock";
-import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { pending, simulateNetwork } from "@/lib/api";
+import { btn } from "@/components/app/btn";
+import { Tag } from "@/components/app/AppShell";
+import { AdminCard, AdminPage, DetailList } from "@/components/admin/AdminLayout";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
-import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
+import { AdminDetailSkeleton } from "@/components/admin/AdminSkeletons";
+import { StatusBadge } from "@/components/admin/AdminBadge";
+import { orgCategoryLabel } from "@/components/admin/labels";
 
 export const Route = createFileRoute("/admin/orgs/$id")({
+  loader: () => simulateNetwork(),
+  pendingComponent: () => <AdminDetailSkeleton label="Loading organization" />,
+  ...pending,
   component: AdminOrgDetail,
 });
 
 function AdminOrgDetail() {
   const { id } = Route.useParams();
-  const { orgs, campaigns, verifyOrg } = useApp();
-  const navigate = useNavigate();
-  const [approveDialog, setApproveDialog] = useState(false);
-  const [rejectDialog, setRejectDialog] = useState(false);
+  const orgs = useApp((s) => s.orgs);
+  const campaigns = useApp((s) => s.campaigns);
+  const verifyOrg = useApp((s) => s.verifyOrg);
+  const [verifying, setVerifying] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const org = orgs.find((o) => o.id === id);
-
   if (!org) {
     return (
-      <AdminPageWrapper title="Organization Not Found">
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-gray-500">Organization not found.</p>
-          <Link to="/admin/orgs">
-            <Button variant="ghost" className="mt-4 gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Organizations
-            </Button>
-          </Link>
-        </div>
-      </AdminPageWrapper>
+      <AdminPage
+        title="Organization not found"
+        crumbs={[{ label: "Organizations", to: "/admin/orgs" }]}
+      >
+        <AdminCard>
+          <AdminEmptyState
+            icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
+            title="This organization doesn't exist"
+            description="It may have been removed, or the link is wrong."
+            action={
+              <Link to="/admin/orgs" className={btn("secondary", "sm")}>
+                Back to organizations
+              </Link>
+            }
+          />
+        </AdminCard>
+      </AdminPage>
     );
   }
 
   const orgCampaigns = campaigns.filter((c) => c.orgId === org.id);
+  const isPending = org.verificationStatus === "pending" || org.verificationStatus === "unverified";
+  const isVerified = org.verificationStatus === "verified";
 
   return (
-    <AdminPageWrapper title={org.name}>
-      <div className="space-y-6">
-        <Link
-          to="/admin/orgs"
-          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Organizations
-        </Link>
+    <AdminPage
+      crumbs={[{ label: "Organizations", to: "/admin/orgs" }, { label: org.name }]}
+      title={
+        <span className="flex items-center gap-4">
+          <img
+            src={org.photos[0]}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-field object-cover"
+          />
+          <span className="min-w-0">{org.name}</span>
+        </span>
+      }
+      lead={
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <StatusBadge status={org.verificationStatus} />
+          <span className="inline-flex items-center gap-1.5">
+            <Building2 className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
+            {orgCategoryLabel[org.category]}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
+            {org.location}
+          </span>
+        </span>
+      }
+      actions={
+        isPending ? (
+          <>
+            <button type="button" className={btn("secondary")} onClick={() => setRejecting(true)}>
+              Reject
+            </button>
+            <button type="button" className={btn("primary")} onClick={() => setVerifying(true)}>
+              Verify organization
+            </button>
+          </>
+        ) : isVerified ? (
+          <button
+            type="button"
+            className={`${btn("secondary")} text-danger hover:border-danger`}
+            onClick={() => setRejecting(true)}
+          >
+            Revoke verification
+          </button>
+        ) : null
+      }
+    >
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <AdminCard title="About">
+            <p className="text-[15px] font-medium text-ink">{org.tagline}</p>
+            <p className="mt-2 text-[15px] leading-[1.65] text-ink-soft">{org.bio}</p>
+          </AdminCard>
 
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <img
-              src={org.photos[0]}
-              alt={org.name}
-              className="h-16 w-16 rounded-2xl object-cover"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-2xl font-bold text-gray-900">{org.name}</h2>
-                <StatusBadge status={org.verificationStatus} />
-              </div>
-              <p className="mt-1 text-sm text-gray-500">{org.tagline}</p>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {org.verificationStatus === "pending" && (
-              <>
-                <Button
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => setApproveDialog(true)}
+          <AdminCard
+            title="Photos"
+            action={<span className="text-sm text-muted-ink">{org.photos.length}</span>}
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {org.photos.map((photo, i) => (
+                <a
+                  key={i}
+                  href={photo}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block aspect-square overflow-hidden rounded-field bg-panel"
                 >
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="gap-2"
-                  onClick={() => setRejectDialog(true)}
-                >
-                  <ShieldAlert className="h-4 w-4" />
-                  Reject
-                </Button>
-              </>
-            )}
-            {org.verificationStatus === "verified" && (
-              <Button
-                variant="outline"
-                className="gap-2 text-red-600 hover:text-red-700"
-                onClick={() => setRejectDialog(true)}
-              >
-                <ShieldAlert className="h-4 w-4" />
-                Revoke Verification
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">About</h3>
-              <p className="text-sm leading-relaxed text-gray-600">{org.bio}</p>
+                  <img
+                    src={photo}
+                    alt={`${org.name}, photo ${i + 1}`}
+                    className="h-full w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-[1.03]"
+                  />
+                </a>
+              ))}
             </div>
+          </AdminCard>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Photo Gallery</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {org.photos.map((photo, i) => (
-                  <div key={i} className="aspect-square overflow-hidden rounded-lg">
-                    <img
-                      src={photo}
-                      alt={`${org.name} photo ${i + 1}`}
-                      className="h-full w-full object-cover hover:scale-105 transition duration-300"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {orgCampaigns.length > 0 && (
-              <div className="rounded-xl border border-gray-200 bg-white p-5">
-                <h3 className="mb-4 text-sm font-semibold text-gray-900">
-                  Campaigns ({orgCampaigns.length})
-                </h3>
-                <div className="space-y-3">
-                  {orgCampaigns.map((c) => (
+          <AdminCard
+            title="Campaigns"
+            action={<span className="text-sm text-muted-ink">{orgCampaigns.length}</span>}
+            bodyClassName="px-2 pb-2 sm:px-3 sm:pb-3"
+          >
+            {orgCampaigns.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-ink">No campaigns yet.</p>
+            ) : (
+              <ul className="flex flex-col">
+                {orgCampaigns.map((c) => (
+                  <li key={c.id}>
                     <Link
-                      key={c.id}
                       to="/admin/campaigns/$id"
                       params={{ id: c.id }}
-                      className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-3 rounded-field px-3 py-3 transition-colors hover:bg-panel"
                     >
                       <img
                         src={c.cover}
-                        alt={c.title}
-                        className="h-10 w-10 rounded-lg object-cover"
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-[8px] object-cover"
                       />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900">{c.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatMoney(c.raised)} raised · {c.donors} donors
-                        </p>
-                      </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {c.title}
+                        </span>
+                        <span className="block text-[13px] text-muted-ink">
+                          {formatMoney(c.raised)} from {c.donors.toLocaleString()} givers
+                        </span>
+                      </span>
                       <StatusBadge status={c.verificationStatus} />
                     </Link>
-                  ))}
-                </div>
-              </div>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
+          </AdminCard>
+        </div>
 
-          <div className="space-y-6">
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Statistics</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Total Received</span>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {formatMoney(org.totalReceived)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Supporters</span>
-                  <span className="text-sm font-semibold text-gray-900">
-                    {org.supporters.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Campaigns</span>
-                  <span className="text-sm font-semibold text-gray-900">{orgCampaigns.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Founded</span>
-                  <span className="text-sm font-semibold text-gray-900">{org.founded}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Details</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  {org.location}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Megaphone className="h-4 w-4 text-gray-400" />
-                  {org.denomination}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  Founded {org.founded}
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-900">Verification</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Status</span>
-                  <StatusBadge status={org.verificationStatus} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Category</span>
-                  <AdminBadge variant={org.category}>
-                    {org.category.charAt(0).toUpperCase() + org.category.slice(1)}
-                  </AdminBadge>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-col gap-6">
+          <AdminCard title="At a glance">
+            <DetailList
+              rows={[
+                { label: "Total received", value: formatMoney(org.totalReceived) },
+                { label: "Givers", value: org.supporters.toLocaleString() },
+                { label: "Campaigns", value: orgCampaigns.length },
+              ]}
+            />
+          </AdminCard>
+          <AdminCard title="Details">
+            <DetailList
+              rows={[
+                {
+                  label: "Denomination",
+                  value: (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Church className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
+                      {org.denomination}
+                    </span>
+                  ),
+                },
+                {
+                  label: "Founded",
+                  value: (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
+                      {org.founded}
+                    </span>
+                  ),
+                },
+                { label: "Category", value: <Tag>{orgCategoryLabel[org.category]}</Tag> },
+                { label: "Verification", value: <StatusBadge status={org.verificationStatus} /> },
+              ]}
+            />
+          </AdminCard>
         </div>
       </div>
 
       <AdminConfirmDialog
-        open={approveDialog}
-        onOpenChange={setApproveDialog}
-        title="Verify Organization"
-        description={`Are you sure you want to verify ${org.name}? They will receive a verification badge on their profile and all campaigns.`}
-        confirmLabel="Verify Organization"
+        open={verifying}
+        onOpenChange={setVerifying}
+        title={`Verify ${org.name}?`}
+        description="They get the verified tick on their profile and every campaign, and can receive gifts."
+        confirmLabel="Verify"
         onConfirm={() => {
           verifyOrg(org.id, "verified");
-          toast.success(`${org.name} has been verified`);
+          toast.success(`${org.name} is verified`);
         }}
       />
-
       <AdminRejectDialog
-        open={rejectDialog}
-        onOpenChange={setRejectDialog}
-        title={`Reject ${org.name}`}
+        open={rejecting}
+        onOpenChange={setRejecting}
+        title={isVerified ? `Revoke ${org.name}'s verification?` : `Reject ${org.name}?`}
+        confirmLabel={isVerified ? "Revoke" : "Reject"}
         onReject={(reason) => {
           verifyOrg(org.id, "rejected", reason);
-          toast.error(`${org.name} has been rejected`);
+          toast(isVerified ? `${org.name}'s verification was revoked` : `${org.name} was rejected`);
         }}
       />
-    </AdminPageWrapper>
+    </AdminPage>
   );
 }

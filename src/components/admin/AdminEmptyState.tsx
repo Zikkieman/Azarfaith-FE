@@ -1,30 +1,27 @@
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
-type AdminEmptyStateProps = {
-  icon?: React.ReactNode;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-  className?: string;
-};
-
+/** What a table or panel shows when nothing matches, with a way forward. */
 export function AdminEmptyState({
   icon,
   title,
   description,
   action,
-  className,
-}: AdminEmptyStateProps) {
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className={cn("flex flex-col items-center justify-center py-16 text-center", className)}>
-      {icon && (
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+    <div className="flex flex-col items-center gap-2 text-center font-gsf">
+      {icon ? (
+        <span className="mb-2 grid h-11 w-11 place-items-center rounded-full bg-panel text-ink-soft">
           {icon}
-        </div>
-      )}
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+        </span>
+      ) : null}
+      <p className="text-[15px] font-semibold text-ink">{title}</p>
+      {description ? <p className="max-w-sm text-sm text-muted-ink">{description}</p> : null}
+      {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );
 }

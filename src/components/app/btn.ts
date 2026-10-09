@@ -1,12 +1,13 @@
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "quiet";
+type Variant = "primary" | "secondary" | "quiet" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary: "bg-ink text-ink-contrast hover:bg-ink/90",
   secondary: "border border-line-input bg-paper text-ink hover:border-ink",
   quiet: "text-ink hover:bg-panel",
+  danger: "bg-danger text-white hover:bg-danger/90",
 };
 
 const sizes: Record<Size, string> = {

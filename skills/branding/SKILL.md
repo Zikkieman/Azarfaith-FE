@@ -179,6 +179,27 @@ Campaign tiles always use `src/components/CampaignCard.tsx`. Auth screens (`sign
 `forgot-password`) share `components/auth/AuthLayout.tsx`. Selection state is ink (`#130E30`), never
 orange; category icons are lucide (from `categories` in `lib/mock.ts`), never emoji.
 
+## 7b-ii. Admin (`/admin`, platform admins only)
+
+- Frame: `components/admin/AdminLayout.tsx` — fixed black sidebar (same black as the navs, orange
+  3px active marker, orange counts for items waiting for review), a drawer (`Sheet`) on phones, pages
+  on `bg-panel`. Every page is `AdminPage` (breadcrumbs in the sticky blurred top bar, then title,
+  lead, actions) and content sits in `AdminCard`s; detail rows use `DetailList`.
+- Tables: always `AdminTable` (sortable headers, whole-row click, a labelled "…" `RowMenu`, staggered
+  rows, "Showing 1–8 of 12" pagination). Filters: status as underline `Tabs` with counts, then
+  `AdminToolbar` (search + `AdminSelect`). List routes are `*.index.tsx` so detail routes render.
+- Status words come from `AdminBadge.tsx` (`StatusBadge`, `AccountBadge`, `RoleBadge`,
+  `UrgencyBadge`) on the kit `Tag` tones `verified` / `attention` / `danger` / `neutral`; only high
+  and critical urgency get colour.
+- Modals: `AdminConfirmDialog` (ink or danger button) and `AdminRejectDialog` (written reason). The
+  shared `ui/dialog`, `ui/alert-dialog` and `ui/sheet` overlays blur the page (`bg-ink/25
+  backdrop-blur`) and ease in with `cubic-bezier(0.2,0.7,0.2,1)`.
+- Charts follow the dataviz skill: one ink series, 4px tops, hover values, peak labelled, a hidden
+  table for screen readers. A few counts are a list, not a chart.
+- Each admin route has `loader: simulateNetwork` + a skeleton from `AdminSkeletons.tsx`. Pages rise in
+  (`.admin-rise`); fixed overlays inside a page portal to `<body>` (the rise transform would pin them).
+- Icons are plain lucide line icons. No sparkles, no emoji, no dollar signs (use `HandCoins`).
+
 ## 7c. Tokens, navs and motion
 
 - **Light only.** No dark mode. Colours are semantic tokens defined once in `src/styles.css` (`:root`):

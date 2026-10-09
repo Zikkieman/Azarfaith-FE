@@ -1,103 +1,93 @@
-import { Link, useMatchRoute } from "@tanstack/react-router";
-import {
-  LayoutDashboard,
-  Building2,
-  Megaphone,
-  Users,
-  Settings,
-  ArrowLeft,
-  Shield,
-  X,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { ArrowUpRight, Building2, LayoutGrid, Megaphone, Settings2, Users } from "lucide-react";
+import logo from "@/assets/landing/logo.svg";
 import { useApp } from "@/lib/store";
-import { useSidebar } from "./AdminLayout";
+import { me } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/admin" as const },
+  { label: "Overview", icon: LayoutGrid, to: "/admin" as const },
   { label: "Organizations", icon: Building2, to: "/admin/orgs" as const },
   { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns" as const },
   { label: "Users", icon: Users, to: "/admin/users" as const },
-  { label: "Settings", icon: Settings, to: "/admin/settings" as const },
+  { label: "Settings", icon: Settings2, to: "/admin/settings" as const },
 ];
 
+/** Black sidebar, matching the site and app navs. Pending counts sit beside their section. */
 export function AdminSidebar() {
-  const matchRoute = useMatchRoute();
-  const { orgs, campaigns } = useApp();
-  const { setOpen } = useSidebar();
-
-  const pendingOrgs = orgs.filter((o) => o.verificationStatus === "pending").length;
-  const pendingCampaigns = campaigns.filter((c) => c.verificationStatus === "pending").length;
-
-  const handleNavClick = () => setOpen(false);
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const pendingOrgs = useApp(
+    (s) => s.orgs.filter((o) => o.verificationStatus === "pending").length,
+  );
+  const pendingCampaigns = useApp(
+    (s) => s.campaigns.filter((c) => c.verificationStatus === "pending").length,
+  );
+  const counts: Record<string, number> = {
+    "/admin/orgs": pendingOrgs,
+    "/admin/campaigns": pendingCampaigns,
+  };
 
   return (
-    <aside className="flex h-full w-60 flex-col bg-gray-950">
-      <div className="flex h-16 items-center justify-between border-b border-gray-800 px-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-            <Shield className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-display text-lg font-bold text-white">AzarFaith</span>
-          <span className="ml-1 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
-            ADMIN
-          </span>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white lg:hidden"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <aside className="flex h-full flex-col bg-black px-3 pb-4 pt-5 font-gsf text-white">
+      <div className="flex items-center gap-2.5 px-3 pb-8">
+        <img src={logo} alt="AzarFaith" className="h-[22px] w-auto" />
+        <span className="text-[13px] text-white/50">Admin</span>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex flex-1 flex-col gap-0.5">
         {navItems.map((item) => {
-          const isActive =
+          const active =
             item.to === "/admin"
-              ? matchRoute({ to: "/admin", fuzzy: true }) === "/admin"
-              : matchRoute({ to: item.to }) !== false;
-
-          const badge =
-            item.to === "/admin/orgs"
-              ? pendingOrgs
-              : item.to === "/admin/campaigns"
-                ? pendingCampaigns
-                : 0;
-
+              ? path === "/admin" || path === "/admin/"
+              : path === item.to || path.startsWith(`${item.to}/`);
+          const count = counts[item.to] ?? 0;
           return (
             <Link
               key={item.to}
               to={item.to}
-              onClick={handleNavClick}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-amber-500/10 text-amber-400"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white",
+                "group relative flex h-10 items-center gap-3 rounded-field px-3 text-[14px] font-medium transition-colors duration-200",
+                active
+                  ? "bg-white/10 text-white"
+                  : "text-white/60 hover:bg-white/5 hover:text-white",
               )}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand transition-opacity duration-200",
+                  active ? "opacity-100" : "opacity-0",
+                )}
+              />
+              <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
               <span className="flex-1">{item.label}</span>
-              {badge > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-                  {badge}
+              {count > 0 ? (
+                <span
+                  aria-label={`${count} waiting for review`}
+                  className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-semibold text-white"
+                >
+                  {count}
                 </span>
-              )}
+              ) : null}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-gray-800 p-3">
+      <div className="flex flex-col gap-1 border-t border-white/10 pt-4">
         <Link
           to="/"
-          onClick={handleNavClick}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+          className="flex h-10 items-center gap-3 rounded-field px-3 text-[14px] font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Site</span>
+          <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} /> View website
         </Link>
+        <div className="flex items-center gap-3 px-3 pt-3">
+          <img src={me.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium text-white">{me.name}</p>
+            <p className="text-[12px] text-white/50">Platform admin</p>
+          </div>
+        </div>
       </div>
     </aside>
   );
