@@ -37,6 +37,7 @@ type Draft = {
   goal?: number;
   urgency?: Campaign["urgency"];
   cover?: string;
+  gallery?: string[];
   frequencies?: Campaign["frequencies"];
   needs?: string[];
 };
@@ -66,6 +67,9 @@ type State = {
 
   orgs: Org[];
   addOrg: (o: Org) => void;
+  /** The organization the signed-in user runs (null until they register one). */
+  myOrgId: string | null;
+  setMyOrgId: (id: string | null) => void;
   orgDraft: OrgDraft;
   setOrgDraft: (d: Partial<OrgDraft>) => void;
   resetOrgDraft: () => void;
@@ -141,7 +145,9 @@ export const useApp = create<State>((set) => ({
   resetDraft: () => set({ draft: {} }),
 
   orgs: orgSeed,
-  addOrg: (o) => set((s) => ({ orgs: [o, ...s.orgs] })),
+  addOrg: (o) => set((s) => ({ orgs: [o, ...s.orgs], myOrgId: o.id })),
+  myOrgId: null,
+  setMyOrgId: (id) => set({ myOrgId: id }),
   orgDraft: {},
   setOrgDraft: (d) => set((s) => ({ orgDraft: { ...s.orgDraft, ...d } })),
   resetOrgDraft: () => set({ orgDraft: {} }),

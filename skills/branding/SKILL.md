@@ -198,8 +198,19 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
   can't be removed), security, and Close account blocked while regular gifts run, with the reason.
 - **Org page** (Buy Me a Coffee): photo mosaic cover, About, campaigns, recent givers with their
   messages; sticky give box plus "Become a regular giver" tiers.
-- **Set-up flows** (`OnboardingShell`, GlideOS): register org and start a campaign run in one focused
-  card, step dashes on the left, a live preview over a photo on the right, Save and exit on top.
+- **Register org** (`OnboardingShell`, GlideOS): one focused card, step dashes on the left, a live
+  preview over a photo on the right, Save and exit on top.
+- **Manage** (`/dashboard`, Optimal Workshop): with no organization it's a quick start guide: grouped
+  steps that expand to one line and one button, and on the right the org status and "Learn the
+  basics" links. With one it's a desk: org row, review progress while unverified, a stats strip,
+  campaigns (status tag, givers, a stale-update warning, segmented progress), recent gifts with
+  "Say thanks", and on the right the payout balance and a to-do list.
+- **New campaign** (`/create`, Rezi builder and Gamma templates): one page, no app nav. Top bar with
+  close, Draft tag, Saved status and Submit for review. Left rail: a strength ring and the
+  Required / Recommended checklist, each item jumps to its section. Middle: templates (they fill the
+  basics and a bracketed story outline), Basics, Story, Photos, Goal or Regular giving,
+  Organization. Right: live preview as the page or the card (a sheet on phones). Submit with gaps
+  shows the errors and scrolls to the first; success is a "Submitted for review" timeline.
 
 ## 7b-ii. Admin (`/admin`, platform admins only)
 

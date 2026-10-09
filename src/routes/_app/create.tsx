@@ -1,539 +1,1101 @@
-import placeholderCover from "@/assets/placeholder-cover.svg";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
-  Briefcase,
+  AlertCircle,
+  Ambulance,
   Check,
   ChevronDown,
-  Flame,
-  HandCoins,
+  Circle,
+  Eye,
+  FileText,
+  HeartHandshake,
+  Home,
   ImagePlus,
-  Package,
+  Plus,
   Repeat2,
   Siren,
-  Target,
-  Users,
+  Trash2,
+  Warehouse,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  AppShell,
-  ChoiceCard,
-  Container,
-  FieldError,
-  FlowTitle,
-  Notice,
-  OptionButton,
-  Tag,
-  inputClass,
-  labelClass,
-  pageTitleClass,
-} from "@/components/app/AppShell";
-import { btn, btnPrimary, btnSecondary } from "@/components/app/btn";
-import { useApp } from "@/lib/store";
-import { categories, formatMoney, me, type Campaign } from "@/lib/mock";
+import placeholderCover from "@/assets/placeholder-cover.svg";
+import { AuthLogo } from "@/components/auth/AuthLogo";
 import { CampaignCard } from "@/components/CampaignCard";
-import { OnboardingShell } from "@/components/app/OnboardingShell";
+import { Segments } from "@/components/app/Segments";
+import { FieldError, Tag, inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useApp } from "@/lib/store";
+import { categories, formatMoney, me, type Campaign, type Category } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/create")({
-  head: () => ({ meta: [{ title: "Start a campaign — AzarFaith" }] }),
+  head: () => ({ meta: [{ title: "New campaign — AzarFaith" }] }),
   component: CreateCampaign,
 });
 
-const campaignTypes = [
-  { v: "money", label: "Raise funds", desc: "A money goal for one need", icon: HandCoins },
+type Draft = ReturnType<typeof useApp.getState>["draft"];
+
+/** Templates (after Gamma's create-from-template): each sets the basics and a story outline. */
+const templates: {
+  key: string;
+  label: string;
+  line: string;
+  icon: LucideIcon;
+  set: Partial<Draft>;
+  outline: string;
+}[] = [
   {
-    v: "item",
-    label: "Request items",
-    desc: "Beds, books, food, building materials",
-    icon: Package,
+    key: "building",
+    label: "Building project",
+    line: "A roof, a hall, a classroom",
+    icon: Warehouse,
+    set: { mode: "one-time", type: "money", faithCategory: "Church Building", urgency: "medium" },
+    outline:
+      "Who we are: [your church or ministry, and how long you've served here]\n\nWhat we're building: [the project, in one sentence]\n\nWhat it costs: [the main items and their prices, e.g. 120 bags of cement at ₦9,500]\n\nWhy now: [what happens if it waits]\n\nHow we'll report back: [photos at each stage, receipts]",
   },
-  { v: "volunteer", label: "Find volunteers", desc: "People to give their time", icon: Users },
   {
-    v: "professional",
-    label: "Professional help",
-    desc: "Doctors, builders, teachers, lawyers",
-    icon: Briefcase,
+    key: "monthly",
+    label: "Monthly support",
+    line: "Missionaries, pastors, outreach",
+    icon: Repeat2,
+    set: {
+      mode: "ongoing",
+      type: "money",
+      faithCategory: "Missions & Outreach",
+      frequencies: ["monthly"],
+    },
+    outline:
+      "Who we are: [the ministry and the people you serve]\n\nWhat regular gifts pay for: [salaries, fuel, food, rent, with monthly amounts]\n\nWhat a month looks like: [one real story from last month]\n\nHow we'll keep you posted: [a monthly update with photos]",
   },
-  { v: "emergency", label: "Emergency", desc: "Urgent help after a crisis", icon: Siren },
+  {
+    key: "children",
+    label: "Children's home",
+    line: "Beds, food, school fees",
+    icon: Home,
+    set: { mode: "one-time", type: "money", faithCategory: "Orphanage", urgency: "high" },
+    outline:
+      "Who we care for: [how many children, ages, and how they came to you]\n\nWhat they need: [the need, with numbers, e.g. 20 bunk beds at ₦60,000]\n\nWhy it matters now: [what changes for the children]\n\nHow we'll report back: [photos once it's done, receipts]",
+  },
+  {
+    key: "emergency",
+    label: "Emergency relief",
+    line: "After violence, floods, fire",
+    icon: Siren,
+    set: { mode: "one-time", type: "emergency", faithCategory: "Emergency", urgency: "critical" },
+    outline:
+      "What happened: [the event, where and when]\n\nWho is affected: [how many families and where they are now]\n\nWhat we need right now: [food, water, shelter, with costs]\n\nWho is on the ground: [the church or team handing out help]",
+  },
+  {
+    key: "medical",
+    label: "Medical outreach",
+    line: "Clinics, medicine, surgery",
+    icon: Ambulance,
+    set: { mode: "one-time", type: "money", faithCategory: "Medical Mission", urgency: "high" },
+    outline:
+      "Who we serve: [the community and what care they lack]\n\nWhat we'll do: [the outreach, how many days, how many people]\n\nWhat it costs: [medicines, staff, transport, with amounts]\n\nHow we'll report back: [numbers seen and treated, photos]",
+  },
+  {
+    key: "blank",
+    label: "Start blank",
+    line: "Write it your way",
+    icon: FileText,
+    set: {},
+    outline: "",
+  },
+];
+
+const types = [
+  { v: "money", label: "Money for a goal" },
+  { v: "item", label: "Items" },
+  { v: "volunteer", label: "Volunteers" },
+  { v: "professional", label: "Professional help" },
+  { v: "emergency", label: "Emergency relief" },
 ] as const;
 
-const urgencyOptions = [
-  { v: "low", label: "Low", desc: "No rush, we'll get there" },
-  { v: "medium", label: "Medium", desc: "An active need, not critical" },
-  { v: "high", label: "High", desc: "We need this soon" },
-  { v: "critical", label: "Critical", desc: "An emergency, act now" },
-] as const;
+const samplePhotos = [
+  "1609532587710-b00027c0594b",
+  "1604072366376-63d46248927e",
+  "1521493959102-bdd6677fdd81",
+  "1509099927777-1b8a87bc3b21",
+  "1553775927-a071d5a6a39a",
+].map((id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=80`);
 
-const frequencyOptions = [
-  { v: "weekly", label: "Weekly" },
-  { v: "monthly", label: "Monthly" },
-  { v: "quarterly", label: "Quarterly" },
-] as const;
+type Requirement = { key: string; label: string; ok: boolean; required: boolean; target: string };
 
+function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
+  const story = d.story ?? "";
+  const filled = story && !story.includes("[");
+  return [
+    {
+      key: "kind",
+      label: "Choose one-time or ongoing",
+      ok: Boolean(d.mode),
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "title",
+      label: "Give it a title",
+      ok: (d.title ?? "").trim().length >= 8,
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "cause",
+      label: "Pick a cause and a place",
+      ok: Boolean(d.faithCategory && d.location?.trim()),
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "story",
+      label: "Tell the story",
+      ok: story.trim().length >= 120 && Boolean(filled),
+      required: true,
+      target: "story",
+    },
+    d.mode === "ongoing"
+      ? {
+          key: "freq",
+          label: "Choose how often people give",
+          ok: Boolean(d.frequencies?.length),
+          required: true,
+          target: "goal",
+        }
+      : {
+          key: "goal",
+          label: "Set a goal",
+          ok: Boolean(d.type && d.type !== "money") || (d.goal ?? 0) >= 1000,
+          required: true,
+          target: "goal",
+        },
+    {
+      key: "cover",
+      label: "Add a cover photo",
+      ok: Boolean(d.cover),
+      required: false,
+      target: "photos",
+    },
+    {
+      key: "photos",
+      label: "Add 3 or more photos",
+      ok: (d.gallery?.length ?? 0) + (d.cover ? 1 : 0) >= 3,
+      required: false,
+      target: "photos",
+    },
+    {
+      key: "numbers",
+      label: "Put numbers in the story",
+      ok: /\d/.test(story.replace(/\[[^\]]*\]/g, "")),
+      required: false,
+      target: "story",
+    },
+    {
+      key: "org",
+      label: "Link a verified organization",
+      ok: Boolean(d.orgId) && orgVerified,
+      required: false,
+      target: "org",
+    },
+  ];
+}
+
+/**
+ * New campaign as one page (after Rezi's builder and Gamma's templates): templates up top, the
+ * form in sections, a strength meter that says what's missing, and a live preview of the page.
+ */
 function CreateCampaign() {
   const nav = useNavigate();
-  const { draft, setDraft, resetDraft, addCampaign, orgs } = useApp();
-  const [step, setStep] = useState(0);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [publishing, setPublishing] = useState(false);
+  const draft = useApp((s) => s.draft);
+  const setDraft = useApp((s) => s.setDraft);
+  const resetDraft = useApp((s) => s.resetDraft);
+  const addCampaign = useApp((s) => s.addCampaign);
+  const orgs = useApp((s) => s.orgs);
+  const [template, setTemplate] = useState<string | null>(null);
+  const [saved, setSaved] = useState<"saved" | "saving">("saved");
+  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<Campaign | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+  const first = useRef(true);
 
-  useEffect(() => setErrors({}), [draft]);
+  const org = draft.orgId ? orgs.find((o) => o.id === draft.orgId) : undefined;
+  const checks = checksFor(draft, org?.verificationStatus === "verified");
+  const required = checks.filter((c) => c.required);
+  const missing = required.filter((c) => !c.ok);
+  const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
 
-  const isOngoing = draft.mode === "ongoing";
-  const steps = isOngoing
-    ? ["Kind", "Need", "Story", "Details", "Frequency", "Preview"]
-    : ["Kind", "Need", "Story", "Details", "Preview"];
-  const isPreview = step === steps.length - 1;
-
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (step === 0 && !draft.mode) e.mode = "Choose the kind of campaign";
-    if (step === 1 && !draft.type) e.type = "Choose what you're asking for";
-    if (step === 2) {
-      if (!draft.title?.trim() || draft.title.length < 8)
-        e.title = "The title needs at least 8 characters";
-      if (!draft.story?.trim() || draft.story.length < 30)
-        e.story = "The story needs at least 30 characters";
+  // "Saving… Saved" as they type, like any document editor.
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
     }
-    if (step === 3) {
-      if (!draft.faithCategory) e.faithCategory = "Choose a cause";
-      if (!draft.location?.trim()) e.location = "Add a location";
-      if (!isOngoing && draft.type === "money" && (!draft.goal || draft.goal < 1000))
-        e.goal = "The goal needs to be at least ₦1,000";
-    }
-    if (step === 4 && isOngoing && !draft.frequencies?.length)
-      e.frequencies = "Choose at least one frequency";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setSaved("saving");
+    const t = setTimeout(() => setSaved("saved"), 700);
+    return () => clearTimeout(t);
+  }, [draft]);
+
+  const pick = (key: string) => {
+    const t = templates.find((x) => x.key === key)!;
+    const hasStory = (draft.story ?? "").trim().length > 0;
+    setTemplate(key);
+    setDraft({ ...t.set, story: hasStory ? draft.story : t.outline });
+    if (hasStory && t.outline) toast("Template applied. Your story was kept as it is");
   };
 
-  const next = () => {
-    if (validate()) setStep((s) => s + 1);
-  };
-  const back = () => setStep((s) => Math.max(0, s - 1));
-  const saveDraft = () => toast("Draft saved");
+  const jump = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const publish = () => {
-    setPublishing(true);
+  const submit = () => {
+    if (missing.length) {
+      setShowErrors(true);
+      jump(missing[0].target);
+      toast.error(`${missing.length} thing${missing.length > 1 ? "s" : ""} to finish first`);
+      return;
+    }
+    setSubmitting(true);
     setTimeout(() => {
       const campaign: Campaign = {
         id: `gfc${Math.random().toString(36).slice(2)}`,
         mode: draft.mode!,
-        type: draft.type!,
+        type: draft.type ?? "money",
         title: draft.title!,
         story: draft.story!,
         faithCategory: draft.faithCategory!,
         orgId: draft.orgId,
-        raiser: {
-          name: "Tunde Adebayo",
-          avatar:
-            "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=200&q=80",
-          location: draft.location!,
-          trustScore: 86,
-        },
+        raiser: { name: me.name, avatar: me.avatar, location: draft.location!, trustScore: 86 },
         cover: draft.cover ?? placeholderCover,
-        gallery: [],
-        goal: isOngoing ? undefined : draft.goal,
+        gallery: draft.gallery ?? [],
+        goal: draft.mode === "ongoing" ? undefined : draft.goal,
         raised: 0,
         donors: 0,
         currency: "NGN",
         location: draft.location!,
         urgency: draft.urgency ?? "medium",
         createdAt: new Date().toISOString().split("T")[0],
-        verificationStatus: "unverified",
+        verificationStatus: "pending",
         updates: [],
         comments: [],
         donations: [],
-        needs: draft.needs,
-        frequencies: isOngoing ? (draft.frequencies ?? ["monthly"]) : undefined,
+        frequencies: draft.mode === "ongoing" ? (draft.frequencies ?? ["monthly"]) : undefined,
       };
       addCampaign(campaign);
-      setPublishing(false);
+      setSubmitting(false);
       setDone(campaign);
+      resetDraft();
     }, 900);
   };
 
-  if (done) {
+  if (done)
     return (
-      <AppShell>
-        <Container className="flex flex-col items-center py-20 text-center md:py-28">
-          <span className="grid h-20 w-20 place-items-center rounded-full bg-brand text-white animate-pop">
-            <Check className="h-10 w-10" strokeWidth={2} />
-          </span>
-          <h1 className={`${pageTitleClass} mt-8`}>Submitted for review</h1>
-          <p className="mt-4 max-w-[540px] text-lg leading-[1.55] tracking-[-0.02em] text-ink-soft">
-            We'll let you know once it's approved, or if we need anything else from you.
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                resetDraft();
-                nav({ to: "/campaign/$id", params: { id: done.id } });
-              }}
-              className={btnPrimary}
-            >
-              View campaign
-            </button>
-            <Link to="/dashboard" onClick={() => resetDraft()} className={btnSecondary}>
-              Back to Manage
-            </Link>
-          </div>
-        </Container>
-      </AppShell>
+      <Submitted
+        campaign={done}
+        onView={() => nav({ to: "/campaign/$id", params: { id: done.id } })}
+      />
     );
-  }
+
+  const err = (key: string) =>
+    showErrors ? checks.find((c) => c.key === key && c.required && !c.ok) : undefined;
 
   return (
-    <OnboardingShell
-      steps={steps}
-      current={step}
-      exitTo="/dashboard"
-      onExit={saveDraft}
-      previewLabel="How givers will see it"
-      preview={
-        <div inert className="pointer-events-none">
-          <CampaignCard campaign={previewOf(draft, isOngoing)} />
+    <div className="min-h-screen bg-paper font-gsf text-heading">
+      <header className="sticky top-0 z-30 border-b border-line-soft bg-paper/90 backdrop-blur-md">
+        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+          <Link
+            to="/dashboard"
+            aria-label="Close"
+            className="grid h-9 w-9 place-items-center rounded-full text-ink-soft transition-colors hover:bg-panel hover:text-ink"
+          >
+            <X className="h-5 w-5" strokeWidth={1.75} />
+          </Link>
+          <span className="hidden sm:block">
+            <AuthLogo />
+          </span>
+          <span className="hidden h-5 w-px bg-line-soft sm:block" />
+          <p className="hidden min-w-0 truncate text-sm font-medium text-ink sm:block">
+            {draft.title?.trim() || "New campaign"}
+          </p>
+          <Tag>Draft</Tag>
+          <span className="hidden text-[13px] text-muted-ink md:inline">
+            {saved === "saving" ? "Saving…" : "Saved"}
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            className={cn(btn("secondary", "sm"), "lg:hidden")}
+          >
+            <Eye className="h-4 w-4" strokeWidth={1.75} /> Preview
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting}
+            title={
+              missing.length
+                ? `Still to do: ${missing.map((m) => m.label.toLowerCase()).join(", ")}`
+                : undefined
+            }
+            className={btn("primary", "sm")}
+          >
+            {submitting ? (
+              "Submitting…"
+            ) : (
+              <>
+                Submit<span className="hidden sm:inline"> for review</span>
+              </>
+            )}
+          </button>
         </div>
-      }
-      footer={
-        <>
-          {isPreview ? (
-            <button type="button" onClick={saveDraft} className={btnSecondary}>
-              Save draft
-            </button>
-          ) : step > 0 ? (
-            <button type="button" onClick={back} className={btnSecondary}>
-              Back
-            </button>
-          ) : (
-            <span />
-          )}
-          {isPreview ? (
-            <button type="button" onClick={publish} disabled={publishing} className={btnPrimary}>
-              {publishing ? "Submitting…" : "Submit for review"}
-            </button>
-          ) : (
-            <button type="button" onClick={next} className={btnPrimary}>
-              Continue
-            </button>
-          )}
-        </>
-      }
-    >
-      <div className="flex min-w-0 flex-col gap-10">
-        {step === 0 ? (
-          <Step
-            title="What kind of campaign?"
-            sub="Choose based on what your cause actually needs."
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ChoiceCard
-                selected={draft.mode === "one-time"}
-                onClick={() => setDraft({ mode: "one-time" })}
-                icon={<Target className="h-5 w-5" strokeWidth={1.5} />}
-                title="One-time campaign"
-                description="A set amount for one thing, like a roof, a vehicle or an outreach."
-              />
-              <ChoiceCard
-                selected={draft.mode === "ongoing"}
-                onClick={() => setDraft({ mode: "ongoing" })}
-                icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
-                title="Ongoing support"
-                description="Steady giving every week, month or quarter, with no end date."
-              />
-            </div>
-            <FieldError>{errors.mode}</FieldError>
-          </Step>
-        ) : null}
+      </header>
 
-        {step === 1 ? (
-          <Step
-            title="What are you asking for?"
-            sub="Even ongoing ministries can ask for more than money."
-          >
-            <div className="grid gap-3">
-              {campaignTypes.map(({ v, label, desc, icon: Icon }) => (
-                <ChoiceCard
-                  key={v}
-                  selected={draft.type === v}
-                  onClick={() => setDraft({ type: v })}
-                  icon={<Icon className="h-5 w-5" strokeWidth={1.5} />}
-                  title={label}
-                  description={desc}
-                />
-              ))}
-            </div>
-            <FieldError>{errors.type}</FieldError>
-          </Step>
-        ) : null}
-
-        {step === 2 ? (
-          <Step title="Tell your story" sub="Be specific. Real details build trust.">
-            <UploadBox label="Cover photo" hint="Add a cover photo, up to 5MB" />
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Campaign title</span>
-              <input
-                className={inputClass}
-                placeholder={
-                  isOngoing
-                    ? "e.g. Support ECWA missionaries in Borno"
-                    : "e.g. Build a church hall for ECWA Kano"
-                }
-                value={draft.title ?? ""}
-                onChange={(e) => setDraft({ title: e.target.value })}
-              />
-              <FieldError>{errors.title}</FieldError>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>
-                {isOngoing ? "Describe your ministry" : "What's the need?"}
-              </span>
-              <textarea
-                rows={6}
-                className={cn(inputClass, "resize-none")}
-                placeholder={
-                  isOngoing
-                    ? "Who you serve, what you do, and why it matters."
-                    : "The specific need, what it costs, and how gifts will be used."
-                }
-                value={draft.story ?? ""}
-                onChange={(e) => setDraft({ story: e.target.value })}
-              />
-              <FieldError>{errors.story}</FieldError>
-            </label>
-            <UploadBox label="More photos" hint="Add photos of the work, up to 5MB each" tall />
-          </Step>
-        ) : null}
-
-        {step === 3 ? (
-          <Step title="Campaign details" sub="A few details so givers know what to expect.">
-            <fieldset className="flex flex-col gap-2">
-              <legend className={`${labelClass} pb-2`}>Cause</legend>
-              <div className="flex flex-wrap gap-2">
-                {categories.map(({ label, icon: Icon }) => (
-                  <OptionButton
-                    key={label}
-                    selected={draft.faithCategory === label}
-                    onClick={() => setDraft({ faithCategory: label })}
-                    className="text-sm"
-                  >
-                    <Icon className="h-4 w-4" strokeWidth={1.5} /> {label}
-                  </OptionButton>
-                ))}
-              </div>
-              <FieldError>{errors.faithCategory}</FieldError>
-            </fieldset>
-
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>Location</span>
-              <input
-                className={inputClass}
-                placeholder="e.g. Kano, Kano State"
-                value={draft.location ?? ""}
-                onChange={(e) => setDraft({ location: e.target.value })}
-              />
-              <FieldError>{errors.location}</FieldError>
-            </label>
-
-            {!isOngoing && draft.type === "money" ? (
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Goal</span>
-                <span className="relative">
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-soft">
-                    ₦
+      <div className="grid lg:grid-cols-[264px_minmax(0,1fr)_420px]">
+        <aside className="hidden border-r border-line-soft bg-panel/40 lg:block">
+          <div className="sticky top-14 flex max-h-[calc(100vh-56px)] flex-col gap-5 overflow-y-auto p-5">
+            <Strength score={score} missing={missing.length} />
+            {[
+              { title: "Required", items: required },
+              { title: "Recommended", items: checks.filter((c) => !c.required) },
+            ].map((g) => (
+              <div key={g.title} className="flex flex-col gap-1">
+                <p className="px-2 text-[12px] font-medium text-subtle">
+                  {g.title}{" "}
+                  <span className="font-normal">
+                    {g.items.filter((c) => c.ok).length}/{g.items.length}
                   </span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    className={cn(inputClass, "pl-8")}
-                    placeholder="e.g. 8500000"
-                    value={draft.goal ?? ""}
-                    onChange={(e) => setDraft({ goal: parseInt(e.target.value) || 0 })}
+                </p>
+                <ul className="flex flex-col gap-0.5">
+                  {g.items.map((c) => (
+                    <li key={c.key}>
+                      <CheckItem check={c} onClick={() => jump(c.target)} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <main className="min-w-0 px-5 pb-24 pt-8 sm:px-10">
+          <div className="mx-auto flex max-w-[640px] flex-col gap-12">
+            <details className="group rounded-field border border-line-soft lg:hidden">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm">
+                <span className="font-medium text-ink">{score}%</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-soft">
+                  <span
+                    className={cn(
+                      "block h-full rounded-full transition-[width] duration-500",
+                      missing.length ? "bg-brand" : "bg-verified",
+                    )}
+                    style={{ width: `${score}%` }}
                   />
                 </span>
-                <FieldError>{errors.goal}</FieldError>
-              </label>
-            ) : null}
-
-            {!isOngoing ? (
-              <fieldset className="flex flex-col gap-2">
-                <legend className={`${labelClass} pb-2`}>How urgent is it?</legend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {urgencyOptions.map(({ v, label, desc }) => (
-                    <ChoiceCard
-                      key={v}
-                      selected={draft.urgency === v}
-                      onClick={() => setDraft({ urgency: v })}
-                      title={label}
-                      description={desc}
-                    />
-                  ))}
-                </div>
-              </fieldset>
-            ) : null}
-
-            <label className="flex flex-col gap-1.5">
-              <span className={labelClass}>
-                Organization <span className="font-normal text-muted-ink">(optional)</span>
-              </span>
-              <span className="relative">
-                <select
-                  className={cn(inputClass, "cursor-pointer appearance-none pr-10")}
-                  value={draft.orgId ?? ""}
-                  onChange={(e) => setDraft({ orgId: e.target.value || undefined })}
-                >
-                  <option value="">None, this is a personal campaign</option>
-                  {orgs.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
+                <span className="text-muted-ink">
+                  {missing.length ? `${missing.length} required left` : "Ready"}
+                </span>
                 <ChevronDown
-                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink"
+                  className="h-4 w-4 text-muted-ink transition-transform group-open:rotate-180"
                   strokeWidth={2}
                 />
-              </span>
-            </label>
-          </Step>
-        ) : null}
+              </summary>
+              <ul className="flex flex-col gap-0.5 border-t border-line-soft p-2">
+                {checks.map((c) => (
+                  <li key={c.key}>
+                    <CheckItem check={c} onClick={() => jump(c.target)} />
+                  </li>
+                ))}
+              </ul>
+            </details>
 
-        {step === 4 && isOngoing ? (
-          <Step title="How often can people give?" sub="Givers choose from the options you allow.">
-            <div className="flex flex-col gap-3">
-              {frequencyOptions.map(({ v, label }) => {
-                const selected = draft.frequencies?.includes(v) ?? false;
-                return (
-                  <ChoiceCard
-                    key={v}
-                    selected={selected}
-                    onClick={() => {
-                      const current = draft.frequencies ?? [];
-                      setDraft({
-                        frequencies: selected ? current.filter((f) => f !== v) : [...current, v],
-                      });
-                    }}
-                    icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
-                    title={label}
-                  />
-                );
-              })}
-            </div>
-            <FieldError>{errors.frequencies}</FieldError>
-          </Step>
-        ) : null}
-
-        {isPreview ? (
-          <Step title="Check it over" sub="This is what givers will see.">
-            <div className="flex flex-col gap-4">
-              <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-card bg-panel text-muted-ink">
-                {draft.cover ? (
-                  <img src={draft.cover} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <ImagePlus className="h-10 w-10" strokeWidth={1.5} />
-                )}
+            <Section
+              id="template"
+              title="Start from a template"
+              note="It fills in the basics and an outline for your story. You can change anything."
+            >
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {templates.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    aria-pressed={template === t.key}
+                    onClick={() => pick(t.key)}
+                    className={cn(
+                      "flex flex-col items-start gap-2 rounded-field border p-3.5 text-left transition-[border-color,box-shadow]",
+                      template === t.key
+                        ? "border-ink shadow-[0_0_0_1px_var(--color-ink)]"
+                        : "border-line-soft hover:border-line-input",
+                    )}
+                  >
+                    <t.icon className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
+                    <span>
+                      <span className="block text-sm font-medium text-ink">{t.label}</span>
+                      <span className="block text-[12px] text-muted-ink">{t.line}</span>
+                    </span>
+                  </button>
+                ))}
               </div>
-              <p className="flex flex-wrap gap-2">
-                <Tag>{isOngoing ? "Ongoing" : "One-time"}</Tag>
-                {draft.faithCategory ? <Tag>{draft.faithCategory}</Tag> : null}
-                {draft.type === "emergency" ? <Tag tone="brand">Urgent</Tag> : null}
+            </Section>
+
+            <Section id="basics" title="Basics">
+              <div className="flex flex-col gap-1.5">
+                <span className={labelClass}>Kind of campaign</span>
+                <div
+                  className="grid grid-cols-2 gap-0.5 rounded-[12px] bg-panel p-1"
+                  role="radiogroup"
+                >
+                  {(
+                    [
+                      { v: "one-time", label: "One-time", note: "A goal for one need" },
+                      { v: "ongoing", label: "Ongoing", note: "Regular monthly or weekly gifts" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      role="radio"
+                      aria-checked={draft.mode === o.v}
+                      onClick={() => setDraft({ mode: o.v })}
+                      className={cn(
+                        "flex flex-col items-start rounded-[9px] px-3 py-2 text-left transition-all",
+                        draft.mode === o.v
+                          ? "bg-paper shadow-[0_1px_2px_rgba(19,14,48,0.12)] ring-1 ring-line-soft"
+                          : "hover:bg-paper/50",
+                      )}
+                    >
+                      <span className="text-sm font-medium text-ink">{o.label}</span>
+                      <span className="text-[12px] text-muted-ink">{o.note}</span>
+                    </button>
+                  ))}
+                </div>
+                {err("kind") ? <FieldError>Choose one-time or ongoing.</FieldError> : null}
+              </div>
+
+              <label className="flex flex-col gap-1.5">
+                <span className="flex items-baseline justify-between">
+                  <span className={labelClass}>Title</span>
+                  <span
+                    className={cn(
+                      "text-[12px]",
+                      (draft.title?.length ?? 0) > 70 ? "text-danger" : "text-subtle",
+                    )}
+                  >
+                    {draft.title?.length ?? 0}/70
+                  </span>
+                </span>
+                <input
+                  value={draft.title ?? ""}
+                  maxLength={80}
+                  onChange={(e) => setDraft({ title: e.target.value })}
+                  placeholder="e.g. 20 bunk beds for new children at Grace Harvest, Jos"
+                  className={cn(inputClass, err("title") && "border-danger")}
+                />
+                <span className="text-[12px] text-muted-ink">
+                  Say what it is and where. Givers decide from the title.
+                </span>
+                {err("title") ? (
+                  <FieldError>The title needs at least 8 characters.</FieldError>
+                ) : null}
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SelectField
+                  label="Asking for"
+                  value={draft.type ?? ""}
+                  onChange={(v) =>
+                    setDraft({ type: (v || undefined) as Campaign["type"] | undefined })
+                  }
+                  options={types.map((t) => ({ value: t.v, label: t.label }))}
+                  placeholder="Choose"
+                />
+                <SelectField
+                  label="Cause"
+                  value={draft.faithCategory ?? ""}
+                  onChange={(v) =>
+                    setDraft({ faithCategory: (v || undefined) as Category | undefined })
+                  }
+                  options={categories.map((c) => ({ value: c.label, label: c.label }))}
+                  placeholder="Choose"
+                  error={err("cause") && !draft.faithCategory}
+                />
+              </div>
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Town and state</span>
+                <input
+                  value={draft.location ?? ""}
+                  onChange={(e) => setDraft({ location: e.target.value })}
+                  placeholder="e.g. Jos, Plateau State"
+                  className={cn(
+                    inputClass,
+                    err("cause") && !draft.location?.trim() && "border-danger",
+                  )}
+                />
+                {err("cause") ? (
+                  <FieldError>Pick a cause and add where the work happens.</FieldError>
+                ) : null}
+              </label>
+            </Section>
+
+            <Section
+              id="story"
+              title="Story"
+              note="The single biggest reason people give. Be specific."
+            >
+              <textarea
+                rows={12}
+                value={draft.story ?? ""}
+                onChange={(e) => setDraft({ story: e.target.value })}
+                placeholder="Who you serve, what you need and what it costs, why now, and how you'll report back."
+                className={cn(
+                  inputClass,
+                  "resize-y leading-[1.65]",
+                  err("story") && "border-danger",
+                )}
+              />
+              <div className="flex items-start justify-between gap-4">
+                <span className="text-[12px] text-muted-ink">
+                  {(draft.story ?? "").includes("[")
+                    ? "Replace the [bracketed] parts with your own words."
+                    : "Numbers help: “20 bunk beds at ₦60,000 each” beats “beds for the children”."}
+                </span>
+                <span className="shrink-0 text-[12px] text-subtle">
+                  {(draft.story ?? "").length} characters
+                </span>
+              </div>
+              {err("story") ? (
+                <FieldError>
+                  Write at least a few sentences and fill in every bracketed part.
+                </FieldError>
+              ) : null}
+            </Section>
+
+            <Section
+              id="photos"
+              title="Photos"
+              note="Real photos of the people and the place. No stock images."
+            >
+              <PhotoTile
+                label="Cover photo"
+                src={draft.cover}
+                tall
+                onAdd={() => setDraft({ cover: samplePhotos[0] })}
+                onRemove={() => setDraft({ cover: undefined })}
+              />
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                {(draft.gallery ?? []).map((p, i) => (
+                  <PhotoTile
+                    key={p}
+                    src={p}
+                    label={`Photo ${i + 1}`}
+                    onRemove={() =>
+                      setDraft({ gallery: (draft.gallery ?? []).filter((x) => x !== p) })
+                    }
+                  />
+                ))}
+                {(draft.gallery?.length ?? 0) < 4 ? (
+                  <PhotoTile
+                    label="Add"
+                    onAdd={() => {
+                      const next = samplePhotos.find(
+                        (p) => p !== draft.cover && !(draft.gallery ?? []).includes(p),
+                      );
+                      if (next) setDraft({ gallery: [...(draft.gallery ?? []), next] });
+                    }}
+                  />
+                ) : null}
+              </div>
+              <p className="text-[12px] text-subtle">
+                Prototype: adding a photo picks a sample image.
               </p>
-              <h2 className="font-display text-[clamp(24px,2.2vw,32px)] leading-[1.15] tracking-[-0.02em] text-ink">
-                {draft.title || "Your campaign title"}
-              </h2>
-              <p className="whitespace-pre-line text-[15px] leading-[1.6] text-ink-soft">
-                {draft.story}
-              </p>
-              {!isOngoing && draft.goal ? (
-                <p className="text-[15px] text-ink-soft">
-                  Goal: <span className="font-semibold text-ink">{formatMoney(draft.goal)}</span>
+            </Section>
+
+            <Section
+              id="goal"
+              title={draft.mode === "ongoing" ? "Regular giving" : "Goal"}
+              note={
+                draft.mode === "ongoing"
+                  ? "Givers choose from the options you allow."
+                  : "What the whole thing costs. Givers see how close you are."
+              }
+            >
+              {draft.mode === "ongoing" ? (
+                <div className="flex flex-wrap gap-2">
+                  {(["weekly", "monthly", "quarterly"] as const).map((f) => {
+                    const on = draft.frequencies?.includes(f) ?? false;
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() =>
+                          setDraft({
+                            frequencies: on
+                              ? (draft.frequencies ?? []).filter((x) => x !== f)
+                              : [...(draft.frequencies ?? []), f],
+                          })
+                        }
+                        className={cn(
+                          "inline-flex h-10 items-center gap-2 rounded-field border px-4 text-sm font-medium capitalize transition-colors",
+                          on
+                            ? "border-ink bg-ink text-ink-contrast"
+                            : "border-line-input hover:border-ink",
+                        )}
+                      >
+                        {on ? (
+                          <Check className="h-4 w-4" strokeWidth={2.5} />
+                        ) : (
+                          <Plus className="h-4 w-4" strokeWidth={2} />
+                        )}
+                        {f}
+                      </button>
+                    );
+                  })}
+                  {err("freq") ? <FieldError>Choose at least one.</FieldError> : null}
+                </div>
+              ) : (
+                <>
+                  {draft.type === "money" || !draft.type ? (
+                    <label className="flex max-w-[320px] flex-col gap-1.5">
+                      <span className={labelClass}>Amount needed</span>
+                      <span className="relative">
+                        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                          ₦
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={draft.goal ?? ""}
+                          onChange={(e) => setDraft({ goal: Number(e.target.value) || undefined })}
+                          placeholder="1,200,000"
+                          className={cn(inputClass, "pl-8", err("goal") && "border-danger")}
+                        />
+                      </span>
+                      {err("goal") ? <FieldError>Set a goal of at least ₦1,000.</FieldError> : null}
+                    </label>
+                  ) : (
+                    <p className="text-sm text-ink-soft">
+                      No money goal for this kind of campaign.
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <span className={labelClass}>How urgent is it?</span>
+                    <div className="grid grid-cols-2 gap-0.5 rounded-[12px] bg-panel p-1 sm:grid-cols-4">
+                      {(["low", "medium", "high", "critical"] as const).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          aria-pressed={(draft.urgency ?? "medium") === u}
+                          onClick={() => setDraft({ urgency: u })}
+                          className={cn(
+                            "h-9 rounded-[9px] text-[13px] font-medium capitalize transition-all",
+                            (draft.urgency ?? "medium") === u
+                              ? "bg-paper text-ink shadow-[0_1px_2px_rgba(19,14,48,0.12)] ring-1 ring-line-soft"
+                              : "text-muted-ink hover:text-ink",
+                          )}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[12px] text-muted-ink">
+                      Critical campaigns are shown first in Discover. Use it only for real
+                      emergencies.
+                    </span>
+                  </div>
+                </>
+              )}
+            </Section>
+
+            <Section
+              id="org"
+              title="Organization"
+              note="Campaigns from a verified organization get the green tick and are reviewed faster."
+            >
+              <SelectField
+                label="Raising for"
+                value={draft.orgId ?? ""}
+                onChange={(v) => setDraft({ orgId: v || undefined })}
+                options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+                placeholder="Myself (a personal campaign)"
+              />
+              {org && org.verificationStatus !== "verified" ? (
+                <p className="rounded-field bg-panel px-4 py-3 text-[13px] text-ink-soft">
+                  {org.name} isn't verified yet. You can submit now; the campaign goes live once
+                  they are.
                 </p>
               ) : null}
-              {isOngoing && draft.frequencies?.length ? (
-                <p className="text-[15px] capitalize text-ink-soft">
-                  {draft.frequencies.join(", ")}
-                </p>
-              ) : null}
+            </Section>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => toast("Draft saved. Find it in Manage")}
+                className={btn("secondary")}
+              >
+                Save draft
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={submitting}
+                className={btn("primary")}
+              >
+                {submitting ? "Submitting…" : "Submit for review"}
+              </button>
             </div>
-            <Notice>
-              Your campaign goes live with an <strong>unverified</strong> tag. You can ask for
-              verification from the campaign page once it's published.
-            </Notice>
-            {draft.type === "emergency" ? (
-              <Notice>
-                <Flame className="mr-1.5 inline h-4 w-4 text-brand" strokeWidth={1.5} />
-                Emergency campaigns are shown with an Urgent tag.
-              </Notice>
-            ) : null}
-          </Step>
-        ) : null}
+          </div>
+        </main>
+
+        <aside className="hidden border-l border-line-soft bg-panel/40 lg:block">
+          <div className="sticky top-14 max-h-[calc(100vh-56px)] overflow-y-auto p-6">
+            <Preview draft={draft} orgName={org?.name} />
+          </div>
+        </aside>
       </div>
-    </OnboardingShell>
-  );
-}
 
-/** The draft as a campaign, so the side panel can show the real card filling in. */
-function previewOf(
-  draft: ReturnType<typeof useApp.getState>["draft"],
-  isOngoing: boolean,
-): Campaign {
-  return {
-    id: "preview",
-    mode: draft.mode ?? "one-time",
-    type: draft.type ?? "money",
-    title: draft.title || "Your campaign title",
-    story: draft.story ?? "",
-    faithCategory: draft.faithCategory ?? categories[0].label,
-    orgId: draft.orgId,
-    raiser: { name: me.name, avatar: me.avatar, location: draft.location ?? "", trustScore: 0 },
-    cover: draft.cover ?? placeholderCover,
-    gallery: [],
-    goal: !isOngoing && draft.goal ? draft.goal : undefined,
-    raised: 0,
-    donors: 0,
-    currency: "NGN",
-    location: draft.location ?? "",
-    urgency: draft.urgency ?? "medium",
-    createdAt: "",
-    verificationStatus: "unverified",
-    updates: [],
-    comments: [],
-    donations: [],
-    frequencies: isOngoing
-      ? draft.frequencies?.length
-        ? draft.frequencies
-        : ["monthly"]
-      : undefined,
-  };
-}
-
-function Step({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <FlowTitle title={title} sub={sub} />
-      {children}
+      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+        <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-card p-5">
+          <SheetTitle className="sr-only">Preview</SheetTitle>
+          <Preview draft={draft} orgName={org?.name} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-function UploadBox({ label, hint, tall }: { label: string; hint: string; tall?: boolean }) {
+function Section({
+  id,
+  title,
+  note,
+  children,
+}: {
+  id: string;
+  title: string;
+  note?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <section id={id} className="flex scroll-mt-24 flex-col gap-4">
+      <div>
+        <h2 className="font-display text-[22px] leading-tight tracking-[-0.02em] text-ink">
+          {title}
+        </h2>
+        {note ? <p className="mt-1 text-sm text-muted-ink">{note}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  error?: unknown;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
       <span className={labelClass}>{label}</span>
-      <button
-        type="button"
-        onClick={() => toast("Photo upload is coming soon")}
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            inputClass,
+            "cursor-pointer appearance-none pr-10",
+            !value && "text-subtle",
+            error ? "border-danger" : "",
+          )}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink"
+          strokeWidth={2}
+        />
+      </span>
+    </label>
+  );
+}
+
+function PhotoTile({
+  label,
+  src,
+  tall,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  src?: string;
+  tall?: boolean;
+  onAdd?: () => void;
+  onRemove?: () => void;
+}) {
+  if (src) {
+    return (
+      <div
         className={cn(
-          "flex w-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-input bg-panel px-4 text-sm text-muted-ink transition-colors hover:border-ink hover:text-ink",
-          tall ? "h-[140px]" : "h-[96px]",
+          "group relative overflow-hidden rounded-field bg-panel",
+          tall ? "aspect-[16/9]" : "aspect-square",
         )}
       >
-        <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
-        {hint}
-      </button>
+        <img src={src} alt={label} className="h-full w-full object-cover" />
+        <span className="absolute left-2 top-2 rounded-[6px] bg-paper/90 px-1.5 py-0.5 text-[11px] font-medium text-ink">
+          {label}
+        </span>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${label.toLowerCase()}`}
+            className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-paper/90 text-ink opacity-0 transition-opacity hover:bg-paper focus:opacity-100 group-hover:opacity-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1.5 rounded-field border border-dashed border-line-input bg-panel/50 text-[13px] text-muted-ink transition-colors hover:border-ink hover:text-ink",
+        tall ? "aspect-[16/9]" : "aspect-square",
+      )}
+    >
+      <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
+      {label}
+    </button>
+  );
+}
+
+function CheckItem({ check: c, onClick }: { check: Requirement; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-2.5 rounded-[8px] px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-paper"
+    >
+      {c.ok ? (
+        <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-verified text-white">
+          <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+        </span>
+      ) : c.required ? (
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand" strokeWidth={2} />
+      ) : (
+        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-line-input" strokeWidth={2} />
+      )}
+      <span className={c.ok ? "text-muted-ink" : "text-ink"}>{c.label}</span>
+    </button>
+  );
+}
+
+/** Rezi-style score ring: how ready the campaign is, and how many required things are left. */
+function Strength({ score, missing }: { score: number; missing: number }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  const label = missing
+    ? `${missing} required left`
+    : score >= 85
+      ? "Strong and ready"
+      : "Ready to submit";
+  return (
+    <div className="flex items-center gap-3">
+      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden className="-rotate-90">
+        <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-line-soft)" strokeWidth="5" />
+        <circle
+          cx="28"
+          cy="28"
+          r={r}
+          fill="none"
+          stroke={missing ? "var(--color-brand)" : "var(--color-verified)"}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - score / 100)}
+          className="transition-[stroke-dashoffset] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
+        />
+      </svg>
+      <div>
+        <p className="font-display text-[22px] leading-none text-ink">{score}%</p>
+        <p className="mt-1 text-[13px] text-muted-ink">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function previewOf(d: Draft): Campaign {
+  return {
+    id: "preview",
+    mode: d.mode ?? "one-time",
+    type: d.type ?? "money",
+    title: d.title?.trim() || "Your campaign title",
+    story: d.story ?? "",
+    faithCategory: d.faithCategory ?? categories[0].label,
+    orgId: d.orgId,
+    raiser: { name: me.name, avatar: me.avatar, location: d.location ?? "", trustScore: 0 },
+    cover: d.cover ?? placeholderCover,
+    gallery: d.gallery ?? [],
+    goal: d.mode !== "ongoing" && d.goal ? d.goal : undefined,
+    raised: 0,
+    donors: 0,
+    currency: "NGN",
+    location: d.location ?? "",
+    urgency: d.urgency ?? "medium",
+    createdAt: "",
+    verificationStatus: "pending",
+    updates: [],
+    comments: [],
+    donations: [],
+    frequencies:
+      d.mode === "ongoing" ? (d.frequencies?.length ? d.frequencies : ["monthly"]) : undefined,
+  };
+}
+
+/** Live preview with two views: the card in Discover, and the top of the campaign page. */
+function Preview({ draft, orgName }: { draft: Draft; orgName?: string }) {
+  const [view, setView] = useState<"page" | "card">("page");
+  const c = useMemo(() => previewOf(draft), [draft]);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium text-subtle">How givers will see it</p>
+        <div className="inline-flex rounded-[9px] bg-paper p-0.5 ring-1 ring-line-soft">
+          {(["page", "card"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
+              className={cn(
+                "h-7 rounded-[7px] px-2.5 text-[12px] font-medium capitalize transition-colors",
+                view === v ? "bg-ink text-ink-contrast" : "text-muted-ink hover:text-ink",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div inert className="pointer-events-none">
+        {view === "card" ? (
+          <CampaignCard campaign={c} />
+        ) : (
+          <div className="overflow-hidden rounded-card border border-line-soft bg-paper">
+            <img src={c.cover} alt="" className="aspect-[16/10] w-full object-cover" />
+            <div className="flex flex-col gap-3 p-4">
+              <p className="flex items-center gap-1.5 text-[12px] text-muted-ink">
+                <img src={me.avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
+                {me.name}
+                {orgName ? ` for ${orgName}` : ""}
+              </p>
+              <p className="font-display text-[19px] leading-[1.2] text-ink">{c.title}</p>
+              {c.goal ? (
+                <div className="flex flex-col gap-1.5">
+                  <Segments pct={0} />
+                  <p className="text-[12px] text-muted-ink">₦0 raised of {formatMoney(c.goal)}</p>
+                </div>
+              ) : c.mode === "ongoing" ? (
+                <p className="flex items-center gap-1.5 text-[12px] text-muted-ink">
+                  <HeartHandshake className="h-3.5 w-3.5" strokeWidth={1.75} /> Regular giving:{" "}
+                  {(c.frequencies ?? []).join(", ")}
+                </p>
+              ) : null}
+              <p className="line-clamp-6 whitespace-pre-wrap text-[13px] leading-[1.6] text-ink-soft">
+                {c.story || "Your story appears here."}
+              </p>
+              {c.gallery.length ? (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {c.gallery.slice(0, 4).map((p) => (
+                    <img
+                      key={p}
+                      src={p}
+                      alt=""
+                      className="aspect-square w-full rounded-[6px] object-cover"
+                    />
+                  ))}
+                </div>
+              ) : null}
+              <span className={cn(btn("primary", "sm"), "w-full")}>Give now</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Submitted({ campaign, onView }: { campaign: Campaign; onView: () => void }) {
+  const steps = [
+    { label: "Submitted", note: "Just now", done: true },
+    { label: "We review it", note: "Usually within 1 working day", done: false },
+    { label: "It goes live", note: "We email you the moment it does", done: false },
+    { label: "Share it", note: "Your congregation first", done: false },
+  ];
+  return (
+    <div className="min-h-screen bg-panel px-6 py-10 font-gsf">
+      <div className="mx-auto flex max-w-[520px] flex-col items-center gap-6">
+        <Link to="/" aria-label="AzarFaith home">
+          <AuthLogo />
+        </Link>
+        <div className="admin-rise w-full rounded-card bg-paper p-6 shadow-[0_24px_64px_-24px_rgba(19,14,48,0.25)] sm:p-8">
+          <h1 className="font-display text-[28px] leading-tight text-ink">Submitted for review</h1>
+          <p className="mt-2 text-[15px] text-ink-soft">“{campaign.title}” is with our team.</p>
+          <ol className="mt-6 flex flex-col">
+            {steps.map((s, i) => (
+              <li key={s.label} className="relative flex gap-3 pb-5 last:pb-0">
+                {i < steps.length - 1 ? (
+                  <span
+                    aria-hidden
+                    className="absolute left-[9px] top-6 h-full w-px bg-line-soft"
+                  />
+                ) : null}
+                <span
+                  className={cn(
+                    "relative grid h-5 w-5 shrink-0 place-items-center rounded-full",
+                    s.done
+                      ? "bg-verified text-white"
+                      : "border border-dashed border-line-input bg-paper",
+                  )}
+                >
+                  {s.done ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-ink">{s.label}</span>
+                  <span className="block text-[13px] text-muted-ink">{s.note}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={onView} className={btn("primary")}>
+            View campaign
+          </button>
+          <Link to="/dashboard" className={btn("secondary")}>
+            Back to Manage
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
