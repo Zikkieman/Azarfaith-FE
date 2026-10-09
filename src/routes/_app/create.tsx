@@ -17,24 +17,22 @@ import {
 import { toast } from "sonner";
 import {
   AppShell,
-  BackLink,
   ChoiceCard,
   Container,
   FieldError,
   FlowTitle,
   Notice,
   OptionButton,
-  Stepper,
   Tag,
   inputClass,
   labelClass,
   pageTitleClass,
-  smallHeadingClass,
 } from "@/components/app/AppShell";
 import { btn, btnPrimary, btnSecondary } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { categories, formatMoney, me, type Campaign } from "@/lib/mock";
 import { CampaignCard } from "@/components/CampaignCard";
+import { OnboardingShell } from "@/components/app/OnboardingShell";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/create")({
@@ -189,315 +187,291 @@ function CreateCampaign() {
   }
 
   return (
-    <AppShell>
-      <Container className="py-10 md:py-14">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-16">
-          <div className="flex min-w-0 flex-col gap-10">
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center justify-between gap-4">
-                {step > 0 ? (
-                  <BackLink onClick={back}>Back</BackLink>
-                ) : (
-                  <BackLink to="/dashboard">Back to Manage</BackLink>
-                )}
-                <button type="button" onClick={saveDraft} className={btn("quiet", "sm")}>
-                  Save draft
-                </button>
-              </div>
-              <Stepper steps={steps} current={step} />
+    <OnboardingShell
+      steps={steps}
+      current={step}
+      exitTo="/dashboard"
+      onExit={saveDraft}
+      previewLabel="How givers will see it"
+      preview={
+        <div inert className="pointer-events-none">
+          <CampaignCard campaign={previewOf(draft, isOngoing)} />
+        </div>
+      }
+      footer={
+        <>
+          {isPreview ? (
+            <button type="button" onClick={saveDraft} className={btnSecondary}>
+              Save draft
+            </button>
+          ) : step > 0 ? (
+            <button type="button" onClick={back} className={btnSecondary}>
+              Back
+            </button>
+          ) : (
+            <span />
+          )}
+          {isPreview ? (
+            <button type="button" onClick={publish} disabled={publishing} className={btnPrimary}>
+              {publishing ? "Submitting…" : "Submit for review"}
+            </button>
+          ) : (
+            <button type="button" onClick={next} className={btnPrimary}>
+              Continue
+            </button>
+          )}
+        </>
+      }
+    >
+      <div className="flex min-w-0 flex-col gap-10">
+        {step === 0 ? (
+          <Step
+            title="What kind of campaign?"
+            sub="Choose based on what your cause actually needs."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ChoiceCard
+                selected={draft.mode === "one-time"}
+                onClick={() => setDraft({ mode: "one-time" })}
+                icon={<Target className="h-5 w-5" strokeWidth={1.5} />}
+                title="One-time campaign"
+                description="A set amount for one thing, like a roof, a vehicle or an outreach."
+              />
+              <ChoiceCard
+                selected={draft.mode === "ongoing"}
+                onClick={() => setDraft({ mode: "ongoing" })}
+                icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
+                title="Ongoing support"
+                description="Steady giving every week, month or quarter, with no end date."
+              />
             </div>
+            <FieldError>{errors.mode}</FieldError>
+          </Step>
+        ) : null}
 
-            {step === 0 ? (
-              <Step
-                title="What kind of campaign?"
-                sub="Choose based on what your cause actually needs."
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ChoiceCard
-                    selected={draft.mode === "one-time"}
-                    onClick={() => setDraft({ mode: "one-time" })}
-                    icon={<Target className="h-5 w-5" strokeWidth={1.5} />}
-                    title="One-time campaign"
-                    description="A set amount for one thing, like a roof, a vehicle or an outreach."
+        {step === 1 ? (
+          <Step
+            title="What are you asking for?"
+            sub="Even ongoing ministries can ask for more than money."
+          >
+            <div className="grid gap-3">
+              {campaignTypes.map(({ v, label, desc, icon: Icon }) => (
+                <ChoiceCard
+                  key={v}
+                  selected={draft.type === v}
+                  onClick={() => setDraft({ type: v })}
+                  icon={<Icon className="h-5 w-5" strokeWidth={1.5} />}
+                  title={label}
+                  description={desc}
+                />
+              ))}
+            </div>
+            <FieldError>{errors.type}</FieldError>
+          </Step>
+        ) : null}
+
+        {step === 2 ? (
+          <Step title="Tell your story" sub="Be specific. Real details build trust.">
+            <UploadBox label="Cover photo" hint="Add a cover photo, up to 5MB" />
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>Campaign title</span>
+              <input
+                className={inputClass}
+                placeholder={
+                  isOngoing
+                    ? "e.g. Support ECWA missionaries in Borno"
+                    : "e.g. Build a church hall for ECWA Kano"
+                }
+                value={draft.title ?? ""}
+                onChange={(e) => setDraft({ title: e.target.value })}
+              />
+              <FieldError>{errors.title}</FieldError>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>
+                {isOngoing ? "Describe your ministry" : "What's the need?"}
+              </span>
+              <textarea
+                rows={6}
+                className={cn(inputClass, "resize-none")}
+                placeholder={
+                  isOngoing
+                    ? "Who you serve, what you do, and why it matters."
+                    : "The specific need, what it costs, and how gifts will be used."
+                }
+                value={draft.story ?? ""}
+                onChange={(e) => setDraft({ story: e.target.value })}
+              />
+              <FieldError>{errors.story}</FieldError>
+            </label>
+            <UploadBox label="More photos" hint="Add photos of the work, up to 5MB each" tall />
+          </Step>
+        ) : null}
+
+        {step === 3 ? (
+          <Step title="Campaign details" sub="A few details so givers know what to expect.">
+            <fieldset className="flex flex-col gap-2">
+              <legend className={`${labelClass} pb-2`}>Cause</legend>
+              <div className="flex flex-wrap gap-2">
+                {categories.map(({ label, icon: Icon }) => (
+                  <OptionButton
+                    key={label}
+                    selected={draft.faithCategory === label}
+                    onClick={() => setDraft({ faithCategory: label })}
+                    className="text-sm"
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.5} /> {label}
+                  </OptionButton>
+                ))}
+              </div>
+              <FieldError>{errors.faithCategory}</FieldError>
+            </fieldset>
+
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>Location</span>
+              <input
+                className={inputClass}
+                placeholder="e.g. Kano, Kano State"
+                value={draft.location ?? ""}
+                onChange={(e) => setDraft({ location: e.target.value })}
+              />
+              <FieldError>{errors.location}</FieldError>
+            </label>
+
+            {!isOngoing && draft.type === "money" ? (
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Goal</span>
+                <span className="relative">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-soft">
+                    ₦
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    className={cn(inputClass, "pl-8")}
+                    placeholder="e.g. 8500000"
+                    value={draft.goal ?? ""}
+                    onChange={(e) => setDraft({ goal: parseInt(e.target.value) || 0 })}
                   />
-                  <ChoiceCard
-                    selected={draft.mode === "ongoing"}
-                    onClick={() => setDraft({ mode: "ongoing" })}
-                    icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
-                    title="Ongoing support"
-                    description="Steady giving every week, month or quarter, with no end date."
-                  />
-                </div>
-                <FieldError>{errors.mode}</FieldError>
-              </Step>
+                </span>
+                <FieldError>{errors.goal}</FieldError>
+              </label>
             ) : null}
 
-            {step === 1 ? (
-              <Step
-                title="What are you asking for?"
-                sub="Even ongoing ministries can ask for more than money."
-              >
+            {!isOngoing ? (
+              <fieldset className="flex flex-col gap-2">
+                <legend className={`${labelClass} pb-2`}>How urgent is it?</legend>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {campaignTypes.map(({ v, label, desc, icon: Icon }) => (
+                  {urgencyOptions.map(({ v, label, desc }) => (
                     <ChoiceCard
                       key={v}
-                      selected={draft.type === v}
-                      onClick={() => setDraft({ type: v })}
-                      icon={<Icon className="h-5 w-5" strokeWidth={1.5} />}
+                      selected={draft.urgency === v}
+                      onClick={() => setDraft({ urgency: v })}
                       title={label}
                       description={desc}
                     />
                   ))}
                 </div>
-                <FieldError>{errors.type}</FieldError>
-              </Step>
+              </fieldset>
             ) : null}
 
-            {step === 2 ? (
-              <Step title="Tell your story" sub="Be specific. Real details build trust.">
-                <UploadBox label="Cover photo" hint="Add a cover photo, up to 5MB" />
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Campaign title</span>
-                  <input
-                    className={inputClass}
-                    placeholder={
-                      isOngoing
-                        ? "e.g. Support ECWA missionaries in Borno"
-                        : "e.g. Build a church hall for ECWA Kano"
-                    }
-                    value={draft.title ?? ""}
-                    onChange={(e) => setDraft({ title: e.target.value })}
-                  />
-                  <FieldError>{errors.title}</FieldError>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>
-                    {isOngoing ? "Describe your ministry" : "What's the need?"}
-                  </span>
-                  <textarea
-                    rows={6}
-                    className={cn(inputClass, "resize-none")}
-                    placeholder={
-                      isOngoing
-                        ? "Who you serve, what you do, and why it matters."
-                        : "The specific need, what it costs, and how gifts will be used."
-                    }
-                    value={draft.story ?? ""}
-                    onChange={(e) => setDraft({ story: e.target.value })}
-                  />
-                  <FieldError>{errors.story}</FieldError>
-                </label>
-                <UploadBox label="More photos" hint="Add photos of the work, up to 5MB each" tall />
-              </Step>
-            ) : null}
-
-            {step === 3 ? (
-              <Step title="Campaign details" sub="A few details so givers know what to expect.">
-                <fieldset className="flex flex-col gap-2">
-                  <legend className={`${labelClass} pb-2`}>Cause</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map(({ label, icon: Icon }) => (
-                      <OptionButton
-                        key={label}
-                        selected={draft.faithCategory === label}
-                        onClick={() => setDraft({ faithCategory: label })}
-                        className="text-sm"
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={1.5} /> {label}
-                      </OptionButton>
-                    ))}
-                  </div>
-                  <FieldError>{errors.faithCategory}</FieldError>
-                </fieldset>
-
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Location</span>
-                  <input
-                    className={inputClass}
-                    placeholder="e.g. Kano, Kano State"
-                    value={draft.location ?? ""}
-                    onChange={(e) => setDraft({ location: e.target.value })}
-                  />
-                  <FieldError>{errors.location}</FieldError>
-                </label>
-
-                {!isOngoing && draft.type === "money" ? (
-                  <label className="flex flex-col gap-1.5">
-                    <span className={labelClass}>Goal</span>
-                    <span className="relative">
-                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-soft">
-                        ₦
-                      </span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        className={cn(inputClass, "pl-8")}
-                        placeholder="e.g. 8500000"
-                        value={draft.goal ?? ""}
-                        onChange={(e) => setDraft({ goal: parseInt(e.target.value) || 0 })}
-                      />
-                    </span>
-                    <FieldError>{errors.goal}</FieldError>
-                  </label>
-                ) : null}
-
-                {!isOngoing ? (
-                  <fieldset className="flex flex-col gap-2">
-                    <legend className={`${labelClass} pb-2`}>How urgent is it?</legend>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {urgencyOptions.map(({ v, label, desc }) => (
-                        <ChoiceCard
-                          key={v}
-                          selected={draft.urgency === v}
-                          onClick={() => setDraft({ urgency: v })}
-                          title={label}
-                          description={desc}
-                        />
-                      ))}
-                    </div>
-                  </fieldset>
-                ) : null}
-
-                <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>
-                    Organization <span className="font-normal text-muted-ink">(optional)</span>
-                  </span>
-                  <span className="relative">
-                    <select
-                      className={cn(inputClass, "cursor-pointer appearance-none pr-10")}
-                      value={draft.orgId ?? ""}
-                      onChange={(e) => setDraft({ orgId: e.target.value || undefined })}
-                    >
-                      <option value="">None, this is a personal campaign</option>
-                      {orgs.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink"
-                      strokeWidth={2}
-                    />
-                  </span>
-                </label>
-              </Step>
-            ) : null}
-
-            {step === 4 && isOngoing ? (
-              <Step
-                title="How often can people give?"
-                sub="Givers choose from the options you allow."
-              >
-                <div className="flex flex-col gap-3">
-                  {frequencyOptions.map(({ v, label }) => {
-                    const selected = draft.frequencies?.includes(v) ?? false;
-                    return (
-                      <ChoiceCard
-                        key={v}
-                        selected={selected}
-                        onClick={() => {
-                          const current = draft.frequencies ?? [];
-                          setDraft({
-                            frequencies: selected
-                              ? current.filter((f) => f !== v)
-                              : [...current, v],
-                          });
-                        }}
-                        icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
-                        title={label}
-                      />
-                    );
-                  })}
-                </div>
-                <FieldError>{errors.frequencies}</FieldError>
-              </Step>
-            ) : null}
-
-            {isPreview ? (
-              <Step title="Check it over" sub="This is what givers will see.">
-                <div className="flex flex-col gap-4">
-                  <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-card bg-panel text-muted-ink">
-                    {draft.cover ? (
-                      <img src={draft.cover} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <ImagePlus className="h-10 w-10" strokeWidth={1.5} />
-                    )}
-                  </div>
-                  <p className="flex flex-wrap gap-2">
-                    <Tag>{isOngoing ? "Ongoing" : "One-time"}</Tag>
-                    {draft.faithCategory ? <Tag>{draft.faithCategory}</Tag> : null}
-                    {draft.type === "emergency" ? <Tag tone="brand">Urgent</Tag> : null}
-                  </p>
-                  <h2 className="font-display text-[clamp(24px,2.2vw,32px)] leading-[1.15] tracking-[-0.02em] text-ink">
-                    {draft.title || "Your campaign title"}
-                  </h2>
-                  <p className="whitespace-pre-line text-[15px] leading-[1.6] text-ink-soft">
-                    {draft.story}
-                  </p>
-                  {!isOngoing && draft.goal ? (
-                    <p className="text-[15px] text-ink-soft">
-                      Goal:{" "}
-                      <span className="font-semibold text-ink">{formatMoney(draft.goal)}</span>
-                    </p>
-                  ) : null}
-                  {isOngoing && draft.frequencies?.length ? (
-                    <p className="text-[15px] capitalize text-ink-soft">
-                      {draft.frequencies.join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-                <Notice>
-                  Your campaign goes live with an <strong>unverified</strong> tag. You can ask for
-                  verification from the campaign page once it's published.
-                </Notice>
-                {draft.type === "emergency" ? (
-                  <Notice>
-                    <Flame className="mr-1.5 inline h-4 w-4 text-brand" strokeWidth={1.5} />
-                    Emergency campaigns are shown with an Urgent tag.
-                  </Notice>
-                ) : null}
-              </Step>
-            ) : null}
-
-            <div className="flex items-center justify-between gap-3 border-t border-line-soft pt-6 [&>button]:flex-1 sm:[&>button]:flex-none">
-              {isPreview ? (
-                <button type="button" onClick={saveDraft} className={btnSecondary}>
-                  Save draft
-                </button>
-              ) : step > 0 ? (
-                <button type="button" onClick={back} className={btnSecondary}>
-                  Back
-                </button>
-              ) : (
-                <span />
-              )}
-              {isPreview ? (
-                <button
-                  type="button"
-                  onClick={publish}
-                  disabled={publishing}
-                  className={btnPrimary}
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>
+                Organization <span className="font-normal text-muted-ink">(optional)</span>
+              </span>
+              <span className="relative">
+                <select
+                  className={cn(inputClass, "cursor-pointer appearance-none pr-10")}
+                  value={draft.orgId ?? ""}
+                  onChange={(e) => setDraft({ orgId: e.target.value || undefined })}
                 >
-                  {publishing ? "Submitting…" : "Submit for review"}
-                </button>
-              ) : (
-                <button type="button" onClick={next} className={btnPrimary}>
-                  Continue
-                </button>
-              )}
-            </div>
-          </div>
+                  <option value="">None, this is a personal campaign</option>
+                  {orgs.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink"
+                  strokeWidth={2}
+                />
+              </span>
+            </label>
+          </Step>
+        ) : null}
 
-          <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-            <p className={`${smallHeadingClass} pb-3`}>Preview</p>
-            <div inert className="pointer-events-none">
-              <CampaignCard campaign={previewOf(draft, isOngoing)} />
+        {step === 4 && isOngoing ? (
+          <Step title="How often can people give?" sub="Givers choose from the options you allow.">
+            <div className="flex flex-col gap-3">
+              {frequencyOptions.map(({ v, label }) => {
+                const selected = draft.frequencies?.includes(v) ?? false;
+                return (
+                  <ChoiceCard
+                    key={v}
+                    selected={selected}
+                    onClick={() => {
+                      const current = draft.frequencies ?? [];
+                      setDraft({
+                        frequencies: selected ? current.filter((f) => f !== v) : [...current, v],
+                      });
+                    }}
+                    icon={<Repeat2 className="h-5 w-5" strokeWidth={1.5} />}
+                    title={label}
+                  />
+                );
+              })}
             </div>
-          </aside>
-        </div>
-      </Container>
-    </AppShell>
+            <FieldError>{errors.frequencies}</FieldError>
+          </Step>
+        ) : null}
+
+        {isPreview ? (
+          <Step title="Check it over" sub="This is what givers will see.">
+            <div className="flex flex-col gap-4">
+              <div className="grid aspect-[16/9] place-items-center overflow-hidden rounded-card bg-panel text-muted-ink">
+                {draft.cover ? (
+                  <img src={draft.cover} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImagePlus className="h-10 w-10" strokeWidth={1.5} />
+                )}
+              </div>
+              <p className="flex flex-wrap gap-2">
+                <Tag>{isOngoing ? "Ongoing" : "One-time"}</Tag>
+                {draft.faithCategory ? <Tag>{draft.faithCategory}</Tag> : null}
+                {draft.type === "emergency" ? <Tag tone="brand">Urgent</Tag> : null}
+              </p>
+              <h2 className="font-display text-[clamp(24px,2.2vw,32px)] leading-[1.15] tracking-[-0.02em] text-ink">
+                {draft.title || "Your campaign title"}
+              </h2>
+              <p className="whitespace-pre-line text-[15px] leading-[1.6] text-ink-soft">
+                {draft.story}
+              </p>
+              {!isOngoing && draft.goal ? (
+                <p className="text-[15px] text-ink-soft">
+                  Goal: <span className="font-semibold text-ink">{formatMoney(draft.goal)}</span>
+                </p>
+              ) : null}
+              {isOngoing && draft.frequencies?.length ? (
+                <p className="text-[15px] capitalize text-ink-soft">
+                  {draft.frequencies.join(", ")}
+                </p>
+              ) : null}
+            </div>
+            <Notice>
+              Your campaign goes live with an <strong>unverified</strong> tag. You can ask for
+              verification from the campaign page once it's published.
+            </Notice>
+            {draft.type === "emergency" ? (
+              <Notice>
+                <Flame className="mr-1.5 inline h-4 w-4 text-brand" strokeWidth={1.5} />
+                Emergency campaigns are shown with an Urgent tag.
+              </Notice>
+            ) : null}
+          </Step>
+        ) : null}
+      </div>
+    </OnboardingShell>
   );
 }
 

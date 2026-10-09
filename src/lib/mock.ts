@@ -102,6 +102,10 @@ export type RecurringDonation = {
   mode: "auto" | "pledge";
   nextDate: string;
   active: boolean;
+  /** Paused gifts keep their settings but aren't charged or reminded. */
+  paused?: boolean;
+  startedAt?: string;
+  method?: string;
 };
 
 export const formatMoney = (amount: number, currency: Campaign["currency"] = "NGN") => {
@@ -471,8 +475,10 @@ export const myRecurringDonations: RecurringDonation[] = [
     amount: 25000,
     frequency: "monthly",
     mode: "auto",
-    nextDate: "2025-07-01",
+    nextDate: "2026-11-01",
     active: true,
+    startedAt: "2025-01-12",
+    method: "Visa ending 4242",
   },
   {
     id: "rd2",
@@ -483,8 +489,10 @@ export const myRecurringDonations: RecurringDonation[] = [
     amount: 10000,
     frequency: "weekly",
     mode: "pledge",
-    nextDate: "2025-06-15",
+    nextDate: "2026-10-12",
     active: true,
+    startedAt: "2025-03-02",
+    method: "Bank transfer",
   },
 ];
 

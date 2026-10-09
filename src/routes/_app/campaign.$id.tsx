@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Heart, Link2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Photo } from "@/components/app/Photo";
 import { Segments } from "@/components/app/Segments";
+import { GiveBox } from "@/components/app/GiveBox";
 import { CampaignDetailSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
 import {
@@ -24,7 +25,6 @@ import {
   formatCompactMoney,
   formatMoney,
   type Campaign,
-  type Donation,
 } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +117,10 @@ function CampaignDetail() {
               <p className="max-w-[720px] whitespace-pre-line text-[17px] leading-[1.65] text-heading">
                 {campaign.story}
               </p>
+            </section>
+
+            <section id="give" className="scroll-mt-20 lg:hidden">
+              <GivePanel campaign={campaign} />
             </section>
 
             {campaign.updates.length > 0 ? (
@@ -234,87 +238,83 @@ function Gallery({ campaign }: { campaign: Campaign }) {
   );
 }
 
-/** Desktop: the one place to give. Amount, progress, give, share, then recent gifts. */
+/** Progress, then give right here (after Buy Me a Coffee), then who has given and what they said. */
 function GivePanel({ campaign }: { campaign: Campaign }) {
-  const [all, setAll] = useState(false);
   const pct = percent(campaign);
-  const gifts = all ? campaign.donations : campaign.donations.slice(0, 5);
-
   return (
-    <div className={cn(cardClass, "flex flex-col gap-6 p-6")}>
-      <div className="flex flex-col gap-3">
-        <p className="font-display text-[34px] leading-none tracking-[-0.03em] text-ink">
-          {formatMoney(campaign.raised)}
-        </p>
-        <p className="text-sm text-muted-ink">
-          {campaign.goal
-            ? `raised of ${formatMoney(campaign.goal)}`
-            : "given so far, ongoing support"}
-        </p>
-        {pct !== null ? <Segments pct={pct} /> : null}
-        <p className="flex justify-between text-sm text-muted-ink">
-          <span>
-            <span className="font-semibold text-heading">{campaign.donors.toLocaleString()}</span>{" "}
-            {campaign.donors === 1 ? "giver" : "givers"}
-          </span>
-          {pct !== null ? <span className="font-semibold text-heading">{pct}%</span> : null}
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2.5">
-        <Link
-          to="/donate/$id"
-          params={{ id: campaign.id }}
-          search={{ freq: "" }}
-          className={cn(btn("primary", "lg"), "w-full")}
-        >
-          Give now
-        </Link>
+    <div className="flex flex-col gap-4">
+      <div className={cn(cardClass, "flex flex-col gap-5 p-5 sm:p-6")}>
+        <div className="flex flex-col gap-2.5">
+          <p className="font-display text-[32px] leading-none tracking-[-0.03em] text-ink">
+            {formatMoney(campaign.raised)}
+          </p>
+          <p className="text-sm text-muted-ink">
+            {campaign.goal
+              ? `raised of ${formatMoney(campaign.goal)} from ${campaign.donors.toLocaleString()} givers`
+              : `given by ${campaign.donors.toLocaleString()} regular and one-off givers`}
+          </p>
+          {pct !== null ? <Segments pct={pct} /> : null}
+        </div>
+        <div className="border-t border-line-soft pt-5">
+          <GiveBox campaign={campaign} />
+        </div>
         <button
           type="button"
           onClick={() => share(campaign)}
-          className={cn(btn("secondary", "lg"), "w-full")}
+          className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
         >
-          <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share
+          <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share this campaign
         </button>
       </div>
-
-      {campaign.donations.length > 0 ? (
-        <div className="flex flex-col gap-4 border-t border-line-soft pt-5">
-          <p className={smallHeadingClass}>Recent gifts</p>
-          <ul className="flex flex-col gap-4">
-            {gifts.map((d) => (
-              <GiftRow key={d.id} gift={d} />
-            ))}
-          </ul>
-          {campaign.donations.length > 5 ? (
-            <button
-              type="button"
-              onClick={() => setAll((v) => !v)}
-              className={cn(btn("quiet", "sm"), "-ml-4 self-start")}
-            >
-              {all ? "Show fewer" : `See all ${campaign.donations.length}`}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <RecentGivers campaign={campaign} />
     </div>
   );
 }
 
-function GiftRow({ gift }: { gift: Donation }) {
+/** Recent givers, with their messages shown as notes (after Buy Me a Coffee's supporters). */
+function RecentGivers({ campaign }: { campaign: Campaign }) {
+  const [all, setAll] = useState(false);
+  if (campaign.donations.length === 0) {
+    return (
+      <p className={cn(cardClass, "p-5 text-center text-sm text-muted-ink")}>
+        No gifts yet. Be the first to give.
+      </p>
+    );
+  }
+  const gifts = all ? campaign.donations : campaign.donations.slice(0, 4);
   return (
-    <li className="flex items-center gap-3">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-sm font-semibold text-ink-soft">
-        {gift.donor.charAt(0)}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[15px] font-medium text-heading">{gift.donor}</span>
-        <span className="block truncate text-[13px] text-muted-ink">
-          {formatMoney(gift.amount)}, {gift.note ?? gift.date}
-        </span>
-      </span>
-    </li>
+    <div className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+      <p className={smallHeadingClass}>Recent givers</p>
+      <ul className="flex flex-col gap-4">
+        {gifts.map((d) => (
+          <li key={d.id} className="flex gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-sm font-semibold text-ink-soft">
+              {d.donor.charAt(0)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-ink-soft">
+                <span className="font-medium text-ink">{d.donor}</span> gave {formatMoney(d.amount)}
+                <span className="text-subtle">, {d.date}</span>
+              </p>
+              {d.note ? (
+                <p className="mt-1.5 rounded-[12px] rounded-tl-[4px] bg-panel px-3 py-2 text-sm leading-[1.5] text-ink">
+                  {d.note}
+                </p>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {campaign.donations.length > 4 ? (
+        <button
+          type="button"
+          onClick={() => setAll((v) => !v)}
+          className={cn(btn("quiet", "sm"), "-ml-4 self-start")}
+        >
+          {all ? "Show fewer" : `See all ${campaign.donations.length}`}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -337,14 +337,13 @@ function MobileGiveBar({ campaign }: { campaign: Campaign }) {
       >
         <Link2 className="h-4 w-4" strokeWidth={1.75} />
       </button>
-      <Link
-        to="/donate/$id"
-        params={{ id: campaign.id }}
-        search={{ freq: "" }}
+      <button
+        type="button"
+        onClick={() => document.getElementById("give")?.scrollIntoView({ behavior: "smooth" })}
         className={btn("primary")}
       >
         Give now
-      </Link>
+      </button>
     </div>
   );
 }

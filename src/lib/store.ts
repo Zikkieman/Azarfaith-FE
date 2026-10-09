@@ -73,6 +73,7 @@ type State = {
   recurringDonations: RecurringDonation[];
   addRecurringDonation: (r: RecurringDonation) => void;
   cancelRecurringDonation: (id: string) => void;
+  updateRecurringDonation: (id: string, patch: Partial<RecurringDonation>) => void;
 
   // ─── Admin ───
   adminRole: UserRole | null;
@@ -147,6 +148,10 @@ export const useApp = create<State>((set) => ({
 
   recurringDonations: recurringDonationsSeed,
   addRecurringDonation: (r) => set((s) => ({ recurringDonations: [r, ...s.recurringDonations] })),
+  updateRecurringDonation: (id, patch) =>
+    set((s) => ({
+      recurringDonations: s.recurringDonations.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    })),
   cancelRecurringDonation: (id) =>
     set((s) => ({
       recurringDonations: s.recurringDonations.map((r) =>

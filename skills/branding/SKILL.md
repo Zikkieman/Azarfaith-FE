@@ -179,6 +179,28 @@ Campaign tiles always use `src/components/CampaignCard.tsx`. Auth screens (`sign
 `forgot-password`) share `components/auth/AuthLayout.tsx`. Selection state is ink (`#130E30`), never
 orange; category icons are lucide (from `categories` in `lib/mock.ts`), never emoji.
 
+## 7b-i. App patterns (from SaaS Interface references)
+
+- **Discover** (Uppbeat, GlideOS): big round search, quick views (All, Urgent now, Nearly there, Give
+  regularly, New, Organizations), cause tabs with icons, then a featured carousel and horizontal
+  shelves while browsing; a counted, sortable grid once a search or filter is on. View, cause and
+  query live in the URL.
+- **Give box** (`components/app/GiveBox.tsx`, Buy Me a Coffee): on campaign and org pages. Frequency
+  toggle when the campaign allows it, four presets that say what they buy (`lib/giving.ts` hints by
+  cause), a custom amount, one button to checkout with `?freq=&amount=` filled in.
+- **Checkout** (`donate/$id`, Loom): no app nav, numbered sections (How often, Amount, Tip, Your
+  details, Payment) beside a full-height summary that states today's total and the repeat charge;
+  the confirmation is a receipt.
+- **My giving** (Twenty billing): each regular gift is a managed block: facts, then Change amount,
+  Skip next, Pause / Resume (both undoable from the toast) and Stop giving (offers Pause instead).
+  History lists every gift with its receipt.
+- **Profile** (Twenty settings, Buildkite): settings nav, per-section save, saved cards (the default
+  can't be removed), security, and Close account blocked while regular gifts run, with the reason.
+- **Org page** (Buy Me a Coffee): photo mosaic cover, About, campaigns, recent givers with their
+  messages; sticky give box plus "Become a regular giver" tiers.
+- **Set-up flows** (`OnboardingShell`, GlideOS): register org and start a campaign run in one focused
+  card, step dashes on the left, a live preview over a photo on the right, Save and exit on top.
+
 ## 7b-ii. Admin (`/admin`, platform admins only)
 
 Built from real product references (SaaS Interface: Plain, Twenty, Modash, TheyDo, Cloudflare,

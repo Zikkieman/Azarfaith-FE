@@ -1,25 +1,25 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { Calendar, Church, Link2, MapPin, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Photo } from "@/components/app/Photo";
 import { ProfileSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
-import { Calendar, Church, HeartHandshake, Link2, MapPin, Repeat2, Target } from "lucide-react";
-import { toast } from "sonner";
 import {
   AppShell,
   Container,
   EmptyState,
   SectionHeading,
-  StatTile,
   Tag,
   VerifiedBadge,
-  pageTitleClass,
-  panelClass,
-  sectionTitleClass,
+  cardClass,
+  smallHeadingClass,
 } from "@/components/app/AppShell";
-import { btnPrimary, btnSecondary } from "@/components/app/btn";
+import { btn } from "@/components/app/btn";
+import { GiveBox } from "@/components/app/GiveBox";
 import { CampaignCard } from "@/components/CampaignCard";
 import { useApp } from "@/lib/store";
-import { formatCompactMoney, orgs as orgSeed } from "@/lib/mock";
+import { formatCompactMoney, formatMoney, orgs as orgSeed, type Campaign } from "@/lib/mock";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/org/$id")({
   loader: () => simulateNetwork(),
@@ -34,198 +34,244 @@ export const Route = createFileRoute("/_app/org/$id")({
 
 const orgCategoryLabel: Record<string, string> = {
   church: "Church",
-  mission: "Mission / Outreach",
+  mission: "Mission",
   orphanage: "Orphanage",
   school: "Faith school",
   other: "Ministry",
 };
 
+const tiers = [
+  { amount: 2000, name: "Friend", line: "A steady gift they can plan around." },
+  { amount: 5000, name: "Partner", line: "Covers a real, recurring cost every month." },
+  { amount: 10000, name: "Sponsor", line: "Carries a whole line of their monthly budget." },
+];
+
+/**
+ * Organization page (after Buy Me a Coffee's creator page): a photo mosaic, who they are, and on
+ * the right, give once or become a regular giver without leaving.
+ */
 function OrgProfile() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const orgs = useApp((s) => s.orgs);
   const allCampaigns = useApp((s) => s.campaigns);
 
   const org = orgs.find((o) => o.id === id);
   if (!org) throw notFound();
 
-  const campaigns = allCampaigns.filter((c) => org.campaignIds.includes(c.id));
-  const ongoing = campaigns.filter((c) => c.mode === "ongoing");
-  const oneTime = campaigns.filter((c) => c.mode === "one-time");
-  const [cover, ...gallery] = org.photos;
+  const campaigns = allCampaigns.filter(
+    (c) => org.campaignIds.includes(c.id) || c.orgId === org.id,
+  );
+  const main: Campaign | undefined = campaigns.find((c) => c.mode === "ongoing") ?? campaigns[0];
+  const ongoing = campaigns.find((c) => c.mode === "ongoing");
+  const givers = campaigns
+    .flatMap((c) => c.donations.map((d) => ({ ...d, campaign: c.title })))
+    .slice(0, 5);
+  const photos = org.photos.length ? org.photos : [];
 
-  const copyLink = () => {
+  const share = () => {
     navigator.clipboard?.writeText(window.location.href);
-    toast("Profile link copied");
+    toast("Link copied");
   };
 
   return (
     <AppShell>
-      <section className="border-b border-line-soft py-10 md:py-14">
-        <Container className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] lg:gap-16">
-          <div className="flex min-w-0 flex-col gap-5">
-            <p className="flex flex-wrap items-center gap-3 text-[15px] text-muted-ink">
-              {orgCategoryLabel[org.category]}
-              {org.verificationStatus === "verified" ? (
-                <VerifiedBadge />
-              ) : (
-                <Tag>
-                  {org.verificationStatus === "pending" ? "Verification pending" : "Unverified"}
-                </Tag>
-              )}
-            </p>
-            <h1 className={pageTitleClass}>{org.name}</h1>
-            <p className="text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
-              {org.tagline}
-            </p>
-            <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-ink">
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" strokeWidth={1.5} /> {org.location}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" strokeWidth={1.5} /> Est. {org.founded}
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Church className="h-4 w-4" strokeWidth={1.5} /> {org.denomination}
-              </span>
-            </p>
-            <div className="flex flex-wrap gap-3 pt-2">
-              {ongoing[0] ? (
-                <Link
-                  to="/donate/$id"
-                  params={{ id: ongoing[0].id }}
-                  search={{ freq: ongoing[0].frequencies?.[0] ?? "monthly" }}
-                  className={btnPrimary}
-                >
-                  <Repeat2 className="h-4 w-4" strokeWidth={1.5} /> Give monthly
-                </Link>
-              ) : null}
-              {oneTime[0] ? (
-                <Link
-                  to="/donate/$id"
-                  params={{ id: oneTime[0].id }}
-                  search={{ freq: "" }}
-                  className={ongoing[0] ? btnSecondary : btnPrimary}
-                >
-                  Give once
-                </Link>
-              ) : null}
-              <button type="button" onClick={copyLink} className={btnSecondary}>
-                <Link2 className="h-4 w-4" strokeWidth={1.5} /> Share
-              </button>
+      <div className="grid h-[200px] grid-cols-3 gap-1 overflow-hidden bg-panel sm:h-[260px] md:grid-cols-4 lg:h-[300px]">
+        {[...photos, ...photos].slice(0, 4).map((p, i) => (
+          <Photo
+            key={i}
+            src={p}
+            className={cn("h-full", i === 3 && "hidden md:block")}
+            imgClassName="halftone"
+          />
+        ))}
+      </div>
+
+      <Container className="pb-16">
+        <div className="flex flex-col gap-4 border-b border-line-soft pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-end gap-4">
+            <img
+              src={photos[0]}
+              alt=""
+              className="-mt-14 h-24 w-24 shrink-0 rounded-card object-cover ring-4 ring-paper sm:-mt-16 sm:h-28 sm:w-28"
+            />
+            <div className="min-w-0 pb-1">
+              <h1 className="flex flex-wrap items-center gap-2 font-display text-[clamp(26px,2.8vw,38px)] leading-tight tracking-[-0.02em] text-ink">
+                {org.name}
+                {org.verificationStatus === "verified" ? <VerifiedBadge label={null} /> : null}
+              </h1>
+              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-ink">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="h-4 w-4" strokeWidth={1.5} />
+                  {org.supporters.toLocaleString()} givers
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4" strokeWidth={1.5} /> {org.location}
+                </span>
+                {org.verificationStatus !== "verified" ? (
+                  <Tag>
+                    {org.verificationStatus === "pending"
+                      ? "Verification pending"
+                      : "Not verified yet"}
+                  </Tag>
+                ) : null}
+              </p>
             </div>
           </div>
-          {cover ? (
-            <Photo
-              src={cover}
-              loading="eager"
-              className="aspect-[4/3] w-full rounded-card lg:aspect-[520/440]"
-            />
-          ) : null}
-        </Container>
-      </section>
-
-      <Container className="flex flex-col gap-16 py-12 md:py-16">
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-4 md:gap-6">
-          <StatTile value={formatCompactMoney(org.totalReceived)} label="Total received" />
-          <StatTile value={org.supporters.toLocaleString()} label="Givers" />
-          <StatTile value={campaigns.length} label="Active campaigns" />
-          <StatTile value={org.founded} label="Founded" />
+          <button
+            type="button"
+            onClick={share}
+            className={cn(btn("secondary", "sm"), "self-start sm:self-auto")}
+          >
+            <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share
+          </button>
         </div>
 
-        <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <SectionHeading>About</SectionHeading>
-          <p className="max-w-[820px] text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
-            {org.bio}
-          </p>
-        </section>
+        <div className="grid gap-8 pt-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-10">
+          <div className="flex min-w-0 flex-col gap-10">
+            <section className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+              <p className={smallHeadingClass}>About {org.name}</p>
+              <p className="text-[17px] font-medium leading-[1.5] text-ink">{org.tagline}</p>
+              <p className="text-[15px] leading-[1.7] text-ink-soft">{org.bio}</p>
+              <dl className="grid gap-3 border-t border-line-soft pt-4 sm:grid-cols-3">
+                {[
+                  { icon: Church, label: orgCategoryLabel[org.category], sub: org.denomination },
+                  { icon: Calendar, label: `Since ${org.founded}`, sub: "Founded" },
+                  {
+                    icon: Users,
+                    label: formatCompactMoney(org.totalReceived),
+                    sub: "Received on AzarFaith",
+                  },
+                ].map((f) => (
+                  <div key={f.sub} className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-ink-soft">
+                      <f.icon className="h-4 w-4" strokeWidth={1.5} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-ink">{f.label}</span>
+                      <span className="block truncate text-[12px] text-muted-ink">{f.sub}</span>
+                    </span>
+                  </div>
+                ))}
+              </dl>
+            </section>
 
-        {gallery.length > 0 ? (
-          <section className="flex flex-col gap-6">
-            <SectionHeading>From the field</SectionHeading>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              {org.photos.map((photo, i) => (
-                <Photo key={i} src={photo} className="aspect-square w-full rounded-card" />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {ongoing.length > 0 ? (
-          <section className="flex flex-col gap-6">
-            <SectionHeading
-              aside={
-                <span className="hidden items-center gap-1.5 text-sm text-muted-ink sm:inline-flex">
-                  <Repeat2 className="h-4 w-4" strokeWidth={1.5} /> Standing support
-                </span>
-              }
-            >
-              Ongoing support
-            </SectionHeading>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {ongoing.map((c) => (
-                <CampaignCard key={c.id} campaign={c} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {oneTime.length > 0 ? (
-          <section className="flex flex-col gap-6">
-            <SectionHeading
-              aside={
-                <span className="hidden items-center gap-1.5 text-sm text-muted-ink sm:inline-flex">
-                  <Target className="h-4 w-4" strokeWidth={1.5} /> With a goal
-                </span>
-              }
-            >
-              Specific campaigns
-            </SectionHeading>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {oneTime.map((c) => (
-                <CampaignCard key={c.id} campaign={c} />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {campaigns.length === 0 ? (
-          <EmptyState
-            icon={<HeartHandshake className="h-5 w-5" strokeWidth={1.5} />}
-            title="No campaigns yet"
-            body={`${org.name} hasn't published a campaign yet. Share their profile so they're ready when they do.`}
-            action={
-              <button type="button" onClick={copyLink} className={btnSecondary}>
-                Copy profile link
-              </button>
-            }
-          />
-        ) : null}
-
-        <section
-          className={`${panelClass} flex flex-col items-start gap-6 p-6 md:flex-row md:items-center md:justify-between md:p-10`}
-        >
-          <div className="flex max-w-[620px] flex-col gap-2">
-            <h2 className={sectionTitleClass}>Help {org.name} reach more people</h2>
-            <p className="text-base leading-[1.6] text-ink-soft">
-              One share puts their work in front of someone who has never heard of it.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={copyLink} className={btnSecondary}>
-              <Link2 className="h-4 w-4" strokeWidth={1.5} /> Copy link
-            </button>
-            {ongoing[0] ? (
-              <Link
-                to="/donate/$id"
-                params={{ id: ongoing[0].id }}
-                search={{ freq: ongoing[0].frequencies?.[0] ?? "monthly" }}
-                className={btnPrimary}
+            <section className="flex flex-col gap-5">
+              <SectionHeading
+                aside={<span className="text-sm text-muted-ink">{campaigns.length}</span>}
               >
-                Become a regular giver
-              </Link>
+                Campaigns
+              </SectionHeading>
+              {campaigns.length ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {campaigns.map((c) => (
+                    <CampaignCard key={c.id} campaign={c} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No campaigns yet"
+                  body={`${org.name} hasn't started a campaign. Share their page so they're ready when they do.`}
+                  action={
+                    <button type="button" onClick={share} className={btn("secondary")}>
+                      Copy link
+                    </button>
+                  }
+                />
+              )}
+            </section>
+
+            {givers.length ? (
+              <section className="flex flex-col gap-5">
+                <SectionHeading>Recent givers</SectionHeading>
+                <ul className="flex flex-col gap-5">
+                  {givers.map((g) => (
+                    <li key={g.id} className="flex gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-panel text-sm font-semibold text-ink-soft">
+                        {g.donor.charAt(0)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-ink-soft">
+                          <span className="font-medium text-ink">{g.donor}</span> gave{" "}
+                          {formatMoney(g.amount)} to {g.campaign}
+                        </p>
+                        {g.note ? (
+                          <p className="mt-1.5 max-w-[560px] rounded-[14px] rounded-tl-[4px] bg-panel px-3.5 py-2.5 text-sm leading-[1.5] text-ink">
+                            {g.note}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-[12px] text-subtle">{g.date}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ) : null}
           </div>
-        </section>
+
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+            {main ? (
+              <div className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+                <div>
+                  <p className="font-display text-[22px] leading-tight text-ink">
+                    Give to {org.name}
+                  </p>
+                  <p className="mt-1 text-[13px] text-muted-ink">
+                    Your gift goes to{" "}
+                    <Link
+                      to="/campaign/$id"
+                      params={{ id: main.id }}
+                      className="underline underline-offset-2 hover:text-ink"
+                    >
+                      {main.title}
+                    </Link>
+                  </p>
+                </div>
+                <GiveBox campaign={main} />
+              </div>
+            ) : null}
+
+            {ongoing ? (
+              <div className={cn(cardClass, "flex flex-col gap-3 p-5 sm:p-6")}>
+                <p className="font-display text-[20px] leading-tight text-ink">
+                  Become a regular giver
+                </p>
+                <ul className="flex flex-col gap-2.5">
+                  {tiers.map((t) => (
+                    <li
+                      key={t.name}
+                      className="flex items-center gap-3 rounded-field border border-line-soft p-3.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-ink">
+                          {t.name}{" "}
+                          <span className="font-normal text-muted-ink">
+                            {formatMoney(t.amount)} a month
+                          </span>
+                        </p>
+                        <p className="text-[13px] text-muted-ink">{t.line}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className={btn("secondary", "sm")}
+                        onClick={() =>
+                          navigate({
+                            to: "/donate/$id",
+                            params: { id: ongoing.id },
+                            search: { freq: "monthly", amount: t.amount },
+                          })
+                        }
+                      >
+                        Join
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[12px] text-muted-ink">Change or stop any time in My giving.</p>
+              </div>
+            ) : null}
+          </aside>
+        </div>
       </Container>
     </AppShell>
   );
