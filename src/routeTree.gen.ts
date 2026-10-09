@@ -26,6 +26,7 @@ import { Route as AppMyGivingRouteImport } from './routes/_app/my-giving'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppRegisterOrgRouteImport } from './routes/_app/register-org'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminActivityRouteImport } from './routes/admin/activity'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AppCampaignIdRouteImport } from './routes/_app/campaign.$id'
 import { Route as AppDonateIdRouteImport } from './routes/_app/donate.$id'
@@ -121,6 +122,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminActivityRoute = AdminActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/my-giving': typeof AppMyGivingRoute
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/campaign/$id': typeof AppCampaignIdRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByTo {
   '/my-giving': typeof AppMyGivingRoute
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/campaign/$id': typeof AppCampaignIdRoute
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/_app/my-giving': typeof AppMyGivingRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/register-org': typeof AppRegisterOrgRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/_app/campaign/$id': typeof AppCampaignIdRoute
@@ -275,6 +284,7 @@ export interface FileRouteTypes {
     | '/my-giving'
     | '/profile'
     | '/register-org'
+    | '/admin/activity'
     | '/admin/settings'
     | '/admin/'
     | '/campaign/$id'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/my-giving'
     | '/profile'
     | '/register-org'
+    | '/admin/activity'
     | '/admin/settings'
     | '/admin'
     | '/campaign/$id'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/_app/my-giving'
     | '/_app/profile'
     | '/_app/register-org'
+    | '/admin/activity'
     | '/admin/settings'
     | '/admin/'
     | '/_app/campaign/$id'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/activity': {
+      id: '/admin/activity'
+      path: '/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AdminActivityRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
@@ -578,6 +597,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminRouteChildren {
+  AdminActivityRoute: typeof AdminActivityRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminCampaignsIdRoute: typeof AdminCampaignsIdRoute
@@ -589,6 +609,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminActivityRoute: AdminActivityRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminCampaignsIdRoute: AdminCampaignsIdRoute,

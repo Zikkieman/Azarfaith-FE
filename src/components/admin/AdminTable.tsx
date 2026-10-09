@@ -1,19 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { LucideIcon } from "lucide-react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsUpDown,
-  MoreHorizontal,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Column<T> = {
@@ -21,46 +9,69 @@ export type Column<T> = {
   header: string;
   cell: (row: T) => ReactNode;
   align?: "left" | "right";
-  /** Makes the column sortable by this value. */
   sortValue?: (row: T) => number | string;
-  /** Extra classes on both header and cells, e.g. `hidden md:table-cell`. */
+  /** Extra classes on header and cells, e.g. `hidden lg:table-cell` or a width. */
   className?: string;
+};
+
+export type BulkAction = {
+  label: string;
+  icon?: LucideIcon;
+  onSelect: () => void;
+  tone?: "danger";
+  /** When set, the action shows but can't be used, and says why. */
+  disabledReason?: string;
 };
 
 type Sort = { key: string; dir: "asc" | "desc" } | null;
 
 /**
- * The admin data table: sortable headers, whole-row click, a row menu, staggered rows and
- * "Showing 1–8 of 12" pagination. Wraps in a white card and scrolls sideways on phones.
+ * Flat data table (after TheyDo and Plain): checkboxes with a floating bulk bar, sortable headers,
+ * whole-row click with the open row highlighted, an inline action slot, rows-per-page and range
+ * pagination. Phones get `mobileRow` cards instead of a sideways-scrolling table.
  */
 export function AdminTable<T extends { id: string }>({
   rows,
   columns,
   label,
+  noun,
   onRowClick,
-  rowMenu,
+  activeId,
+  rowAction,
+  bulkActions,
+  mobileRow,
   empty,
-  perPage = 8,
-  minWidth = 760,
+  initialSort = null,
 }: {
   rows: T[];
   columns: Column<T>[];
   label: string;
+  /** Singular and plural, for "2 organizations selected". */
+  noun: [string, string];
   onRowClick?: (row: T) => void;
-  rowMenu?: (row: T) => RowAction[];
+  activeId?: string | null;
+  rowAction?: (row: T) => ReactNode;
+  bulkActions?: (selected: T[]) => BulkAction[];
+  mobileRow?: (row: T) => ReactNode;
   empty: ReactNode;
-  perPage?: number;
-  minWidth?: number;
+  initialSort?: Sort;
 }) {
-  const [sort, setSort] = useState<Sort>(null);
+  const [sort, setSort] = useState<Sort>(initialSort);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  useEffect(() => setPage(1), [rows.length]);
+  // New filter or search: back to page one, and forget selections that left the list.
+  const ids = rows.map((r) => r.id).join(",");
+  useEffect(() => {
+    setPage(1);
+    setSelected((s) => new Set([...s].filter((id) => rows.some((r) => r.id === id))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
 
   const sorted = useMemo(() => {
-    if (!sort) return rows;
-    const col = columns.find((c) => c.key === sort.key);
-    if (!col?.sortValue) return rows;
+    const col = sort && columns.find((c) => c.key === sort.key);
+    if (!sort || !col?.sortValue) return rows;
     const get = col.sortValue;
     return [...rows].sort((a, b) => {
       const x = get(a);
@@ -77,141 +88,228 @@ export function AdminTable<T extends { id: string }>({
   const from = sorted.length ? (current - 1) * perPage + 1 : 0;
   const to = Math.min(current * perPage, sorted.length);
 
+  const selectable = Boolean(bulkActions);
+  const pageIds = shown.map((r) => r.id);
+  const allOnPage = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const someOnPage = pageIds.some((id) => selected.has(id));
+  const headerBox = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerBox.current) headerBox.current.indeterminate = someOnPage && !allOnPage;
+  }, [someOnPage, allOnPage]);
+
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const togglePage = () =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (allOnPage) pageIds.forEach((id) => n.delete(id));
+      else pageIds.forEach((id) => n.add(id));
+      return n;
+    });
+
   const toggleSort = (key: string) =>
     setSort((s) =>
       !s || s.key !== key ? { key, dir: "desc" } : s.dir === "desc" ? { key, dir: "asc" } : null,
     );
 
+  const selectedRows = rows.filter((r) => selected.has(r.id));
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-field border border-dashed border-line-input px-6 py-16">{empty}</div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-card border border-line-soft bg-paper">
-      {rows.length === 0 ? (
-        <div className="px-6 py-16">{empty}</div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left font-gsf text-sm" style={{ minWidth }}>
-              <caption className="sr-only">{label}</caption>
-              <thead>
-                <tr className="border-b border-line-soft bg-panel/50">
-                  {columns.map((c) => {
-                    const active = sort?.key === c.key;
-                    return (
-                      <th
-                        key={c.key}
-                        scope="col"
-                        aria-sort={
-                          active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined
-                        }
+    <div className="flex flex-col">
+      {mobileRow ? (
+        <ul className="flex flex-col divide-y divide-line-soft border-y border-line-soft sm:hidden">
+          {shown.map((row) => (
+            <li key={row.id}>
+              <button
+                type="button"
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className="w-full py-3.5 text-left"
+              >
+                {mobileRow(row)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className={cn("overflow-x-auto", mobileRow && "hidden sm:block")}>
+        <table className="w-full min-w-[720px] border-collapse text-left font-gsf text-sm">
+          <caption className="sr-only">{label}</caption>
+          <thead>
+            <tr className="border-b border-line-soft">
+              {selectable ? (
+                <th scope="col" className="w-10 pb-2.5 pl-1 pr-2 align-bottom">
+                  <input
+                    ref={headerBox}
+                    type="checkbox"
+                    aria-label="Select all on this page"
+                    checked={allOnPage}
+                    onChange={togglePage}
+                    className="h-4 w-4 cursor-pointer accent-ink"
+                  />
+                </th>
+              ) : null}
+              {columns.map((c) => {
+                const active = sort?.key === c.key;
+                return (
+                  <th
+                    key={c.key}
+                    scope="col"
+                    aria-sort={
+                      active ? (sort!.dir === "asc" ? "ascending" : "descending") : undefined
+                    }
+                    className={cn(
+                      "whitespace-nowrap px-3 pb-2.5 align-bottom text-[13px] font-medium text-muted-ink",
+                      c.align === "right" && "text-right",
+                      c.className,
+                    )}
+                  >
+                    {c.sortValue ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(c.key)}
                         className={cn(
-                          "h-11 whitespace-nowrap px-4 text-[13px] font-medium text-muted-ink first:pl-5",
-                          c.align === "right" && "text-right",
-                          c.className,
+                          "group inline-flex items-center gap-1 transition-colors hover:text-ink",
+                          active && "text-ink",
+                          c.align === "right" && "flex-row-reverse",
                         )}
                       >
-                        {c.sortValue ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleSort(c.key)}
-                            className={cn(
-                              "inline-flex items-center gap-1 transition-colors hover:text-ink",
-                              active && "text-ink",
-                            )}
-                          >
-                            {c.header}
-                            {active ? (
-                              sort!.dir === "asc" ? (
-                                <ArrowUp className="h-3.5 w-3.5" strokeWidth={2} />
-                              ) : (
-                                <ArrowDown className="h-3.5 w-3.5" strokeWidth={2} />
-                              )
-                            ) : (
-                              <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" strokeWidth={2} />
-                            )}
-                          </button>
+                        {c.header}
+                        {active && sort!.dir === "asc" ? (
+                          <ArrowUp className="h-3.5 w-3.5" strokeWidth={2} />
                         ) : (
-                          c.header
+                          <ArrowDown
+                            className={cn(
+                              "h-3.5 w-3.5 transition-opacity",
+                              active ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+                            )}
+                            strokeWidth={2}
+                          />
                         )}
-                      </th>
-                    );
-                  })}
-                  {rowMenu ? (
-                    <th scope="col" className="w-14 pr-4">
-                      <span className="sr-only">Actions</span>
-                    </th>
+                      </button>
+                    ) : (
+                      c.header
+                    )}
+                  </th>
+                );
+              })}
+              {rowAction ? <th scope="col" className="w-28" aria-label="Actions" /> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((row, i) => {
+              const isSelected = selected.has(row.id);
+              const isActive = activeId === row.id;
+              return (
+                <tr
+                  key={row.id}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={onRowClick ? (e) => e.key === "Enter" && onRowClick(row) : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  aria-selected={isSelected || undefined}
+                  className={cn(
+                    "admin-row group border-b border-line-soft transition-colors",
+                    onRowClick && "cursor-pointer focus-visible:outline-none",
+                    isActive
+                      ? "bg-panel"
+                      : isSelected
+                        ? "bg-brand/[0.04]"
+                        : onRowClick && "hover:bg-panel/60 focus-visible:bg-panel/60",
+                  )}
+                  style={{ animationDelay: `${Math.min(i, 12) * 24}ms` }}
+                >
+                  {selectable ? (
+                    <td className="pl-1 pr-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select row"
+                        checked={isSelected}
+                        onChange={() => toggle(row.id)}
+                        className="h-4 w-4 cursor-pointer accent-ink"
+                      />
+                    </td>
+                  ) : null}
+                  {columns.map((c) => (
+                    <td
+                      key={c.key}
+                      className={cn(
+                        "h-14 px-3 align-middle",
+                        c.align === "right" && "text-right tabular-nums",
+                        c.className,
+                      )}
+                    >
+                      {c.cell(row)}
+                    </td>
+                  ))}
+                  {rowAction ? (
+                    <td className="pr-1 text-right" onClick={(e) => e.stopPropagation()}>
+                      {rowAction(row)}
+                    </td>
                   ) : null}
                 </tr>
-              </thead>
-              <tbody>
-                {shown.map((row, i) => (
-                  <tr
-                    key={row.id}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    onKeyDown={
-                      onRowClick
-                        ? (e) => {
-                            if (e.key === "Enter") onRowClick(row);
-                          }
-                        : undefined
-                    }
-                    tabIndex={onRowClick ? 0 : undefined}
-                    className={cn(
-                      "admin-row border-b border-line-soft transition-colors last:border-0",
-                      onRowClick &&
-                        "cursor-pointer hover:bg-panel/60 focus-visible:bg-panel/60 focus-visible:outline-none",
-                    )}
-                    style={{ animationDelay: `${i * 30}ms` }}
-                  >
-                    {columns.map((c) => (
-                      <td
-                        key={c.key}
-                        className={cn(
-                          "h-16 px-4 align-middle first:pl-5",
-                          c.align === "right" && "text-right tabular-nums",
-                          c.className,
-                        )}
-                      >
-                        {c.cell(row)}
-                      </td>
-                    ))}
-                    {rowMenu ? (
-                      <td className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <RowMenu actions={rowMenu(row)} />
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-          <div className="flex items-center justify-between gap-4 border-t border-line-soft px-5 py-3 text-[13px] text-muted-ink">
-            <span>
-              Showing <span className="font-medium text-ink">{from}</span>–
-              <span className="font-medium text-ink">{to}</span> of{" "}
-              <span className="font-medium text-ink">{sorted.length}</span>
-            </span>
-            {pages > 1 ? (
-              <div className="flex items-center gap-2">
-                <span className="hidden sm:inline">
-                  Page {current} of {pages}
-                </span>
-                <PageButton
-                  label="Previous page"
-                  icon={ChevronLeft}
-                  disabled={current === 1}
-                  onClick={() => setPage(current - 1)}
-                />
-                <PageButton
-                  label="Next page"
-                  icon={ChevronRight}
-                  disabled={current === pages}
-                  onClick={() => setPage(current + 1)}
-                />
-              </div>
-            ) : null}
-          </div>
-        </>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-[13px] text-muted-ink">
+        <label className="flex items-center gap-2">
+          Rows per page
+          <select
+            value={perPage}
+            onChange={(e) => {
+              setPerPage(Number(e.target.value));
+              setPage(1);
+            }}
+            className="h-8 cursor-pointer rounded-[8px] border border-line-soft bg-paper px-2 text-[13px] text-ink focus:border-ink focus:outline-none"
+          >
+            {[10, 25, 50].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex items-center gap-2">
+          <span className="tabular-nums">
+            {from}–{to} of {sorted.length}
+          </span>
+          <PageButton
+            label="Previous page"
+            icon={ChevronLeft}
+            disabled={current === 1}
+            onClick={() => setPage(current - 1)}
+          />
+          <PageButton
+            label="Next page"
+            icon={ChevronRight}
+            disabled={current === pages}
+            onClick={() => setPage(current + 1)}
+          />
+        </div>
+      </div>
+
+      {bulkActions ? (
+        <BulkBar
+          count={selectedRows.length}
+          noun={noun}
+          actions={selectedRows.length ? bulkActions(selectedRows) : []}
+          onClear={() => setSelected(new Set())}
+          onDone={() => setSelected(new Set())}
+        />
+      ) : null}
     </div>
   );
 }
@@ -233,47 +331,75 @@ function PageButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-full border border-line-input text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line-input"
+      className="grid h-8 w-8 place-items-center rounded-[8px] border border-line-soft text-ink transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
     >
       <Icon className="h-4 w-4" strokeWidth={2} />
     </button>
   );
 }
 
-export type RowAction = {
-  label: string;
-  icon: LucideIcon;
-  onSelect: () => void;
-  tone?: "danger";
-};
-
-/** The "…" menu at the end of a row. Labels, not mystery icons. */
-export function RowMenu({ actions }: { actions: RowAction[] }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Row actions"
-        className="grid h-8 w-8 place-items-center rounded-full text-muted-ink outline-none transition-colors hover:bg-panel hover:text-ink focus-visible:ring-2 focus-visible:ring-ink data-[state=open]:bg-panel data-[state=open]:text-ink"
+/** Dark bar that rises from the bottom while rows are selected. Portalled so it pins to the screen. */
+function BulkBar({
+  count,
+  noun,
+  actions,
+  onClear,
+  onDone,
+}: {
+  count: number;
+  noun: [string, string];
+  actions: BulkAction[];
+  onClear: () => void;
+  onDone: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  const visible = count > 0;
+  return createPortal(
+    <div
+      role="toolbar"
+      aria-label="Bulk actions"
+      aria-hidden={!visible}
+      className={cn(
+        "fixed bottom-6 left-1/2 z-40 flex max-w-[calc(100%-32px)] -translate-x-1/2 items-center gap-1 rounded-[14px] bg-ink py-1.5 pl-4 pr-1.5 font-gsf text-sm text-ink-contrast shadow-[0_24px_64px_-16px_rgba(19,14,48,0.55)] transition-[opacity,translate] duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] lg:ml-30",
+        visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0",
+      )}
+    >
+      <span className="whitespace-nowrap pr-3 tabular-nums">
+        {count} {count === 1 ? noun[0] : noun[1]} selected
+      </span>
+      <span className="mr-1 h-5 w-px bg-white/15" />
+      {actions.map((a) => (
+        <button
+          key={a.label}
+          type="button"
+          tabIndex={visible ? 0 : -1}
+          disabled={Boolean(a.disabledReason)}
+          title={a.disabledReason}
+          onClick={() => {
+            a.onSelect();
+            if (!a.tone) onDone();
+          }}
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[9px] px-3 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+            a.tone === "danger" ? "text-[#FF8A80] hover:bg-white/10" : "hover:bg-white/10",
+          )}
+        >
+          {a.icon ? <a.icon className="h-4 w-4" strokeWidth={1.75} /> : null}
+          {a.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        aria-label="Clear selection"
+        tabIndex={visible ? 0 : -1}
+        onClick={onClear}
+        className="ml-1 grid h-8 w-8 place-items-center rounded-[9px] text-white/70 transition-colors hover:bg-white/10 hover:text-white"
       >
-        <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-52 rounded-field border border-line-soft bg-paper p-1.5 font-gsf shadow-[0_16px_48px_-16px_rgba(19,14,48,0.25)]"
-      >
-        {actions.map((a) => (
-          <DropdownMenuItem
-            key={a.label}
-            onSelect={a.onSelect}
-            className={cn(
-              "flex cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2.5 text-sm focus:bg-panel",
-              a.tone === "danger" ? "text-danger focus:text-danger" : "text-ink",
-            )}
-          >
-            <a.icon className="h-4 w-4" strokeWidth={1.75} /> {a.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <X className="h-4 w-4" strokeWidth={2} />
+      </button>
+    </div>,
+    document.body,
   );
 }

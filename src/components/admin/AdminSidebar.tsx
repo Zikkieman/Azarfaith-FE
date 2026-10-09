@@ -1,93 +1,218 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowUpRight, Building2, LayoutGrid, Megaphone, Settings2, Users } from "lucide-react";
-import logo from "@/assets/landing/logo.svg";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Building2,
+  ChevronsUpDown,
+  History,
+  Home,
+  LogOut,
+  Megaphone,
+  Search,
+  Settings2,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
+import logoMark from "@/assets/signup/logo-mark.svg";
 import { useApp } from "@/lib/store";
 import { me } from "@/lib/mock";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { usePalette } from "./context";
 
-const navItems = [
-  { label: "Overview", icon: LayoutGrid, to: "/admin" as const },
-  { label: "Organizations", icon: Building2, to: "/admin/orgs" as const },
-  { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns" as const },
-  { label: "Users", icon: Users, to: "/admin/users" as const },
-  { label: "Settings", icon: Settings2, to: "/admin/settings" as const },
-];
+type Item = {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+  view?: string;
+  count?: number;
+  attention?: boolean;
+};
 
-/** Black sidebar, matching the site and app navs. Pending counts sit beside their section. */
+/**
+ * Light sidebar (after Plain and Cloudflare): search on top, then nav grouped by job. The two
+ * review queues sit first and carry their live counts.
+ */
 export function AdminSidebar() {
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  const location = useRouterState({ select: (s) => s.location });
+  const navigate = useNavigate();
+  const { setPaletteOpen } = usePalette();
+  const setAuthed = useApp((s) => s.setAuthed);
+  const setAdminRole = useApp((s) => s.setAdminRole);
   const pendingOrgs = useApp(
     (s) => s.orgs.filter((o) => o.verificationStatus === "pending").length,
   );
   const pendingCampaigns = useApp(
     (s) => s.campaigns.filter((c) => c.verificationStatus === "pending").length,
   );
-  const counts: Record<string, number> = {
-    "/admin/orgs": pendingOrgs,
-    "/admin/campaigns": pendingCampaigns,
+  const suspended = useApp((s) => s.users.filter((u) => u.status === "suspended").length);
+
+  const groups: { label?: string; items: Item[] }[] = [
+    { items: [{ label: "Overview", icon: Home, to: "/admin" }] },
+    {
+      label: "Review",
+      items: [
+        {
+          label: "Verify organizations",
+          icon: BadgeCheck,
+          to: "/admin/orgs",
+          view: "pending",
+          count: pendingOrgs,
+          attention: true,
+        },
+        {
+          label: "Review campaigns",
+          icon: ShieldAlert,
+          to: "/admin/campaigns",
+          view: "pending",
+          count: pendingCampaigns,
+          attention: true,
+        },
+      ],
+    },
+    {
+      label: "Directory",
+      items: [
+        { label: "Organizations", icon: Building2, to: "/admin/orgs", view: "all" },
+        { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns", view: "all" },
+        { label: "Users", icon: Users, to: "/admin/users", count: suspended || undefined },
+      ],
+    },
+    {
+      label: "Platform",
+      items: [
+        { label: "Activity log", icon: History, to: "/admin/activity" },
+        { label: "Settings", icon: Settings2, to: "/admin/settings" },
+      ],
+    },
+  ];
+
+  const view = (location.search as { view?: string }).view;
+  const isActive = (item: Item) => {
+    const path = location.pathname.replace(/\/$/, "");
+    if (item.to === "/admin") return path === "/admin";
+    if (!path.startsWith(item.to)) return false;
+    // On list pages the view decides between "Verify organizations" and "Organizations".
+    if (item.view && path === item.to) {
+      return item.view === "pending" ? view === "pending" : view !== "pending";
+    }
+    return item.view !== "pending";
   };
 
   return (
-    <aside className="flex h-full flex-col bg-black px-3 pb-4 pt-5 font-gsf text-white">
-      <div className="flex items-center gap-2.5 px-3 pb-8">
-        <img src={logo} alt="AzarFaith" className="h-[22px] w-auto" />
-        <span className="text-[13px] text-white/50">Admin</span>
+    <aside className="flex h-full flex-col border-r border-line-soft bg-panel font-gsf">
+      <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
+        <img src={logoMark} alt="" className="h-7 w-7" />
+        <span className="text-[15px] font-semibold text-ink">AzarFaith</span>
+        <span className="rounded-[6px] bg-ink/[0.06] px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
+          Admin
+        </span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
-        {navItems.map((item) => {
-          const active =
-            item.to === "/admin"
-              ? path === "/admin" || path === "/admin/"
-              : path === item.to || path.startsWith(`${item.to}/`);
-          const count = counts[item.to] ?? 0;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "group relative flex h-10 items-center gap-3 rounded-field px-3 text-[14px] font-medium transition-colors duration-200",
-                active
-                  ? "bg-white/10 text-white"
-                  : "text-white/60 hover:bg-white/5 hover:text-white",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-brand transition-opacity duration-200",
-                  active ? "opacity-100" : "opacity-0",
-                )}
-              />
-              <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
-              <span className="flex-1">{item.label}</span>
-              {count > 0 ? (
-                <span
-                  aria-label={`${count} waiting for review`}
-                  className="grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-semibold text-white"
+      <div className="px-3 pb-2">
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          className="flex h-9 w-full items-center gap-2 rounded-[10px] border border-line-soft bg-paper px-2.5 text-sm text-muted-ink transition-colors hover:border-line-input hover:text-ink"
+        >
+          <Search className="h-4 w-4" strokeWidth={1.75} />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="rounded-[5px] border border-line-soft bg-panel px-1.5 font-gsf text-[11px] text-muted-ink">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-3 py-2">
+        {groups.map((g, gi) => (
+          <div key={gi} className="flex flex-col gap-0.5">
+            {g.label ? (
+              <p className="px-2.5 pb-1 text-[12px] font-medium text-subtle">{g.label}</p>
+            ) : null}
+            {g.items.map((item) => {
+              const active = isActive(item);
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to as "/admin"}
+                  search={item.view ? ({ view: item.view } as never) : undefined}
+                  className={cn(
+                    "flex h-8 items-center gap-2.5 rounded-[8px] px-2.5 text-[14px] transition-colors duration-150",
+                    active
+                      ? "bg-paper font-medium text-ink shadow-[0_1px_2px_rgba(19,14,48,0.08)] ring-1 ring-line-soft"
+                      : "text-ink-soft hover:bg-paper/70 hover:text-ink",
+                  )}
                 >
-                  {count}
-                </span>
-              ) : null}
-            </Link>
-          );
-        })}
+                  <item.icon
+                    className={cn("h-4 w-4 shrink-0", active ? "text-ink" : "text-muted-ink")}
+                    strokeWidth={1.75}
+                  />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {item.count ? (
+                    <span
+                      className={cn(
+                        "min-w-5 rounded-[6px] px-1.5 text-center text-[12px] font-medium tabular-nums",
+                        item.attention ? "bg-brand/10 text-brand-ink" : "text-muted-ink",
+                      )}
+                    >
+                      {item.count}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      <div className="flex flex-col gap-1 border-t border-white/10 pt-4">
+      <div className="flex flex-col gap-1 border-t border-line-soft p-3">
         <Link
           to="/"
-          className="flex h-10 items-center gap-3 rounded-field px-3 text-[14px] font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+          className="flex h-8 items-center gap-2.5 rounded-[8px] px-2.5 text-[14px] text-ink-soft transition-colors hover:bg-paper/70 hover:text-ink"
         >
-          <ArrowUpRight className="h-[18px] w-[18px]" strokeWidth={1.75} /> View website
+          <ArrowUpRight className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
+          View website
         </Link>
-        <div className="flex items-center gap-3 px-3 pt-3">
-          <img src={me.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-medium text-white">{me.name}</p>
-            <p className="text-[12px] text-white/50">Platform admin</p>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left outline-none transition-colors hover:bg-paper/70 focus-visible:ring-2 focus-visible:ring-ink">
+            <img src={me.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-medium text-ink">{me.name}</span>
+              <span className="block text-[12px] text-muted-ink">Platform admin</span>
+            </span>
+            <ChevronsUpDown className="h-3.5 w-3.5 text-muted-ink" strokeWidth={2} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            className="w-56 rounded-field border border-line-soft bg-paper p-1.5 font-gsf shadow-[0_16px_48px_-16px_rgba(19,14,48,0.25)]"
+          >
+            <DropdownMenuItem
+              asChild
+              className="cursor-pointer rounded-[8px] px-3 py-2 text-sm focus:bg-panel"
+            >
+              <Link to="/profile">Your profile</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-line-soft" />
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2 rounded-[8px] px-3 py-2 text-sm focus:bg-panel"
+              onSelect={() => {
+                setAdminRole(null);
+                setAuthed(false);
+                navigate({ to: "/" });
+              }}
+            >
+              <LogOut className="h-4 w-4" strokeWidth={1.75} /> Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );

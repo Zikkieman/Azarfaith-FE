@@ -181,23 +181,34 @@ orange; category icons are lucide (from `categories` in `lib/mock.ts`), never em
 
 ## 7b-ii. Admin (`/admin`, platform admins only)
 
-- Frame: `components/admin/AdminLayout.tsx` — fixed black sidebar (same black as the navs, orange
-  3px active marker, orange counts for items waiting for review), a drawer (`Sheet`) on phones, pages
-  on `bg-panel`. Every page is `AdminPage` (breadcrumbs in the sticky blurred top bar, then title,
-  lead, actions) and content sits in `AdminCard`s; detail rows use `DetailList`.
-- Tables: always `AdminTable` (sortable headers, whole-row click, a labelled "…" `RowMenu`, staggered
-  rows, "Showing 1–8 of 12" pagination). Filters: status as underline `Tabs` with counts, then
-  `AdminToolbar` (search + `AdminSelect`). List routes are `*.index.tsx` so detail routes render.
-- Status words come from `AdminBadge.tsx` (`StatusBadge`, `AccountBadge`, `RoleBadge`,
-  `UrgencyBadge`) on the kit `Tag` tones `verified` / `attention` / `danger` / `neutral`; only high
-  and critical urgency get colour.
-- Modals: `AdminConfirmDialog` (ink or danger button) and `AdminRejectDialog` (written reason). The
-  shared `ui/dialog`, `ui/alert-dialog` and `ui/sheet` overlays blur the page (`bg-ink/25
-  backdrop-blur`) and ease in with `cubic-bezier(0.2,0.7,0.2,1)`.
-- Charts follow the dataviz skill: one ink series, 4px tops, hover values, peak labelled, a hidden
-  table for screen readers. A few counts are a list, not a chart.
-- Each admin route has `loader: simulateNetwork` + a skeleton from `AdminSkeletons.tsx`. Pages rise in
-  (`.admin-rise`); fixed overlays inside a page portal to `<body>` (the rise transform would pin them).
+Built from real product references (SaaS Interface: Plain, Twenty, Modash, TheyDo, Cloudflare,
+Buildkite, Runey). Browse there before adding admin UI; don't invent generic dashboards.
+
+- Frame (`AdminLayout`): light `bg-panel` sidebar beside white pages. Sidebar = search button (⌘K / "/"
+  opens `CommandPalette`), then groups **Review** (Verify organizations, Review campaigns, with live
+  counts in `bg-brand/10`), **Directory** (Organizations, Campaigns, Users), **Platform** (Activity log,
+  Settings), then account. Thin sticky top bar: breadcrumbs, `pager` ("2 of 5", J / K) on records,
+  notifications.
+- Overview leads with the two review queues (Cloudflare "agenda"), then a stat strip with a time range,
+  the gifts chart and recent activity.
+- Lists: title + count, `Segmented` status views (URL `?view=`), `SearchField`, `FilterMenu` (field →
+  checklist) with `FilterChips`, then `AdminTable`: checkboxes + floating dark bulk bar (actions
+  disable with a reason), sortable headers, row click opens a side panel (`OrgPanel`,
+  `CampaignPanel`), inline "Review" for items waiting, rows-per-page + "1–5 of 5", `mobileRow` on
+  phones. Lists are `*.index.tsx` so record routes render.
+- Records (Twenty): header with status + actions; body = 300px field column (`FieldGroup` / `Field`
+  with copy) + tabs (Verification / Review, Campaigns or Gifts, Activity, Notes).
+- Review rules: organizations have four checks (`lib/admin.ts` `checkDefs`, Pass / Fail / Waiting);
+  Verify stays disabled until all pass and says why. Campaigns get automatic checks; Approve waits for a
+  verified organizer. `RiskSignals` lists mismatches. Every decision writes to the audit log
+  (`store.auditLog`) shown in Activity tabs and `/admin/activity`.
+- Modals: `AdminConfirmDialog` lists "What happens"; `AdminRejectDialog` offers preset reasons, a note
+  and "Email them". Typed confirmation (PAUSE) for platform-wide danger. Blurred overlay, eased entry.
+- Edge cases handled in copy, not hidden: can't suspend yourself or a platform admin, can't change your
+  own role, revoking lists live campaigns that will stop, settings validate (min < max), each settings
+  section saves on its own (Buildkite).
+- Store selectors must return stable values (never `filter()` or `?? []` inside `useApp`); select the
+  array, then derive. Fixed overlays portal to `<body>` (`.admin-rise` transforms the page).
 - Icons are plain lucide line icons. No sparkles, no emoji, no dollar signs (use `HandCoins`).
 
 ## 7c. Tokens, navs and motion

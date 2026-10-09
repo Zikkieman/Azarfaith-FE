@@ -4,131 +4,107 @@ import { useApp } from "@/lib/store";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { AdminSidebar } from "./AdminSidebar";
-import { AdminHeader, type Crumb } from "./AdminHeader";
-import { SidebarContext } from "./context";
+import { AdminHeader, type Crumb, type Pager } from "./AdminHeader";
+import { CommandPalette } from "./CommandPalette";
+import { PaletteContext, SidebarContext } from "./context";
 
-/** Admin frame: fixed black sidebar on desktop, a drawer on phones, pages on a warm panel. */
+/** Admin frame: light sidebar beside white pages, a drawer on phones, ⌘K everywhere. */
 export function AdminLayout() {
   const authed = useApp((s) => s.authed);
   const adminRole = useApp((s) => s.adminRole);
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     if (!authed || adminRole !== "platform_admin") navigate({ to: "/login" });
   }, [authed, adminRole, navigate]);
 
-  // Close the drawer whenever the page changes.
   useEffect(() => setOpen(false), [path]);
 
   if (!authed || adminRole !== "platform_admin") return null;
 
   return (
     <SidebarContext.Provider value={{ open, setOpen }}>
-      <div className="min-h-screen bg-panel font-gsf text-heading">
-        <div className="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
-          <AdminSidebar />
-        </div>
-
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent
-            side="left"
-            className="w-72 border-0 bg-black p-0 sm:max-w-72 [&>button]:text-white/70 [&>button]:hover:bg-white/10 [&>button]:hover:text-white"
-          >
-            <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+      <PaletteContext.Provider value={{ paletteOpen, setPaletteOpen }}>
+        <div className="min-h-screen bg-paper font-gsf text-heading">
+          <div className="fixed inset-y-0 left-0 z-40 hidden w-60 lg:block">
             <AdminSidebar />
-          </SheetContent>
-        </Sheet>
-
-        <div className="lg:pl-64">
-          <Outlet />
+          </div>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetContent side="left" className="w-72 border-0 p-0 sm:max-w-72">
+              <SheetTitle className="sr-only">Admin navigation</SheetTitle>
+              <AdminSidebar />
+            </SheetContent>
+          </Sheet>
+          <div className="lg:pl-60">
+            <Outlet />
+          </div>
+          <CommandPalette />
         </div>
-      </div>
+      </PaletteContext.Provider>
     </SidebarContext.Provider>
   );
 }
 
-/** One admin page: top bar, then a title block and the page body, rising in on arrival. */
+/**
+ * One admin page. The title can carry a count ("Organizations 5"); detail pages pass `pager` to
+ * step through the list they came from (after Twenty's "2 of 6").
+ */
 export function AdminPage({
   title,
+  count,
   lead,
   actions,
   crumbs,
+  pager,
   children,
   className,
+  wide = true,
 }: {
   title: ReactNode;
+  count?: number;
   lead?: ReactNode;
   actions?: ReactNode;
   crumbs?: Crumb[];
+  pager?: Pager;
   children: ReactNode;
   className?: string;
+  wide?: boolean;
 }) {
+  const paused = useApp((s) => s.givingPaused);
   return (
     <>
-      <AdminHeader crumbs={crumbs} />
+      <AdminHeader crumbs={crumbs} pager={pager} />
+      {paused ? (
+        <div className="border-b border-danger/20 bg-danger/5 px-5 py-2.5 text-center text-[13px] text-danger sm:px-8">
+          Giving is paused across AzarFaith. Givers see a notice and no payments are taken.
+        </div>
+      ) : null}
       <main
         className={cn(
-          "admin-rise mx-auto flex w-full max-w-[1240px] flex-col gap-8 px-5 py-8 sm:px-8 lg:py-10",
+          "admin-rise mx-auto flex w-full flex-col gap-6 px-5 pb-16 pt-6 sm:px-8",
+          wide ? "max-w-[1400px]" : "max-w-[1040px]",
           className,
         )}
       >
-        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="font-display text-[clamp(26px,2.4vw,34px)] leading-[1.15] tracking-[-0.025em] text-ink">
-              {title}
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="flex items-baseline gap-2.5 font-display text-[clamp(22px,1.9vw,26px)] leading-[1.25] tracking-[-0.02em] text-ink">
+              <span className="min-w-0">{title}</span>
+              {count !== undefined ? (
+                <span className="font-gsf text-[15px] font-normal tabular-nums text-muted-ink">
+                  {count}
+                </span>
+              ) : null}
             </h1>
-            {lead ? <div className="text-[15px] leading-[1.55] text-ink-soft">{lead}</div> : null}
+            {lead ? <div className="text-sm leading-[1.55] text-muted-ink">{lead}</div> : null}
           </div>
-          {actions ? <div className="flex shrink-0 flex-wrap gap-3">{actions}</div> : null}
+          {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
         </div>
         {children}
       </main>
     </>
-  );
-}
-
-/** A white card with an optional title row; the admin's one surface. */
-export function AdminCard({
-  title,
-  action,
-  children,
-  className,
-  bodyClassName,
-}: {
-  title?: ReactNode;
-  action?: ReactNode;
-  children: ReactNode;
-  className?: string;
-  bodyClassName?: string;
-}) {
-  return (
-    <section className={cn("rounded-card border border-line-soft bg-paper", className)}>
-      {title ? (
-        <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
-          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-          {action}
-        </div>
-      ) : null}
-      <div className={cn("p-5 sm:p-6", title && "pt-4 sm:pt-4", bodyClassName)}>{children}</div>
-    </section>
-  );
-}
-
-/** Label / value rows for detail pages. */
-export function DetailList({ rows }: { rows: { label: string; value: ReactNode }[] }) {
-  return (
-    <dl className="flex flex-col divide-y divide-line-soft">
-      {rows.map((r) => (
-        <div
-          key={r.label}
-          className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
-        >
-          <dt className="text-sm text-muted-ink">{r.label}</dt>
-          <dd className="min-w-0 text-right text-sm font-medium text-ink">{r.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }

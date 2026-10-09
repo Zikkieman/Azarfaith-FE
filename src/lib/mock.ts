@@ -177,7 +177,7 @@ export const orgs: Org[] = [
     photos: [p(9), p(10), p(11)],
     videos: [],
     campaignIds: ["gfc3"],
-    verificationStatus: "unverified",
+    verificationStatus: "pending",
     totalReceived: 2100000,
     supporters: 189,
   },

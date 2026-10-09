@@ -1,19 +1,42 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Building2, Calendar, Church, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Building2,
+  Calendar,
+  Church,
+  Fingerprint,
+  Hash,
+  Landmark,
+  Mail,
+  MapPin,
+  Phone,
+  Send,
+  User,
+  Wallet,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
 import { formatMoney } from "@/lib/mock";
+import { orgFiles, timeAgo } from "@/lib/admin";
 import { pending, simulateNetwork } from "@/lib/api";
 import { btn } from "@/components/app/btn";
-import { Tag } from "@/components/app/AppShell";
-import { AdminCard, AdminPage, DetailList } from "@/components/admin/AdminLayout";
-import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
-import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
+import { Tabs } from "@/components/app/AppShell";
+import { AdminPage } from "@/components/admin/AdminLayout";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminDetailSkeleton } from "@/components/admin/AdminSkeletons";
 import { StatusBadge } from "@/components/admin/AdminBadge";
+import {
+  CheckList,
+  DocumentList,
+  Field,
+  FieldGroup,
+  Notes,
+  RiskSignals,
+  Timeline,
+} from "@/components/admin/AdminParts";
+import { OrgActions } from "@/components/admin/OrgReview";
+import { orgRisks } from "@/components/admin/useAdmin";
 import { orgCategoryLabel } from "@/components/admin/labels";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/orgs/$id")({
   loader: () => simulateNetwork(),
@@ -22,216 +45,225 @@ export const Route = createFileRoute("/admin/orgs/$id")({
   component: AdminOrgDetail,
 });
 
+type Tab = "verification" | "campaigns" | "activity" | "notes";
+
+const day = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+
 function AdminOrgDetail() {
   const { id } = Route.useParams();
   const orgs = useApp((s) => s.orgs);
   const campaigns = useApp((s) => s.campaigns);
-  const verifyOrg = useApp((s) => s.verifyOrg);
-  const [verifying, setVerifying] = useState(false);
-  const [rejecting, setRejecting] = useState(false);
+  const checks = useApp((s) => s.checks[id]);
+  const log = useApp((s) => s.auditLog);
+  const noteCount = useApp((s) => s.notes[id]?.length ?? 0);
+  const [tab, setTab] = useState<Tab>("verification");
 
-  const org = orgs.find((o) => o.id === id);
+  const index = orgs.findIndex((o) => o.id === id);
+  const org = orgs[index];
   if (!org) {
     return (
       <AdminPage
         title="Organization not found"
         crumbs={[{ label: "Organizations", to: "/admin/orgs" }]}
       >
-        <AdminCard>
-          <AdminEmptyState
-            icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
-            title="This organization doesn't exist"
-            description="It may have been removed, or the link is wrong."
-            action={
-              <Link to="/admin/orgs" className={btn("secondary", "sm")}>
-                Back to organizations
-              </Link>
-            }
-          />
-        </AdminCard>
+        <AdminEmptyState
+          icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
+          title="This organization doesn't exist"
+          description="It may have been removed, or the link is wrong."
+          action={
+            <Link to="/admin/orgs" search={{ view: "all" }} className={btn("secondary", "sm")}>
+              Back to organizations
+            </Link>
+          }
+        />
       </AdminPage>
     );
   }
 
+  const file = orgFiles[org.id];
   const orgCampaigns = campaigns.filter((c) => c.orgId === org.id);
-  const isPending = org.verificationStatus === "pending" || org.verificationStatus === "unverified";
-  const isVerified = org.verificationStatus === "verified";
+  const history = log.filter((e) => e.target.id === org.id);
+  const step = (i: number) =>
+    orgs[i] ? { to: "/admin/orgs/$id", params: { id: orgs[i].id } } : undefined;
+  const mismatch = file && file.accountName !== org.name;
 
   return (
     <AdminPage
-      crumbs={[{ label: "Organizations", to: "/admin/orgs" }, { label: org.name }]}
+      crumbs={[
+        { label: "Organizations", to: "/admin/orgs", search: { view: "all" } },
+        { label: org.name },
+      ]}
+      pager={{ index: index + 1, total: orgs.length, prev: step(index - 1), next: step(index + 1) }}
       title={
-        <span className="flex items-center gap-4">
+        <span className="flex items-center gap-3">
           <img
             src={org.photos[0]}
             alt=""
-            className="h-14 w-14 shrink-0 rounded-field object-cover"
+            className="h-10 w-10 shrink-0 rounded-[10px] object-cover"
           />
           <span className="min-w-0">{org.name}</span>
         </span>
       }
       lead={
-        <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <StatusBadge status={org.verificationStatus} />
-          <span className="inline-flex items-center gap-1.5">
-            <Building2 className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
-            {orgCategoryLabel[org.category]}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
-            {org.location}
-          </span>
+          <span>{orgCategoryLabel[org.category]}</span>
+          <span aria-hidden>·</span>
+          <span>{org.location}</span>
+          {file ? (
+            <>
+              <span aria-hidden>·</span>
+              <span>Applied {timeAgo(file.submittedAt)}</span>
+            </>
+          ) : null}
         </span>
       }
       actions={
-        isPending ? (
-          <>
-            <button type="button" className={btn("secondary")} onClick={() => setRejecting(true)}>
-              Reject
-            </button>
-            <button type="button" className={btn("primary")} onClick={() => setVerifying(true)}>
-              Verify organization
-            </button>
-          </>
-        ) : isVerified ? (
-          <button
-            type="button"
-            className={`${btn("secondary")} text-danger hover:border-danger`}
-            onClick={() => setRejecting(true)}
-          >
-            Revoke verification
-          </button>
-        ) : null
+        <div className="flex flex-col items-end gap-1.5">
+          <OrgActions org={org} />
+        </div>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <AdminCard title="About">
-            <p className="text-[15px] font-medium text-ink">{org.tagline}</p>
-            <p className="mt-2 text-[15px] leading-[1.65] text-ink-soft">{org.bio}</p>
-          </AdminCard>
+      <div className="grid overflow-hidden rounded-card border border-line-soft lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="border-b border-line-soft bg-panel/40 px-4 py-2 lg:border-b-0 lg:border-r">
+          <FieldGroup title="Organization">
+            <Field icon={Building2} label="Category">
+              {orgCategoryLabel[org.category]}
+            </Field>
+            <Field icon={Church} label="Denomination">
+              {org.denomination}
+            </Field>
+            <Field icon={Calendar} label="Founded">
+              {org.founded}
+            </Field>
+            <Field icon={MapPin} label="Location">
+              {org.location}
+            </Field>
+          </FieldGroup>
+          {file ? (
+            <>
+              <FieldGroup title="Contact">
+                <Field icon={User} label="Name">
+                  {file.contactName}
+                </Field>
+                <Field icon={Mail} label="Email" copy={file.email}>
+                  {file.email}
+                </Field>
+                <Field icon={Phone} label="Phone" copy={file.phone}>
+                  {file.phone}
+                </Field>
+              </FieldGroup>
+              <FieldGroup title="Payout">
+                <Field icon={Landmark} label="Bank">
+                  {file.bank}
+                </Field>
+                <Field icon={User} label="Account name">
+                  <span className={cn(mismatch && "text-danger")}>{file.accountName}</span>
+                </Field>
+                <Field icon={Wallet} label="Account">
+                  •••• {file.accountEnding}
+                </Field>
+              </FieldGroup>
+              <FieldGroup title="Record">
+                <Field icon={Hash} label="CAC number" copy={file.rcNumber}>
+                  {file.rcNumber}
+                </Field>
+                <Field icon={Fingerprint} label="ID" copy={org.id}>
+                  {org.id}
+                </Field>
+                <Field icon={Send} label="Applied">
+                  {day(file.submittedAt)}
+                </Field>
+                <Field icon={Wallet} label="Received">
+                  {formatMoney(org.totalReceived)}
+                </Field>
+              </FieldGroup>
+            </>
+          ) : null}
+        </aside>
 
-          <AdminCard
-            title="Photos"
-            action={<span className="text-sm text-muted-ink">{org.photos.length}</span>}
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {org.photos.map((photo, i) => (
-                <a
-                  key={i}
-                  href={photo}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group block aspect-square overflow-hidden rounded-field bg-panel"
-                >
-                  <img
-                    src={photo}
-                    alt={`${org.name}, photo ${i + 1}`}
-                    className="h-full w-full object-cover transition-transform duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)] group-hover:scale-[1.03]"
-                  />
-                </a>
-              ))}
-            </div>
-          </AdminCard>
-
-          <AdminCard
-            title="Campaigns"
-            action={<span className="text-sm text-muted-ink">{orgCampaigns.length}</span>}
-            bodyClassName="px-2 pb-2 sm:px-3 sm:pb-3"
-          >
-            {orgCampaigns.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-ink">No campaigns yet.</p>
-            ) : (
-              <ul className="flex flex-col">
-                {orgCampaigns.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      to="/admin/campaigns/$id"
-                      params={{ id: c.id }}
-                      className="flex items-center gap-3 rounded-field px-3 py-3 transition-colors hover:bg-panel"
-                    >
+        <div className="min-w-0 px-5 pb-6 pt-4 sm:px-6">
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={[
+              { value: "verification", label: "Verification" },
+              { value: "campaigns", label: "Campaigns", count: orgCampaigns.length },
+              { value: "activity", label: "Activity", count: history.length },
+              { value: "notes", label: "Notes", count: noteCount },
+            ]}
+          />
+          <div key={tab} className="admin-rise pt-5">
+            {tab === "verification" ? (
+              <div className="flex flex-col gap-6">
+                <RiskSignals items={orgRisks(org, checks)} />
+                <section className="flex flex-col gap-2.5">
+                  <h2 className="text-[13px] font-medium text-subtle">Checks</h2>
+                  <CheckList orgId={org.id} />
+                </section>
+                <section className="flex flex-col gap-2.5">
+                  <h2 className="text-[13px] font-medium text-subtle">Documents</h2>
+                  <DocumentList documents={file?.documents ?? []} />
+                </section>
+                <section className="flex flex-col gap-2.5">
+                  <h2 className="text-[13px] font-medium text-subtle">About</h2>
+                  <p className="text-sm font-medium text-ink">{org.tagline}</p>
+                  <p className="text-sm leading-[1.65] text-ink-soft">{org.bio}</p>
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    {org.photos.slice(0, 3).map((p, i) => (
                       <img
-                        src={c.cover}
+                        key={i}
+                        src={p}
                         alt=""
-                        className="h-10 w-10 shrink-0 rounded-[8px] object-cover"
+                        className="aspect-[4/3] w-full rounded-[10px] object-cover"
                       />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-ink">
-                          {c.title}
-                        </span>
-                        <span className="block text-[13px] text-muted-ink">
-                          {formatMoney(c.raised)} from {c.donors.toLocaleString()} givers
-                        </span>
-                      </span>
-                      <StatusBadge status={c.verificationStatus} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </AdminCard>
-        </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            ) : null}
 
-        <div className="flex flex-col gap-6">
-          <AdminCard title="At a glance">
-            <DetailList
-              rows={[
-                { label: "Total received", value: formatMoney(org.totalReceived) },
-                { label: "Givers", value: org.supporters.toLocaleString() },
-                { label: "Campaigns", value: orgCampaigns.length },
-              ]}
-            />
-          </AdminCard>
-          <AdminCard title="Details">
-            <DetailList
-              rows={[
-                {
-                  label: "Denomination",
-                  value: (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Church className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
-                      {org.denomination}
-                    </span>
-                  ),
-                },
-                {
-                  label: "Founded",
-                  value: (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 text-muted-ink" strokeWidth={1.75} />
-                      {org.founded}
-                    </span>
-                  ),
-                },
-                { label: "Category", value: <Tag>{orgCategoryLabel[org.category]}</Tag> },
-                { label: "Verification", value: <StatusBadge status={org.verificationStatus} /> },
-              ]}
-            />
-          </AdminCard>
+            {tab === "campaigns" ? (
+              orgCampaigns.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-ink">
+                  No campaigns yet. They can start one once they're verified.
+                </p>
+              ) : (
+                <ul className="flex flex-col divide-y divide-line-soft">
+                  {orgCampaigns.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        to="/admin/campaigns/$id"
+                        params={{ id: c.id }}
+                        className="-mx-2 flex items-center gap-3 rounded-[10px] px-2 py-3 transition-colors hover:bg-panel/60"
+                      >
+                        <img
+                          src={c.cover}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-[8px] object-cover"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-ink">
+                            {c.title}
+                          </span>
+                          <span className="block text-[12px] text-muted-ink">
+                            {formatMoney(c.raised)} from {c.donors.toLocaleString()} givers
+                          </span>
+                        </span>
+                        <StatusBadge status={c.verificationStatus} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+
+            {tab === "activity" ? <Timeline entries={history} /> : null}
+            {tab === "notes" ? <Notes recordId={org.id} /> : null}
+          </div>
         </div>
       </div>
-
-      <AdminConfirmDialog
-        open={verifying}
-        onOpenChange={setVerifying}
-        title={`Verify ${org.name}?`}
-        description="They get the verified tick on their profile and every campaign, and can receive gifts."
-        confirmLabel="Verify"
-        onConfirm={() => {
-          verifyOrg(org.id, "verified");
-          toast.success(`${org.name} is verified`);
-        }}
-      />
-      <AdminRejectDialog
-        open={rejecting}
-        onOpenChange={setRejecting}
-        title={isVerified ? `Revoke ${org.name}'s verification?` : `Reject ${org.name}?`}
-        confirmLabel={isVerified ? "Revoke" : "Reject"}
-        onReject={(reason) => {
-          verifyOrg(org.id, "rejected", reason);
-          toast(isVerified ? `${org.name}'s verification was revoked` : `${org.name} was rejected`);
-        }}
-      />
     </AdminPage>
   );
 }

@@ -1,22 +1,38 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Building2, Eye, ShieldCheck, ShieldX } from "lucide-react";
+import { BadgeCheck, Building2, Download, MapPin, ShieldX } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { formatMoney, type Org } from "@/lib/mock";
+import { matches, orgFiles, rejectReasons, timeAgo, type FilterValue } from "@/lib/admin";
 import { pending, simulateNetwork } from "@/lib/api";
-import { Tabs, Tag } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
 import { AdminPage } from "@/components/admin/AdminLayout";
-import { AdminSelect, AdminToolbar } from "@/components/admin/AdminFilterBar";
-import { AdminTable, type Column, type RowAction } from "@/components/admin/AdminTable";
+import {
+  FilterChips,
+  FilterMenu,
+  SearchField,
+  Segmented,
+  type FilterField,
+} from "@/components/admin/AdminFilterBar";
+import { AdminTable, type BulkAction, type Column } from "@/components/admin/AdminTable";
 import { AdminEmptyState } from "@/components/admin/AdminEmptyState";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminListSkeleton } from "@/components/admin/AdminSkeletons";
 import { StatusBadge } from "@/components/admin/AdminBadge";
+import { CheckMeter } from "@/components/admin/AdminParts";
+import { OrgPanel } from "@/components/admin/OrgReview";
 import { orgCategoryLabel } from "@/components/admin/labels";
+import { downloadCsv } from "@/components/admin/csv";
+
+const views = ["pending", "verified", "unverified", "rejected", "all"] as const;
+type View = (typeof views)[number];
 
 export const Route = createFileRoute("/admin/orgs/")({
+  validateSearch: (s: Record<string, unknown>): { view: View } => ({
+    view: views.includes(s.view as View) ? (s.view as View) : "all",
+  }),
   loader: () => simulateNetwork(),
   pendingComponent: () => <AdminListSkeleton label="Loading organizations" />,
   ...pending,
@@ -24,30 +40,52 @@ export const Route = createFileRoute("/admin/orgs/")({
   component: AdminOrgs,
 });
 
-type Status = "all" | Org["verificationStatus"];
+const stateOf = (o: Org) => o.location.split(",").pop()!.replace("State", "").trim();
 
 function AdminOrgs() {
-  const orgs = useApp((s) => s.orgs);
-  const verifyOrg = useApp((s) => s.verifyOrg);
+  const { view } = Route.useSearch();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<Status>("all");
+  const orgs = useApp((s) => s.orgs);
+  const checks = useApp((s) => s.checks);
+  const verifyOrg = useApp((s) => s.verifyOrg);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [verifying, setVerifying] = useState<Org | null>(null);
-  const [rejecting, setRejecting] = useState<Org | null>(null);
+  const [filters, setFilters] = useState<FilterValue>({});
+  const [open, setOpen] = useState<Org | null>(null);
+  const [bulkVerify, setBulkVerify] = useState<Org[] | null>(null);
+  const [bulkReject, setBulkReject] = useState<Org[] | null>(null);
 
-  const count = (s: Status) =>
-    s === "all" ? orgs.length : orgs.filter((o) => o.verificationStatus === s).length;
+  const fields: FilterField[] = [
+    {
+      key: "category",
+      label: "Category",
+      icon: Building2,
+      options: Object.entries(orgCategoryLabel).map(([value, label]) => ({ value, label })),
+    },
+    {
+      key: "state",
+      label: "State",
+      icon: MapPin,
+      options: [...new Set(orgs.map(stateOf))].sort().map((s) => ({ value: s, label: s })),
+    },
+  ];
+
+  const count = (v: View) =>
+    v === "all" ? orgs.length : orgs.filter((o) => o.verificationStatus === v).length;
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return orgs.filter(
       (o) =>
-        (status === "all" || o.verificationStatus === status) &&
-        (!category || o.category === category) &&
-        (!q || o.name.toLowerCase().includes(q) || o.location.toLowerCase().includes(q)),
+        (view === "all" || o.verificationStatus === view) &&
+        matches(filters, "category", o.category) &&
+        matches(filters, "state", stateOf(o)) &&
+        (!q || [o.name, o.location, o.denomination].some((x) => x.toLowerCase().includes(q))),
     );
-  }, [orgs, status, category, search]);
+  }, [orgs, view, filters, search]);
+
+  const ready = (o: Org) => Object.values(checks[o.id] ?? {}).every((c) => c === "passed");
+  const reviewable = (o: Org) =>
+    o.verificationStatus === "pending" || o.verificationStatus === "unverified";
 
   const columns: Column<Org>[] = [
     {
@@ -56,143 +94,225 @@ function AdminOrgs() {
       sortValue: (o) => o.name,
       cell: (o) => (
         <div className="flex items-center gap-3">
-          <img src={o.photos[0]} alt="" className="h-9 w-9 shrink-0 rounded-[8px] object-cover" />
+          <img src={o.photos[0]} alt="" className="h-8 w-8 shrink-0 rounded-[8px] object-cover" />
           <div className="min-w-0">
-            <p className="truncate font-medium text-ink">{o.name}</p>
-            <p className="truncate text-[13px] text-muted-ink">{o.location}</p>
+            <p className="max-w-[260px] truncate font-medium text-ink" title={o.name}>
+              {o.name}
+            </p>
+            <p className="truncate text-[12px] text-muted-ink">{o.location}</p>
           </div>
         </div>
       ),
     },
+    { key: "status", header: "Status", cell: (o) => <StatusBadge status={o.verificationStatus} /> },
+    { key: "checks", header: "Checks", cell: (o) => <CheckMeter orgId={o.id} /> },
     {
       key: "category",
       header: "Category",
-      className: "hidden md:table-cell",
+      className: "hidden xl:table-cell",
       cell: (o) => <span className="text-ink-soft">{orgCategoryLabel[o.category]}</span>,
     },
-    { key: "status", header: "Status", cell: (o) => <StatusBadge status={o.verificationStatus} /> },
     {
       key: "received",
       header: "Received",
       align: "right",
       sortValue: (o) => o.totalReceived,
-      cell: (o) => <span className="font-medium text-ink">{formatMoney(o.totalReceived)}</span>,
+      cell: (o) =>
+        o.totalReceived ? (
+          <span className="text-ink">{formatMoney(o.totalReceived)}</span>
+        ) : (
+          <span className="text-subtle">—</span>
+        ),
     },
     {
-      key: "givers",
-      header: "Givers",
-      align: "right",
+      key: "applied",
+      header: "Applied",
       className: "hidden lg:table-cell",
-      sortValue: (o) => o.supporters,
-      cell: (o) => <span className="text-ink-soft">{o.supporters.toLocaleString()}</span>,
+      sortValue: (o) => orgFiles[o.id]?.submittedAt ?? "",
+      cell: (o) => (
+        <span className="text-ink-soft">
+          {orgFiles[o.id] ? timeAgo(orgFiles[o.id].submittedAt) : "—"}
+        </span>
+      ),
     },
   ];
 
-  const open = (o: Org) => navigate({ to: "/admin/orgs/$id", params: { id: o.id } });
-  const actions = (o: Org): RowAction[] => [
-    { label: "Open", icon: Eye, onSelect: () => open(o) },
-    ...(o.verificationStatus === "pending" || o.verificationStatus === "unverified"
-      ? [
-          { label: "Verify", icon: ShieldCheck, onSelect: () => setVerifying(o) },
-          {
-            label: "Reject",
-            icon: ShieldX,
-            onSelect: () => setRejecting(o),
-            tone: "danger" as const,
-          },
-        ]
-      : []),
-  ];
+  const bulk = (selected: Org[]): BulkAction[] => {
+    const canReview = selected.filter(reviewable);
+    const notReady = canReview.filter((o) => !ready(o));
+    return [
+      ...(canReview.length
+        ? [
+            {
+              label: "Verify",
+              icon: BadgeCheck,
+              onSelect: () => setBulkVerify(canReview),
+              disabledReason: notReady.length
+                ? `${notReady.length} of ${canReview.length} still have checks to finish`
+                : undefined,
+            },
+            {
+              label: "Reject",
+              icon: ShieldX,
+              onSelect: () => setBulkReject(canReview),
+              tone: "danger" as const,
+            },
+          ]
+        : []),
+      {
+        label: "Export",
+        icon: Download,
+        onSelect: () => {
+          downloadCsv(
+            "organizations.csv",
+            ["Name", "Status", "Category", "Location", "Received"],
+            selected.map((o) => [
+              o.name,
+              o.verificationStatus,
+              o.category,
+              o.location,
+              String(o.totalReceived),
+            ]),
+          );
+          toast(`Exported ${selected.length} organization${selected.length > 1 ? "s" : ""}`);
+        },
+      },
+    ];
+  };
 
-  const clear = search || category ? () => (setSearch(""), setCategory("")) : undefined;
+  const hasFilters = Boolean(search || Object.values(filters).some((v) => v.length));
+  const isQueue = view === "pending";
 
   return (
     <AdminPage
-      title="Organizations"
-      lead="Check documents, verify organizations and keep the directory trustworthy."
-      crumbs={[{ label: "Organizations" }]}
+      title={isQueue ? "Verify organizations" : "Organizations"}
+      count={rows.length}
+      lead={
+        isQueue
+          ? "Open each application, run the checks, then verify or reject."
+          : "Every organization on AzarFaith, verified or not."
+      }
+      crumbs={[{ label: isQueue ? "Verify organizations" : "Organizations" }]}
     >
-      <div className="flex flex-col gap-5">
-        <Tabs
-          value={status}
-          onChange={setStatus}
-          items={[
-            { value: "all", label: "All", count: count("all") },
-            { value: "pending", label: "Pending review", count: count("pending") },
-            { value: "verified", label: "Verified", count: count("verified") },
-            { value: "unverified", label: "Unverified", count: count("unverified") },
-            { value: "rejected", label: "Rejected", count: count("rejected") },
-          ]}
-        />
-        <AdminToolbar
-          search={search}
-          onSearch={setSearch}
-          placeholder="Search by name or place"
-          onClear={clear}
-        >
-          <AdminSelect
-            label="All categories"
-            value={category}
-            onChange={setCategory}
-            options={Object.entries(orgCategoryLabel).map(([value, label]) => ({ value, label }))}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <Segmented
+            value={view}
+            onChange={(v) => navigate({ to: "/admin/orgs", search: { view: v } })}
+            items={[
+              { value: "pending", label: "Pending review", count: count("pending") },
+              { value: "verified", label: "Verified", count: count("verified") },
+              { value: "unverified", label: "Unverified", count: count("unverified") },
+              { value: "rejected", label: "Rejected", count: count("rejected") },
+              { value: "all", label: "All", count: count("all") },
+            ]}
           />
-        </AdminToolbar>
-        <AdminTable
-          label="Organizations"
-          rows={rows}
-          columns={columns}
-          onRowClick={open}
-          rowMenu={actions}
-          empty={
+          <div className="flex items-center gap-2">
+            <div className="flex-1 sm:flex-none">
+              <SearchField value={search} onChange={setSearch} placeholder="Search organizations" />
+            </div>
+            <FilterMenu fields={fields} value={filters} onChange={setFilters} />
+          </div>
+        </div>
+        <FilterChips fields={fields} value={filters} onChange={setFilters} />
+      </div>
+
+      <AdminTable
+        label="Organizations"
+        noun={["organization", "organizations"]}
+        rows={rows}
+        columns={columns}
+        onRowClick={setOpen}
+        activeId={open?.id}
+        bulkActions={bulk}
+        initialSort={isQueue ? { key: "applied", dir: "asc" } : null}
+        rowAction={(o) =>
+          reviewable(o) ? (
+            <button type="button" className={btn("secondary", "sm")} onClick={() => setOpen(o)}>
+              Review
+            </button>
+          ) : null
+        }
+        mobileRow={(o) => (
+          <div className="flex items-center gap-3">
+            <img
+              src={o.photos[0]}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-[8px] object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-ink">{o.name}</p>
+              <p className="mt-1 flex items-center gap-2">
+                <StatusBadge status={o.verificationStatus} />
+                <CheckMeter orgId={o.id} />
+              </p>
+            </div>
+          </div>
+        )}
+        empty={
+          hasFilters ? (
             <AdminEmptyState
               icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
               title="No organizations match"
-              description="Try another search, status or category."
+              description="Nothing fits this search and these filters."
+              action={
+                <button
+                  type="button"
+                  className={btn("secondary", "sm")}
+                  onClick={() => {
+                    setSearch("");
+                    setFilters({});
+                  }}
+                >
+                  Clear search and filters
+                </button>
+              }
             />
-          }
-        />
-      </div>
+          ) : isQueue ? (
+            <AdminEmptyState
+              icon={<BadgeCheck className="h-5 w-5" strokeWidth={1.75} />}
+              title="No applications waiting"
+              description="New organizations show up here as soon as they apply."
+            />
+          ) : (
+            <AdminEmptyState
+              icon={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
+              title="Nothing here yet"
+              description="No organizations have this status."
+            />
+          )
+        }
+      />
+
+      <OrgPanel
+        org={open ? (orgs.find((o) => o.id === open.id) ?? null) : null}
+        onClose={() => setOpen(null)}
+      />
 
       <AdminConfirmDialog
-        open={!!verifying}
-        onOpenChange={(v) => !v && setVerifying(null)}
-        title={`Verify ${verifying?.name ?? "organization"}?`}
-        description="They get the verified tick on their profile and every campaign, and can receive gifts."
-        confirmLabel="Verify"
+        open={Boolean(bulkVerify)}
+        onOpenChange={(v) => !v && setBulkVerify(null)}
+        title={`Verify ${bulkVerify?.length ?? 0} organizations?`}
+        description={bulkVerify?.map((o) => o.name).join(", ")}
+        consequences={[
+          "Each gets the verified tick and can receive gifts.",
+          "We email each organization to let them know.",
+        ]}
+        confirmLabel="Verify all"
         onConfirm={() => {
-          if (!verifying) return;
-          verifyOrg(verifying.id, "verified");
-          toast.success(`${verifying.name} is verified`);
+          bulkVerify?.forEach((o) => verifyOrg(o.id, "verified"));
+          toast.success(`${bulkVerify?.length} organizations verified`);
         }}
-      >
-        {verifying ? (
-          <div className="flex items-center gap-3 rounded-field bg-panel p-3">
-            <img
-              src={verifying.photos[0]}
-              alt=""
-              className="h-10 w-10 rounded-[8px] object-cover"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-ink">{verifying.name}</p>
-              <p className="text-[13px] text-muted-ink">
-                {orgCategoryLabel[verifying.category]}, {verifying.location}
-              </p>
-            </div>
-            <span className="ml-auto">
-              <Tag tone="attention">Pending review</Tag>
-            </span>
-          </div>
-        ) : null}
-      </AdminConfirmDialog>
-
+      />
       <AdminRejectDialog
-        open={!!rejecting}
-        onOpenChange={(v) => !v && setRejecting(null)}
-        title={`Reject ${rejecting?.name ?? "organization"}?`}
+        open={Boolean(bulkReject)}
+        onOpenChange={(v) => !v && setBulkReject(null)}
+        title={`Reject ${bulkReject?.length ?? 0} organization${(bulkReject?.length ?? 0) > 1 ? "s" : ""}?`}
+        description={bulkReject?.map((o) => o.name).join(", ")}
+        reasons={rejectReasons.org}
         onReject={(reason) => {
-          if (!rejecting) return;
-          verifyOrg(rejecting.id, "rejected", reason);
-          toast(`${rejecting.name} was rejected`);
+          bulkReject?.forEach((o) => verifyOrg(o.id, "rejected", reason));
+          toast(`${bulkReject?.length} rejected`);
         }}
       />
     </AdminPage>

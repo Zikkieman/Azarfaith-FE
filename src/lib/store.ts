@@ -15,6 +15,16 @@ import {
   type AdminNotification,
   type UserRole,
 } from "./mock";
+import {
+  auditSeed,
+  checkSeed,
+  noteSeed,
+  type AuditAction,
+  type AuditEntry,
+  type CheckKey,
+  type CheckState,
+  type Note,
+} from "./admin";
 
 type Draft = {
   mode?: Campaign["mode"];
@@ -78,7 +88,26 @@ type State = {
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   updatePlatformSettings: (settings: Partial<PlatformSettings>) => void;
+  auditLog: AuditEntry[];
+  notes: Record<string, Note[]>;
+  addNote: (recordId: string, body: string) => void;
+  checks: Record<string, Record<CheckKey, CheckState>>;
+  setCheck: (orgId: string, key: CheckKey, value: CheckState, detail?: string) => void;
+  givingPaused: boolean;
+  setGivingPaused: (paused: boolean) => void;
 };
+
+const ADMIN_NAME = "Tunde Adebayo";
+
+/** One audit entry, written by every admin action below. */
+const entry = (action: AuditAction, target: AuditEntry["target"], detail?: string): AuditEntry => ({
+  id: Math.random().toString(36).slice(2),
+  actor: ADMIN_NAME,
+  action,
+  target,
+  detail,
+  at: new Date().toISOString(),
+});
 
 export const useApp = create<State>((set) => ({
   // Mirrors the prototype session cookie (lib/session.ts). Always false on the server.
@@ -133,42 +162,84 @@ export const useApp = create<State>((set) => ({
   adminNotifications: notificationsSeed,
 
   verifyOrg: (id, status, notes) =>
-    set((s) => ({
-      orgs: s.orgs.map((o) => (o.id === id ? { ...o, verificationStatus: status } : o)),
-    })),
+    set((s) => {
+      const org = s.orgs.find((o) => o.id === id);
+      const action: AuditAction =
+        status === "verified"
+          ? "org_verified"
+          : org?.verificationStatus === "verified"
+            ? "org_revoked"
+            : "org_rejected";
+      return {
+        orgs: s.orgs.map((o) => (o.id === id ? { ...o, verificationStatus: status } : o)),
+        auditLog: [entry(action, { kind: "org", id, name: org?.name ?? id }, notes), ...s.auditLog],
+      };
+    }),
 
   moderateCampaign: (id, status, notes) =>
-    set((s) => ({
-      campaigns: s.campaigns.map((c) => (c.id === id ? { ...c, verificationStatus: status } : c)),
-    })),
+    set((s) => {
+      const c = s.campaigns.find((x) => x.id === id);
+      return {
+        campaigns: s.campaigns.map((x) => (x.id === id ? { ...x, verificationStatus: status } : x)),
+        auditLog: [
+          entry(
+            status === "verified" ? "campaign_approved" : "campaign_rejected",
+            { kind: "campaign", id, name: c?.title ?? id },
+            notes,
+          ),
+          ...s.auditLog,
+        ],
+      };
+    }),
 
   suspendUser: (id, reason) =>
-    set((s) => ({
-      users: s.users.map((u) =>
-        u.id === id
-          ? {
-              ...u,
-              status: "active" as const,
-              suspendedAt: new Date().toISOString(),
-              suspendReason: reason,
-            }
-          : u,
-      ),
-    })),
+    set((s) => {
+      const u = s.users.find((x) => x.id === id);
+      return {
+        users: s.users.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                status: "suspended" as const,
+                suspendedAt: new Date().toISOString().slice(0, 10),
+                suspendReason: reason,
+              }
+            : x,
+        ),
+        auditLog: [
+          entry("user_suspended", { kind: "user", id, name: u?.name ?? id }, reason),
+          ...s.auditLog,
+        ],
+      };
+    }),
 
   reactivateUser: (id) =>
-    set((s) => ({
-      users: s.users.map((u) =>
-        u.id === id
-          ? { ...u, status: "active" as const, suspendedAt: undefined, suspendReason: undefined }
-          : u,
-      ),
-    })),
+    set((s) => {
+      const u = s.users.find((x) => x.id === id);
+      return {
+        users: s.users.map((x) =>
+          x.id === id
+            ? { ...x, status: "active" as const, suspendedAt: undefined, suspendReason: undefined }
+            : x,
+        ),
+        auditLog: [
+          entry("user_reactivated", { kind: "user", id, name: u?.name ?? id }),
+          ...s.auditLog,
+        ],
+      };
+    }),
 
   updateUserRole: (id, role) =>
-    set((s) => ({
-      users: s.users.map((u) => (u.id === id ? { ...u, role } : u)),
-    })),
+    set((s) => {
+      const u = s.users.find((x) => x.id === id);
+      return {
+        users: s.users.map((x) => (x.id === id ? { ...x, role } : x)),
+        auditLog: [
+          entry("role_changed", { kind: "user", id, name: u?.name ?? id }, role),
+          ...s.auditLog,
+        ],
+      };
+    }),
 
   markNotificationRead: (id) =>
     set((s) => ({
@@ -183,5 +254,54 @@ export const useApp = create<State>((set) => ({
   updatePlatformSettings: (newSettings) =>
     set((s) => ({
       platformSettings: { ...s.platformSettings, ...newSettings },
+      auditLog: [
+        entry("settings_updated", { kind: "platform", name: "Platform settings" }),
+        ...s.auditLog,
+      ],
+    })),
+
+  auditLog: auditSeed,
+
+  notes: noteSeed,
+  addNote: (recordId, body) =>
+    set((s) => ({
+      notes: {
+        ...s.notes,
+        [recordId]: [
+          {
+            id: Math.random().toString(36).slice(2),
+            author: ADMIN_NAME,
+            body,
+            at: new Date().toISOString(),
+          },
+          ...(s.notes[recordId] ?? []),
+        ],
+      },
+    })),
+
+  checks: checkSeed,
+  setCheck: (orgId, key, value, detail) =>
+    set((s) => {
+      const org = s.orgs.find((o) => o.id === orgId);
+      return {
+        checks: { ...s.checks, [orgId]: { ...s.checks[orgId], [key]: value } },
+        auditLog: [
+          entry("check_updated", { kind: "org", id: orgId, name: org?.name ?? orgId }, detail),
+          ...s.auditLog,
+        ],
+      };
+    }),
+
+  givingPaused: false,
+  setGivingPaused: (paused) =>
+    set((s) => ({
+      givingPaused: paused,
+      auditLog: [
+        entry(paused ? "giving_paused" : "giving_resumed", {
+          kind: "platform",
+          name: "All giving",
+        }),
+        ...s.auditLog,
+      ],
     })),
 }));
