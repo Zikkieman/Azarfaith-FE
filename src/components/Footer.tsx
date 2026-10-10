@@ -1,11 +1,9 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Flame, Globe } from "lucide-react";
-import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { logout } from "@/features/auth/authSlice";
+import { useAppSelector } from "@/app/hooks";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export function Footer() {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const authed = useAppSelector((state) => Boolean(state.auth.user));
 
   return (
@@ -59,16 +57,7 @@ export function Footer() {
             }
             action={
               authed ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await dispatch(logout());
-                    navigate({ to: "/login" });
-                  }}
-                  className="text-sm text-muted-foreground hover:text-foreground transition"
-                >
-                  Log out
-                </button>
+                <LogoutButton className="text-sm text-muted-foreground hover:text-foreground transition" />
               ) : (
                 <Link
                   to="/login"

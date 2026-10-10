@@ -11,11 +11,26 @@ export type PayoutAccountStatus = "pending" | "verified" | "inactive";
 export type PayoutTransferStatus = "otp" | "pending" | "success" | "failed" | "reversed";
 
 export type Update = { id: string; date: string; title: string; body: string };
-export type Comment = { id: string; author: string; avatar: string; date: string; body: string };
-export type Donation = { id: string; donor: string; amount: number; date: string; note?: string };
+export type Comment = {
+  id: string;
+  author: string;
+  avatar: string;
+  date: string;
+  createdAt?: string;
+  body: string;
+};
+export type Donation = {
+  id: string;
+  donor: string;
+  amount: number;
+  date: string;
+  createdAt?: string;
+  note?: string;
+};
 
 export type Org = {
   id: string;
+  isPublic?: boolean;
   ownerId: string;
   name: string;
   tagline: string;
@@ -164,6 +179,7 @@ export type OrganizationDashboard = {
 
 export type Campaign = {
   id: string;
+  isPublic?: boolean;
   ownerId: string;
   mode: CampaignMode;
   type: CampaignType;
@@ -171,7 +187,7 @@ export type Campaign = {
   story: string;
   faithCategory: string;
   orgId?: string;
-  raiser: { name: string; avatar: string; location: string; trustScore: number };
+  raiser: { name: string; avatar: string; location: string };
   cover: string;
   gallery: string[];
   goal?: number;
@@ -207,6 +223,13 @@ export type RecurringDonation = {
   mode: RecurringGiftMode;
   status: RecurringGiftStatus;
   nextDate: string;
+  createdAt: string;
+  updatedAt: string;
+  frequencies: CampaignFrequency[];
+  minDonation: number;
+  maxDonation: number;
+  platformFeePercent: number;
+  hasPendingPayment: boolean;
   nextReminderDate?: string | null;
   missedCount: number;
   retryCount: number;
@@ -301,14 +324,26 @@ export type DonationDetail = {
 
 export type Profile = {
   id: string;
+  createdAt: string;
   fullName: string;
   email: string;
   phone?: string | null;
   avatarUrl?: string | null;
   totalGiven: number;
   activeRecurringGiftCount: number;
-  ownedOrganizations: Array<{ id: string; name: string; verificationStatus: VerificationStatus }>;
-  ownedCampaigns: Array<{ id: string; title: string; verificationStatus: VerificationStatus }>;
+  ownedOrganizations: Array<{
+    id: string;
+    name: string;
+    verificationStatus: VerificationStatus;
+    reviewAction?: Org["reviewAction"];
+  }>;
+  ownedCampaigns: Array<{
+    id: string;
+    title: string;
+    verificationStatus: VerificationStatus;
+    reviewAction?: Campaign["reviewAction"];
+    isPublic?: boolean;
+  }>;
   donationHistory: Array<{ id: string; amount: number; date: string; status: string }>;
   verifications: string[];
 };
@@ -389,7 +424,6 @@ export const formatMoney = (amount: number, currency: Campaign["currency"] = "NG
   const symbols: Record<string, string> = { NGN: "₦" };
   return `${symbols[currency] ?? currency}${amount.toLocaleString()}`;
 };
-
 
 export const formatAmountInput = (value: string) => {
   const digits = value.replace(/\D/g, "");

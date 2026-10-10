@@ -4,6 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Bell, Search, ChevronDown, LogOut, User, Menu } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
+import { getErrorMessage } from "@/lib/errors";
+import { toast } from "sonner";
 import { getAdminNotifications } from "@/features/catalog/api";
 import { useSidebar } from "./AdminLayout";
 import {
@@ -84,7 +86,9 @@ export function AdminHeader({ title }: AdminHeaderProps) {
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notificationsLoading ? (
-                    <p className="px-4 py-6 text-center text-sm text-gray-500">Loading notifications...</p>
+                    <p className="px-4 py-6 text-center text-sm text-gray-500">
+                      Loading notifications...
+                    </p>
                   ) : adminNotifications.length === 0 ? (
                     <p className="px-4 py-6 text-center text-sm text-gray-500">No notifications</p>
                   ) : (
@@ -108,7 +112,11 @@ export function AdminHeader({ title }: AdminHeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 hover:bg-gray-50 transition-colors">
             {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={displayName} className="h-7 w-7 rounded-full object-cover" />
+              <img
+                src={user.avatarUrl}
+                alt={displayName}
+                className="h-7 w-7 rounded-full object-cover"
+              />
             ) : (
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-700">
                 {initials}
@@ -134,7 +142,12 @@ export function AdminHeader({ title }: AdminHeaderProps) {
             <DropdownMenuItem
               className="gap-2 text-red-600"
               onClick={async () => {
-                await dispatch(logout());
+                try {
+                  await dispatch(logout()).unwrap();
+                  navigate({ to: "/admin/login" });
+                } catch (error) {
+                  toast.error(getErrorMessage(error, "Could not sign out. Please try again."));
+                }
               }}
             >
               <LogOut className="h-4 w-4" />

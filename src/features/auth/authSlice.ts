@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 type AuthUser = {
   id: string;
@@ -88,13 +88,11 @@ export const verifyOtp = createAsyncThunk("auth/verifyOtp", async (payload: Veri
   }),
 );
 
-export const resendOtp = createAsyncThunk(
-  "auth/resendOtp",
-  async (payload: { email: string }) =>
-    apiFetch<SignupResponse>("/auth/resend-otp", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+export const resendOtp = createAsyncThunk("auth/resendOtp", async (payload: { email: string }) =>
+  apiFetch<SignupResponse>("/auth/resend-otp", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
 );
 
 export const login = createAsyncThunk("auth/login", async (payload: LoginPayload) =>
@@ -104,13 +102,11 @@ export const login = createAsyncThunk("auth/login", async (payload: LoginPayload
   }),
 );
 
-export const adminLogin = createAsyncThunk(
-  "auth/adminLogin",
-  async (payload: LoginPayload) =>
-    apiFetch<AuthResponse>("/auth/admin/login", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
+export const adminLogin = createAsyncThunk("auth/adminLogin", async (payload: LoginPayload) =>
+  apiFetch<AuthResponse>("/auth/admin/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
 );
 
 export const forgotPassword = createAsyncThunk(
@@ -140,14 +136,34 @@ export const resetPassword = createAsyncThunk(
     }),
 );
 
-export const fetchSession = createAsyncThunk("auth/fetchSession", async () =>
-  apiFetch<AuthResponse>("/auth/session"),
-);
+export const fetchSession = createAsyncThunk<
+  AuthResponse,
+  void,
+  { rejectValue: { unauthenticated: boolean } }
+>("auth/fetchSession", async (_, { rejectWithValue }) => {
+  try {
+    return await apiFetch<AuthResponse>("/auth/session");
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      return rejectWithValue({ unauthenticated: true });
+    }
+    throw error;
+  }
+});
 
 export const logout = createAsyncThunk("auth/logout", async () =>
   apiFetch<MessageResponse>("/auth/logout", {
     method: "POST",
   }),
+);
+
+export const changePassword = createAsyncThunk(
+  "auth/changePassword",
+  async (payload: { currentPassword: string; newPassword: string }) =>
+    apiFetch<MessageResponse>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 );
 
 const authSlice = createSlice({
@@ -193,7 +209,7 @@ const authSlice = createSlice({
       })
       .addCase(fetchSession.rejected, (state, action) => {
         if (state.sessionRequestId !== action.meta.requestId) return;
-        if (!state.user) {
+        if (action.payload?.unauthenticated) {
           state.user = null;
         }
         state.hydrated = true;
@@ -314,14 +330,14 @@ const authSlice = createSlice({
         state.hydrated = true;
         state.sessionRequestId = null;
       })
-      .addCase(logout.rejected, (state) => {
+      .addCase(logout.rejected, (state, action) => {
+        state.error = action.error.message ?? "Could not sign out. Please try again.";
+      })
+      .addCase(changePassword.fulfilled, (state) => {
         state.user = null;
-        state.pendingVerificationEmail = null;
-        state.pendingVerificationPhone = null;
-        state.forgotPasswordSent = false;
-        state.error = null;
         state.hydrated = true;
         state.sessionRequestId = null;
+        state.error = null;
       });
   },
 });

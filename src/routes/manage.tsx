@@ -1,319 +1,334 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Building2, FileClock, FolderKanban, Link2 } from "lucide-react";
+import { ArrowUpRight, Building2, FileClock, FolderKanban, Link2, Plus } from "lucide-react";
 import { toast } from "sonner";
-
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import type { ReactNode } from "react";
+import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
-import {
-  getProfile,
-  listCampaignDrafts,
-  listOrganizationDrafts,
-} from "@/features/catalog/api";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { LoadError } from "@/components/profile/SettingsParts";
+import { useCreationSession } from "@/components/creation/useCreationSession";
+import { getProfile, listCampaignDrafts, listOrganizationDrafts } from "@/features/catalog/api";
 
-export const Route = createFileRoute("/manage")({
-  component: ManageWorkspace,
-});
-
+export const Route = createFileRoute("/manage")({ component: ManageWorkspace });
 function ManageWorkspace() {
-  const isAuthed = useRequireAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile", "manage"],
-    queryFn: getProfile,
-    enabled: isAuthed,
-  });
-  const { data: drafts = [] } = useQuery({
-    queryKey: ["organization-drafts"],
+  // Child organization dashboards must not depend on workspace list requests succeeding.
+  return pathname.replace(/\/$/, "") === "/manage" ? <Workspace /> : <Outlet />;
+}
+function Workspace() {
+  const { ready, userId } = useCreationSession();
+  const profile = useQuery({ queryKey: ["profile", userId], queryFn: getProfile, enabled: ready });
+  const orgDrafts = useQuery({
+    queryKey: ["organization-drafts", userId],
     queryFn: listOrganizationDrafts,
-    enabled: isAuthed,
+    enabled: ready,
   });
-  const { data: campaignDrafts = [] } = useQuery({
-    queryKey: ["campaign-drafts"],
+  const campaignDrafts = useQuery({
+    queryKey: ["campaign-drafts", userId],
     queryFn: listCampaignDrafts,
-    enabled: isAuthed,
+    enabled: ready,
   });
-
-  if (!isAuthed) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-4xl px-5 py-12 md:px-8">
-          <PageSpinner label="Redirecting to login..." />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-4xl px-5 py-12 md:px-8">
-          {isLoading ? <PageSpinner label="Loading workspace..." /> : null}
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (pathname !== "/manage") {
-    return <Outlet />;
-  }
-
-  const copyPublicLink = async (path: string, label: string) => {
-    if (typeof window === "undefined" || !navigator.clipboard) {
-      toast.error("Copy link is not available on this device.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
-      toast.success(`${label} link copied.`);
-    } catch {
-      toast.error(`Could not copy the ${label.toLowerCase()} link.`);
-    }
-  };
-
-  const publicUrl = (path: string) =>
-    typeof window === "undefined" ? path : `${window.location.origin}${path}`;
-
-  const whatsappShareUrl = (label: string, path: string) =>
-    `https://wa.me/?text=${encodeURIComponent(`Support this ${label.toLowerCase()} on AzarFaith: ${publicUrl(path)}`)}`;
-
+  useCreationSession(profile.error || orgDrafts.error || campaignDrafts.error);
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <main className="mx-auto flex-1 w-full max-w-4xl px-5 py-12 md:px-8">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight">Manage workspace</h1>
-            <p className="mt-2 text-muted-foreground">
-              One place to manage the organizations and campaigns you own.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              to="/register-org"
-              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
-            >
-              Create organization
-            </Link>
-            <Link
-              to="/create"
-              className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
-            >
-              Create campaign
-            </Link>
-          </div>
+    <DashboardShell>
+      <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-[#777283]">
+            Your workspace
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">Manage your causes</h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#777283]">
+            Pick up a draft, manage your organization, or share an approved cause with people ready
+            to help.
+          </p>
         </div>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <FileClock className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Organization drafts
-              </h2>
-            </div>
-            <div className="mt-4 space-y-3">
-              {drafts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                  No saved organization drafts yet.
-                </div>
-              ) : (
-                drafts.map((draft) => (
-                  <Link
-                    key={draft.id}
-                    to="/register-org"
-                    search={{ draftId: draft.id }}
-                    className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{draft.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Saved {new Date(draft.draftSavedAt).toLocaleDateString()} · {draft.hasMinimumSubmissionData ? "Ready to submit" : "Needs more details"}
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
-                      Continue <ArrowRight className="h-3.5 w-3.5" />
-                    </span>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <FileClock className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Campaign drafts
-              </h2>
-            </div>
-            <div className="mt-4 space-y-3">
-              {campaignDrafts.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                  No saved campaign drafts yet.
-                </div>
-              ) : (
-                campaignDrafts.map((draft) => (
-                  <Link
-                    key={draft.id}
-                    to="/create"
-                    search={{ draftId: draft.id }}
-                    className="flex items-center justify-between rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{draft.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Saved {new Date(draft.draftSavedAt).toLocaleDateString()} · {draft.hasMinimumSubmissionData ? "Ready to submit" : "Needs more details"}
-                      </p>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
-                      Continue <ArrowRight className="h-3.5 w-3.5" />
-                    </span>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Your organizations
-              </h2>
-            </div>
-            <div className="mt-4 space-y-3">
-              {profile.ownedOrganizations.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                  No organizations yet. Create one to start collecting support under a verified profile.
-                </div>
-              ) : (
-                profile.ownedOrganizations.map((organization) => (
-                  <div
-                    key={organization.id}
-                    className="rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-6">{organization.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {organization.verificationStatus.replaceAll("_", " ")}
-                        </p>
-                      </div>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/register-org" className="giving-small-button">
+            <Plus size={15} /> Organization
+          </Link>
+          <Link
+            to="/create"
+            className="inline-flex items-center gap-2 rounded-full bg-[#130e30] px-5 py-2.5 text-sm font-semibold text-white"
+          >
+            <Plus size={15} /> Campaign
+          </Link>
+        </div>
+      </div>
+      {!ready ? (
+        <PageSpinner label="Loading workspace" />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <WorkspaceSection title="Your organizations" icon={<Building2 size={19} />}>
+            {profile.isPending ? (
+              <SectionLoading />
+            ) : !profile.data ? (
+              <LoadError
+                message="Could not load your organizations."
+                retry={() => void profile.refetch()}
+              />
+            ) : (
+              <>
+                {profile.isError && (
+                  <LoadError
+                    message="Could not refresh your organizations."
+                    retry={() => void profile.refetch()}
+                  />
+                )}
+                {!profile.data.ownedOrganizations.length && (
+                  <Empty>No organizations yet. Register one to introduce your ministry.</Empty>
+                )}
+                {profile.data.ownedOrganizations.map((org) => (
+                  <CauseRow
+                    key={org.id}
+                    title={org.name}
+                    status={
+                      org.reviewAction === "rejected"
+                        ? "Rejected"
+                        : org.reviewAction === "more_info_requested"
+                          ? "More information needed"
+                          : org.verificationStatus.replaceAll("_", " ")
+                    }
+                    publicPath={`/org/${org.id}`}
+                    published={org.verificationStatus === "verified"}
+                    open={
                       <Link
                         to="/manage/org/$id"
-                        params={{ id: organization.id }}
-                        className="inline-flex shrink-0 items-center gap-1 self-start text-xs font-medium text-amber-700"
+                        params={{ id: org.id }}
+                        className="giving-small-button"
                       >
-                        Open <ArrowRight className="h-3.5 w-3.5" />
+                        Manage <ArrowUpRight size={14} />
                       </Link>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => copyPublicLink(`/org/${organization.id}`, "Organization")}
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        Copy link
-                      </button>
-                      <a
-                        href={whatsappShareUrl("Organization", `/org/${organization.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        WhatsApp
-                      </a>
-                      <a
-                        href={publicUrl(`/org/${organization.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        Preview
-                      </a>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <FolderKanban className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Your campaigns
-              </h2>
-            </div>
-            <div className="mt-4 space-y-3">
-              {profile.ownedCampaigns.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                  No campaigns yet. Start one for a ministry need, emergency, or ongoing support.
-                </div>
-              ) : (
-                profile.ownedCampaigns.map((campaign) => (
-                  <div
+                    }
+                  />
+                ))}
+              </>
+            )}
+          </WorkspaceSection>
+          <WorkspaceSection title="Your campaigns" icon={<FolderKanban size={19} />}>
+            {profile.isPending ? (
+              <SectionLoading />
+            ) : !profile.data ? (
+              <LoadError
+                message="Could not load your campaigns."
+                retry={() => void profile.refetch()}
+              />
+            ) : (
+              <>
+                {profile.isError && (
+                  <LoadError
+                    message="Could not refresh your campaigns."
+                    retry={() => void profile.refetch()}
+                  />
+                )}
+                {!profile.data.ownedCampaigns.length && (
+                  <Empty>No campaigns yet. Create one for your next need or ongoing work.</Empty>
+                )}
+                {profile.data.ownedCampaigns.map((campaign) => (
+                  <CauseRow
                     key={campaign.id}
-                    className="rounded-2xl border border-border px-4 py-4 transition hover:border-amber-300"
-                  >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium leading-6">{campaign.title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {campaign.verificationStatus.replaceAll("_", " ")}
-                        </p>
-                      </div>
+                    title={campaign.title}
+                    status={
+                      campaign.reviewAction === "rejected"
+                        ? "Rejected"
+                        : campaign.reviewAction === "changes_requested"
+                          ? "Changes requested"
+                          : campaign.verificationStatus.replaceAll("_", " ")
+                    }
+                    publicPath={`/campaign/${campaign.id}`}
+                    published={campaign.isPublic === true}
+                    open={
                       <Link
                         to="/campaign/$id"
                         params={{ id: campaign.id }}
-                        className="inline-flex shrink-0 items-center gap-1 self-start text-xs font-medium text-amber-700"
+                        className="giving-small-button"
                       >
-                        Open <ArrowRight className="h-3.5 w-3.5" />
+                        Manage <ArrowUpRight size={14} />
                       </Link>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => copyPublicLink(`/campaign/${campaign.id}`, "Campaign")}
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        Copy link
-                      </button>
-                      <a
-                        href={whatsappShareUrl("Campaign", `/campaign/${campaign.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        WhatsApp
-                      </a>
-                      <a
-                        href={publicUrl(`/campaign/${campaign.id}`)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-medium text-foreground transition hover:bg-muted"
-                      >
-                        Preview
-                      </a>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+                    }
+                  />
+                ))}
+              </>
+            )}
+          </WorkspaceSection>
+          <WorkspaceSection title="Organization drafts" icon={<FileClock size={19} />}>
+            {orgDrafts.isPending ? (
+              <SectionLoading />
+            ) : !orgDrafts.data ? (
+              <LoadError
+                message="Could not load your organization drafts."
+                retry={() => void orgDrafts.refetch()}
+              />
+            ) : (
+              <>
+                {orgDrafts.isError && (
+                  <LoadError
+                    message="Could not refresh your drafts."
+                    retry={() => void orgDrafts.refetch()}
+                  />
+                )}
+                {!orgDrafts.data.length && <Empty>No saved organization drafts yet.</Empty>}
+                {orgDrafts.data.map((draft) => (
+                  <DraftRow key={draft.id} title={draft.name} savedAt={draft.draftSavedAt}>
+                    <Link
+                      to="/register-org"
+                      search={{ draftId: draft.id }}
+                      className="giving-small-button"
+                    >
+                      Continue <ArrowUpRight size={14} />
+                    </Link>
+                  </DraftRow>
+                ))}
+              </>
+            )}
+          </WorkspaceSection>
+          <WorkspaceSection title="Campaign drafts" icon={<FileClock size={19} />}>
+            {campaignDrafts.isPending ? (
+              <SectionLoading />
+            ) : !campaignDrafts.data ? (
+              <LoadError
+                message="Could not load your campaign drafts."
+                retry={() => void campaignDrafts.refetch()}
+              />
+            ) : (
+              <>
+                {campaignDrafts.isError && (
+                  <LoadError
+                    message="Could not refresh your drafts."
+                    retry={() => void campaignDrafts.refetch()}
+                  />
+                )}
+                {!campaignDrafts.data.length && <Empty>No saved campaign drafts yet.</Empty>}
+                {campaignDrafts.data.map((draft) => (
+                  <DraftRow key={draft.id} title={draft.title} savedAt={draft.draftSavedAt}>
+                    <Link
+                      to="/create"
+                      search={{ draftId: draft.id }}
+                      className="giving-small-button"
+                    >
+                      Continue <ArrowUpRight size={14} />
+                    </Link>
+                  </DraftRow>
+                ))}
+              </>
+            )}
+          </WorkspaceSection>
         </div>
-      </main>
-      <Footer />
+      )}
+    </DashboardShell>
+  );
+}
+function WorkspaceSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="min-w-0 rounded-2xl border border-[#efedf3] p-5 sm:p-6">
+      <h2 className="mb-5 flex items-center gap-3 text-lg font-semibold">
+        {icon}
+        {title}
+      </h2>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+function SectionLoading() {
+  return (
+    <p role="status" className="text-sm text-[#777283]">
+      Fetching your saved work...
+    </p>
+  );
+}
+function Empty({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-xl bg-[#f8f7fa] p-5 text-sm leading-relaxed text-[#777283]">{children}</p>
+  );
+}
+function DraftRow({
+  title,
+  savedAt,
+  children,
+}: {
+  title: string;
+  savedAt: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#efedf3] pt-4">
+      <div className="min-w-0 flex-1">
+        <h3 className="break-words text-sm font-medium">{title}</h3>
+        <p className="mt-2 text-xs text-[#777283]">
+          Saved {new Date(savedAt).toLocaleDateString()}
+        </p>
+      </div>
+      {children}
     </div>
+  );
+}
+function CauseRow({
+  title,
+  status,
+  publicPath,
+  published,
+  open,
+}: {
+  title: string;
+  status: string;
+  publicPath: string;
+  published: boolean;
+  open: ReactNode;
+}) {
+  const url = typeof window !== "undefined" ? `${window.location.origin}${publicPath}` : publicPath;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Public donation link copied.");
+    } catch {
+      toast.error("Could not copy the link. Open the preview and copy its address.");
+    }
+  };
+  return (
+    <article className="min-w-0 rounded-xl bg-[#f8f7fa] p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <h3 className="min-w-0 flex-1 break-words text-base font-medium leading-relaxed">
+          {title}
+        </h3>
+        <span
+          className={`shrink-0 rounded-full px-3 py-1 text-xs capitalize ${published ? "bg-[#e3f4e9] text-[#226747]" : "bg-[#fff0d6] text-[#885f1f]"}`}
+        >
+          {status}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {open}
+        <a href={url} className="giving-small-button" target="_blank" rel="noreferrer">
+          Preview
+        </a>
+        {published && (
+          <>
+            <button type="button" onClick={() => void copy()} className="giving-small-button">
+              <Link2 size={14} /> Copy link
+            </button>
+            <a
+              className="giving-small-button"
+              target="_blank"
+              rel="noreferrer"
+              href={`https://wa.me/?text=${encodeURIComponent(`Support ${title} on AzarFaith: ${url}`)}`}
+            >
+              WhatsApp
+            </a>
+          </>
+        )}
+      </div>
+      {!published && (
+        <p className="mt-3 text-xs leading-relaxed text-[#777283]">
+          Owner preview only. Public sharing becomes available after approval.
+        </p>
+      )}
+    </article>
   );
 }

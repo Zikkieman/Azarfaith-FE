@@ -1,18 +1,35 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Calendar, FileText, Heart, ImagePlus, Link2, Loader2, MapPin, Repeat2, ShieldCheck, Target, X } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  FileText,
+  Heart,
+  ImagePlus,
+  Link2,
+  Loader2,
+  MapPin,
+  Repeat2,
+  ShieldCheck,
+  Target,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
+import { OrganizationPublicView } from "@/components/public/OrganizationPublicView";
+import { PublicShell, CatalogError } from "@/components/public/PublicShell";
+import { useClientReady } from "@/lib/useClientReady";
+import { ApiError } from "@/lib/api";
+import { isPublished } from "@/lib/discovery";
 import {
   getCloudinaryStatus,
   getOrganization,
   getOrganizationPayoutSummary,
   getPayoutBanks,
-  getProfile,
   resolvePayoutAccount,
   submitOrganizationDraft,
   updateOrganization,
@@ -27,13 +44,22 @@ export const Route = createFileRoute("/org/$id")({
 
 function OrgProfile() {
   const { id } = Route.useParams();
+  const ready = useClientReady();
+  const { user, hydrated } = useAppSelector((state) => state.auth);
+  const [ownerTools, setOwnerTools] = useState(false);
   const queryClient = useQueryClient();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const documentInputRef = useRef<HTMLInputElement | null>(null);
-  const { data: org, isLoading } = useQuery({
-    queryKey: ["organization", id],
+  const {
+    data: org,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["organization", id, user?.id ?? "guest"],
     queryFn: () => getOrganization(id),
+    enabled: ready && hydrated,
   });
+  const isOwner = Boolean(user && org && user.id === org.ownerId);
   const {
     data: mediaStatus,
     isLoading: mediaStatusLoading,
@@ -41,22 +67,17 @@ function OrgProfile() {
   } = useQuery({
     queryKey: ["media", "cloudinary-status"],
     queryFn: getCloudinaryStatus,
-  });
-  const { user, hydrated } = useAppSelector((state) => state.auth);
-  const { data: viewer } = useQuery({
-    queryKey: ["profile", "viewer"],
-    queryFn: getProfile,
-    enabled: hydrated && Boolean(user),
+    enabled: ready && hydrated && ownerTools && isOwner,
   });
   const { data: payoutBanks } = useQuery({
     queryKey: ["payout-banks"],
     queryFn: getPayoutBanks,
-    enabled: hydrated && Boolean(user),
+    enabled: ready && hydrated && ownerTools && isOwner,
   });
   const { data: payoutSummary } = useQuery({
-    queryKey: ["organization", id, "payout-summary"],
+    queryKey: ["organization", id, "payout-summary", user?.id],
     queryFn: () => getOrganizationPayoutSummary(id),
-    enabled: hydrated && Boolean(user),
+    enabled: ready && hydrated && ownerTools && isOwner,
   });
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -78,16 +99,19 @@ function OrgProfile() {
   const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
   const [resolvedPayoutAccountName, setResolvedPayoutAccountName] = useState("");
   const [resolveError, setResolveError] = useState("");
-  const isOwner = viewer?.id === org?.ownerId;
-  const countWords = (value: string) =>
-    value.trim().split(/\s+/).filter(Boolean).length;
+  const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
     if (!org) return;
     setForm({
       name: org.name,
       tagline: org.tagline,
-      category: org.category.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER",
+      category: org.category.toUpperCase() as
+        | "CHURCH"
+        | "MISSION"
+        | "ORPHANAGE"
+        | "SCHOOL"
+        | "OTHER",
       otherCategoryLabel: org.otherCategoryLabel || "",
       denomination: org.denomination,
       foundedYear: org.founded || "",
@@ -105,19 +129,6 @@ function OrgProfile() {
     setPayoutAccountHolderName(payoutSummary.payoutAccount.accountHolderName);
     setResolvedPayoutAccountName(payoutSummary.payoutAccount.accountName);
   }, [payoutSummary]);
-
-  useEffect(() => {
-    if (!isOwner || !payoutBankCode || payoutAccountNumber.length !== 10) {
-      setResolveError("");
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      resolvePayoutMutation.mutate();
-    }, 500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isOwner, payoutBankCode, payoutAccountNumber]);
 
   const uploadPhotosMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -173,8 +184,7 @@ function OrgProfile() {
         name: form.name,
         tagline: form.tagline,
         category: form.category || undefined,
-        otherCategoryLabel:
-          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
+        otherCategoryLabel: form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
         denomination: form.denomination,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
         location: form.location,
@@ -219,14 +229,23 @@ function OrgProfile() {
       );
     },
   });
+  const requestPayoutResolution = resolvePayoutMutation.mutate;
+  useEffect(() => {
+    if (!ownerTools || !isOwner || !payoutBankCode || payoutAccountNumber.length !== 10) {
+      setResolveError("");
+      return;
+    }
+    const timeoutId = window.setTimeout(() => requestPayoutResolution(), 500);
+    return () => window.clearTimeout(timeoutId);
+  }, [ownerTools, isOwner, payoutBankCode, payoutAccountNumber, requestPayoutResolution]);
+
   const savePayoutMutation = useMutation({
     mutationFn: () =>
       upsertOrganizationPayoutAccount(id, {
         accountHolderName: payoutAccountHolderName.trim(),
         bankCode: payoutBankCode,
         accountNumber: payoutAccountNumber,
-        accountName:
-          resolvedPayoutAccountName.trim() || payoutAccountHolderName.trim(),
+        accountName: resolvedPayoutAccountName.trim() || payoutAccountHolderName.trim(),
       }),
     onSuccess: (response) => {
       setResolvedPayoutAccountName(response.accountName);
@@ -240,7 +259,23 @@ function OrgProfile() {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (!isLoading && !org) throw notFound();
+  if (error instanceof ApiError && error.status === 404) throw notFound();
+  if (ready && hydrated && error)
+    return (
+      <PublicShell>
+        <CatalogError
+          retry={() => {
+            void refetch();
+          }}
+        />
+      </PublicShell>
+    );
+  if (!ready || !hydrated)
+    return (
+      <PublicShell>
+        <PageSpinner label="Loading organization..." fullScreen={false} />
+      </PublicShell>
+    );
   if (!org) {
     return (
       <div className="min-h-screen bg-background">
@@ -253,7 +288,7 @@ function OrgProfile() {
   const ongoing = org.campaigns.filter((campaign) => campaign.mode === "ongoing");
   const oneTime = org.campaigns.filter((campaign) => campaign.mode === "one-time");
   const donationReadyCampaigns = org.campaigns.filter(
-    (campaign) => campaign.verificationStatus === "verified" && !campaign.isDraft,
+    (campaign) => isPublished(org) && isPublished(campaign),
   );
   const primarySupportCampaign =
     donationReadyCampaigns.find((campaign) => campaign.mode === "ongoing") ??
@@ -263,11 +298,9 @@ function OrgProfile() {
   const whatsappShareUrl = publicOrgUrl
     ? `https://wa.me/?text=${encodeURIComponent(`Support ${org.name} on AzarFaith: ${publicOrgUrl}`)}`
     : "#";
-  const isRejected =
-    org.verificationStatus === "unverified" && org.reviewAction === "rejected";
+  const isRejected = org.verificationStatus === "unverified" && org.reviewAction === "rejected";
   const canResubmitNow =
-    !org.nextReapplicationAt ||
-    new Date(org.nextReapplicationAt).getTime() <= Date.now();
+    !org.nextReapplicationAt || new Date(org.nextReapplicationAt).getTime() <= Date.now();
   const criticalIdentityChanged =
     org.verificationStatus === "verified" &&
     (form.name.trim() !== org.name || form.category !== org.category.toUpperCase());
@@ -343,9 +376,24 @@ function OrgProfile() {
     });
   };
 
+  if (!ownerTools || !isOwner)
+    return (
+      <OrganizationPublicView
+        organization={org}
+        authenticated={Boolean(user)}
+        isOwner={isOwner}
+        onManage={() => setOwnerTools(true)}
+      />
+    );
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <div className="mx-auto max-w-6xl px-5 pt-5">
+        <button className="public-button-outline" onClick={() => setOwnerTools(false)}>
+          Back to organization preview
+        </button>
+      </div>
       <div className="relative">
         {org.photos[0] && (
           <div className="h-56 overflow-hidden md:h-72">
@@ -353,11 +401,13 @@ function OrgProfile() {
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
           </div>
         )}
-        <div className="relative mx-auto max-w-3xl px-5 pb-8 md:px-8">
+        <div className="relative mx-auto max-w-3xl px-5 pb-8 pt-6 md:px-8 md:pt-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">{org.category}</span>
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+                  {org.category}
+                </span>
                 {org.verificationStatus === "verified" ? (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-trust">
                     <ShieldCheck className="h-3.5 w-3.5" /> Verified
@@ -375,9 +425,19 @@ function OrgProfile() {
               <h1 className="font-display text-3xl md:text-4xl">{org.name}</h1>
               <p className="mt-1 text-muted-foreground">{org.tagline}</p>
               <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {org.location}</span>
-                {org.founded && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Est. {org.founded}</span>}
-                <span>{org.category === "other" && org.otherCategoryLabel ? org.otherCategoryLabel : org.denomination}</span>
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> {org.location}
+                </span>
+                {org.founded && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" /> Est. {org.founded}
+                  </span>
+                )}
+                <span>
+                  {org.category === "other" && org.otherCategoryLabel
+                    ? org.otherCategoryLabel
+                    : org.denomination}
+                </span>
               </div>
             </div>
             <div className="flex gap-3">
@@ -394,7 +454,12 @@ function OrgProfile() {
                 <Link
                   to="/donate/$id"
                   params={{ id: primarySupportCampaign.id }}
-                  search={{ freq: primarySupportCampaign.mode === "ongoing" ? "monthly" : "once" }}
+                  search={{
+                    freq:
+                      primarySupportCampaign.mode === "ongoing"
+                        ? (primarySupportCampaign.frequencies?.[0] ?? "once")
+                        : "once",
+                  }}
                   className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
                 >
                   Donate now
@@ -410,7 +475,10 @@ function OrgProfile() {
               { label: "Active campaigns", value: org.campaignCount.toString() },
               { label: "Founded", value: org.founded || "-" },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border bg-card p-4 text-center">
+              <div
+                key={item.label}
+                className="rounded-2xl border border-border bg-card p-4 text-center"
+              >
                 <div className="font-display text-xl">{item.value}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{item.label}</div>
               </div>
@@ -450,12 +518,14 @@ function OrgProfile() {
                 </p>
                 {isRejected ? (
                   <p className="mt-2 text-xs text-rose-700">
-                    This organization was rejected during admin review. Update the profile if needed, then resubmit it when eligible.
+                    This organization was rejected during admin review. Update the profile if
+                    needed, then resubmit it when eligible.
                   </p>
                 ) : null}
                 {criticalIdentityChanged ? (
                   <p className="mt-2 text-xs text-amber-700">
-                    Changing the organization name or category will send this profile back into admin review.
+                    Changing the organization name or category will send this profile back into
+                    admin review.
                   </p>
                 ) : null}
               </div>
@@ -508,8 +578,16 @@ function OrgProfile() {
                     event.target.value = "";
                   }}
                 />
-                <Field label="Organization name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
-                <Field label="Tagline" value={form.tagline} onChange={(value) => setForm((current) => ({ ...current, tagline: value }))} />
+                <Field
+                  label="Organization name"
+                  value={form.name}
+                  onChange={(value) => setForm((current) => ({ ...current, name: value }))}
+                />
+                <Field
+                  label="Tagline"
+                  value={form.tagline}
+                  onChange={(value) => setForm((current) => ({ ...current, tagline: value }))}
+                />
                 <div>
                   <label className="mb-1.5 block text-sm font-medium">Category</label>
                   <select
@@ -533,10 +611,16 @@ function OrgProfile() {
                   <Field
                     label="Specify ministry type"
                     value={form.otherCategoryLabel}
-                    onChange={(value) => setForm((current) => ({ ...current, otherCategoryLabel: value }))}
+                    onChange={(value) =>
+                      setForm((current) => ({ ...current, otherCategoryLabel: value }))
+                    }
                   />
                 ) : null}
-                <Field label="Denomination / tradition" value={form.denomination} onChange={(value) => setForm((current) => ({ ...current, denomination: value }))} />
+                <Field
+                  label="Denomination / tradition"
+                  value={form.denomination}
+                  onChange={(value) => setForm((current) => ({ ...current, denomination: value }))}
+                />
                 <Field
                   label="Year founded"
                   value={form.foundedYear}
@@ -547,7 +631,11 @@ function OrgProfile() {
                     }))
                   }
                 />
-                <Field label="Location" value={form.location} onChange={(value) => setForm((current) => ({ ...current, location: value }))} />
+                <Field
+                  label="Location"
+                  value={form.location}
+                  onChange={(value) => setForm((current) => ({ ...current, location: value }))}
+                />
                 <div className="md:col-span-2">
                   <label className="mb-1.5 block text-sm font-medium">About</label>
                   <textarea
@@ -563,7 +651,9 @@ function OrgProfile() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">Organization photos</p>
-                      <p className="text-xs text-muted-foreground">Add or remove gallery photos for this profile.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Add or remove gallery photos for this profile.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -574,7 +664,11 @@ function OrgProfile() {
                       disabled={uploadPhotosMutation.isPending}
                       className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
                     >
-                      {uploadPhotosMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                      {uploadPhotosMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ImagePlus className="h-4 w-4" />
+                      )}
                       {uploadPhotosMutation.isPending ? "Uploading..." : "Add photos"}
                     </button>
                   </div>
@@ -582,7 +676,11 @@ function OrgProfile() {
                     <div className="grid grid-cols-3 gap-3">
                       {form.photoUrls.map((photo) => (
                         <div key={photo} className="relative">
-                          <img src={photo} alt="" className="aspect-square w-full rounded-2xl object-cover" />
+                          <img
+                            src={photo}
+                            alt=""
+                            className="aspect-square w-full rounded-2xl object-cover"
+                          />
                           <button
                             type="button"
                             onClick={() =>
@@ -630,7 +728,10 @@ function OrgProfile() {
                   {form.externalLinks.length > 0 ? (
                     <div className="space-y-2">
                       {form.externalLinks.map((url) => (
-                        <div key={url} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs">
+                        <div
+                          key={url}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs"
+                        >
                           <span className="truncate text-muted-foreground">{url}</span>
                           <button
                             type="button"
@@ -655,7 +756,9 @@ function OrgProfile() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium">Registration evidence</p>
-                      <p className="text-xs text-muted-foreground">CAC registration document or recommendation letter for admin review.</p>
+                      <p className="text-xs text-muted-foreground">
+                        CAC registration document or recommendation letter for admin review.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -666,15 +769,27 @@ function OrgProfile() {
                       disabled={uploadDocumentsMutation.isPending}
                       className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
                     >
-                      {uploadDocumentsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                      {uploadDocumentsMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4" />
+                      )}
                       {uploadDocumentsMutation.isPending ? "Uploading..." : "Add document"}
                     </button>
                   </div>
                   {form.registrationDocumentUrls.length > 0 ? (
                     <div className="space-y-2">
                       {form.registrationDocumentUrls.map((url) => (
-                        <div key={url} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs">
-                          <a href={url} target="_blank" rel="noreferrer" className="truncate text-amber-700 hover:underline">
+                        <div
+                          key={url}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs"
+                        >
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="truncate text-amber-700 hover:underline"
+                          >
                             {url}
                           </a>
                           <button
@@ -682,7 +797,9 @@ function OrgProfile() {
                             onClick={() =>
                               setForm((current) => ({
                                 ...current,
-                                registrationDocumentUrls: current.registrationDocumentUrls.filter((item) => item !== url),
+                                registrationDocumentUrls: current.registrationDocumentUrls.filter(
+                                  (item) => item !== url,
+                                ),
                               }))
                             }
                             className="text-amber-700"
@@ -693,7 +810,9 @@ function OrgProfile() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">No registration evidence uploaded yet.</p>
+                    <p className="text-xs text-muted-foreground">
+                      No registration evidence uploaded yet.
+                    </p>
                   )}
                 </div>
                 <div className="md:col-span-2 flex justify-end">
@@ -718,12 +837,15 @@ function OrgProfile() {
                     Organization payout destination
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    This organization uses your profile payout account by default. Add a separate organization-specific payout account only if you want a different destination for this organization.
+                    This organization uses your profile payout account by default. Add a separate
+                    organization-specific payout account only if you want a different destination
+                    for this organization.
                   </p>
                 </div>
                 {payoutSummary?.payoutAccount ? (
                   <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    {payoutSummary.payoutAccount.bankName} · {payoutSummary.payoutAccount.accountNumberMasked}
+                    {payoutSummary.payoutAccount.bankName} ·{" "}
+                    {payoutSummary.payoutAccount.accountNumberMasked}
                   </span>
                 ) : null}
               </div>
@@ -769,7 +891,9 @@ function OrgProfile() {
                     className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                   <p className="mt-2 text-xs text-muted-foreground">
-                    AzarFaith will try to confirm this automatically. If Paystack is unavailable, you can still save it manually and it will stay pending. Your profile payout account remains the default unless this organization-specific one is verified.
+                    AzarFaith will try to confirm this automatically. If Paystack is unavailable,
+                    you can still save it manually and it will stay pending. Your profile payout
+                    account remains the default unless this organization-specific one is verified.
                   </p>
                 </div>
               </div>
@@ -779,9 +903,7 @@ function OrgProfile() {
                   Checking account details with Paystack...
                 </p>
               ) : null}
-              {resolveError ? (
-                <p className="mt-3 text-xs text-amber-700">{resolveError}</p>
-              ) : null}
+              {resolveError ? <p className="mt-3 text-xs text-amber-700">{resolveError}</p> : null}
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
@@ -807,7 +929,9 @@ function OrgProfile() {
                       !payoutAccountHolderName.trim() ||
                       !resolvedPayoutAccountName.trim()
                     ) {
-                      toast.error("Complete the organization-specific payout account form before saving.");
+                      toast.error(
+                        "Complete the organization-specific payout account form before saving.",
+                      );
                       return;
                     }
                     savePayoutMutation.mutate();
@@ -824,7 +948,9 @@ function OrgProfile() {
                   <p className="font-display text-2xl">
                     {formatMoney(payoutSummary?.totalCollected ?? 0)}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Collected for this organization</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Collected for this organization
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p className="font-display text-2xl">
@@ -845,7 +971,8 @@ function OrgProfile() {
 
         {org.verificationStatus === "pending" && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            This organization is currently under review. Once the AzarFaith team approves it, the verified badge will appear here.
+            This organization is currently under review. Once the AzarFaith team approves it, the
+            verified badge will appear here.
           </div>
         )}
         {isRejected && (
@@ -892,7 +1019,11 @@ function OrgProfile() {
             <div className="grid grid-cols-3 gap-3">
               {org.photos.map((photo) => (
                 <div key={photo} className="aspect-square overflow-hidden rounded-2xl">
-                  <img src={photo} alt="" className="h-full w-full object-cover transition duration-300 hover:scale-105" />
+                  <img
+                    src={photo}
+                    alt=""
+                    className="h-full w-full object-cover transition duration-300 hover:scale-105"
+                  />
                 </div>
               ))}
             </div>
@@ -906,14 +1037,20 @@ function OrgProfile() {
           >
             <h2 className="font-display text-xl">Ways to support this organization</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Shared organization links bring donors here first. They can then choose an approved campaign and donate without creating an account.
+              Shared organization links bring donors here first. They can then choose an approved
+              campaign and donate without creating an account.
             </p>
             {primarySupportCampaign ? (
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   to="/donate/$id"
                   params={{ id: primarySupportCampaign.id }}
-                  search={{ freq: primarySupportCampaign.mode === "ongoing" ? "monthly" : "once" }}
+                  search={{
+                    freq:
+                      primarySupportCampaign.mode === "ongoing"
+                        ? (primarySupportCampaign.frequencies?.[0] ?? "once")
+                        : "once",
+                  }}
                   className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                 >
                   Donate to featured campaign
@@ -938,22 +1075,41 @@ function OrgProfile() {
             </div>
             <div className="space-y-4">
               {ongoing.map((campaign) => (
-                <Link key={campaign.id} to="/campaign/$id" params={{ id: campaign.id }} className="group block">
+                <Link
+                  key={campaign.id}
+                  to="/campaign/$id"
+                  params={{ id: campaign.id }}
+                  className="group block"
+                >
                   <article className="flex gap-4 overflow-hidden rounded-2xl border border-border bg-card transition hover:border-amber-300">
                     <div className="w-28 shrink-0 overflow-hidden">
-                      <img src={campaign.cover} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                      <img
+                        src={campaign.cover}
+                        alt=""
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
                     </div>
                     <div className="flex min-h-[100px] flex-col justify-between py-4 pr-4">
                       <div>
                         <div className="mb-1.5 flex items-center gap-2">
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Ongoing</span>
-                          {campaign.frequencies && <span className="text-xs text-muted-foreground">{campaign.frequencies.join(" · ")}</span>}
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            Ongoing
+                          </span>
+                          {campaign.frequencies && (
+                            <span className="text-xs text-muted-foreground">
+                              {campaign.frequencies.join(" · ")}
+                            </span>
+                          )}
                         </div>
-                        <h3 className="font-display text-base leading-snug line-clamp-2">{campaign.title}</h3>
+                        <h3 className="font-display text-base leading-snug line-clamp-2">
+                          {campaign.title}
+                        </h3>
                       </div>
                       <div className="mt-2 flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">{campaign.donors} supporters</span>
-                        <span className="flex items-center gap-1 font-medium text-amber-600">Give monthly <ArrowRight className="h-3 w-3" /></span>
+                        <span className="flex items-center gap-1 font-medium text-amber-600">
+                          Give monthly <ArrowRight className="h-3 w-3" />
+                        </span>
                       </div>
                     </div>
                   </article>
@@ -971,22 +1127,40 @@ function OrgProfile() {
             </div>
             <div className="space-y-4">
               {oneTime.map((campaign) => {
-                const pct = campaign.goal ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100)) : 0;
+                const pct = campaign.goal
+                  ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
+                  : 0;
                 return (
-                  <Link key={campaign.id} to="/campaign/$id" params={{ id: campaign.id }} className="group block">
+                  <Link
+                    key={campaign.id}
+                    to="/campaign/$id"
+                    params={{ id: campaign.id }}
+                    className="group block"
+                  >
                     <article className="flex gap-4 overflow-hidden rounded-2xl border border-border bg-card transition hover:border-amber-300">
                       <div className="w-28 shrink-0 overflow-hidden">
-                        <img src={campaign.cover} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                        <img
+                          src={campaign.cover}
+                          alt=""
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        />
                       </div>
                       <div className="flex min-h-[100px] flex-col justify-between py-4 pr-4">
-                        <h3 className="font-display text-base leading-snug line-clamp-2">{campaign.title}</h3>
+                        <h3 className="font-display text-base leading-snug line-clamp-2">
+                          {campaign.title}
+                        </h3>
                         <div>
                           <div className="mb-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                            <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                            <div
+                              className="h-full rounded-full bg-amber-500"
+                              style={{ width: `${pct}%` }}
+                            />
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-medium">{formatMoney(campaign.raised)}</span>
-                            <span className="text-muted-foreground">of {formatMoney(campaign.goal ?? 0)} · {pct}%</span>
+                            <span className="text-muted-foreground">
+                              of {formatMoney(campaign.goal ?? 0)} · {pct}%
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1002,8 +1176,13 @@ function OrgProfile() {
           <div className="rounded-2xl bg-muted/30 py-12 text-center">
             <Heart className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="font-medium">No campaigns yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">This org hasn't created any campaigns yet.</p>
-            <Link to="/create" className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-600">
+            <p className="mt-1 text-sm text-muted-foreground">
+              This org hasn't created any campaigns yet.
+            </p>
+            <Link
+              to="/create"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-600"
+            >
               Start a campaign
             </Link>
           </div>

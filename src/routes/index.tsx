@@ -17,6 +17,7 @@ import {
 
 import { useAppSelector } from "@/app/hooks";
 import { Navbar } from "@/components/Navbar";
+import { LogoutButton } from "@/components/LogoutButton";
 import { listCampaigns, listOrganizations } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
 
@@ -378,7 +379,9 @@ function LandingPage() {
             ["Core churches", "The churches meeting under zinc roofs and growing quietly", Church],
             ["Orphanages", "Faith-based homes caring for displaced children", HeartHandshake],
             ["Faith schools", "Affordable Christian education in underserved areas", GraduationCap],
-          ].map(([title, body, Icon]) => (
+          ].map((entry) => {
+            const [title, body, Icon] = entry as [string, string, typeof Globe];
+            return (
             <div key={title} className="rounded-2xl border border-border bg-card p-5 text-center">
               <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-50">
                 <Icon className="h-7 w-7 text-amber-500" />
@@ -386,7 +389,8 @@ function LandingPage() {
               <div className="text-sm font-semibold">{title}</div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -481,6 +485,7 @@ function LandingPage() {
                 <li><Link to={accountHref} className="text-sm text-muted-foreground transition hover:text-foreground">{authed ? "Profile" : "Log in"}</Link></li>
                 <li><Link to={authed ? "/my-giving" : "/signup"} className="text-sm text-muted-foreground transition hover:text-foreground">{authed ? "My giving" : "Create account"}</Link></li>
                 <li><Link to={authed ? "/manage" : "/signup"} className="text-sm text-muted-foreground transition hover:text-foreground">{authed ? "Manage" : "Get started"}</Link></li>
+                {authed && <li><LogoutButton className="text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-60" /></li>}
               </ul>
             </div>
             <div>

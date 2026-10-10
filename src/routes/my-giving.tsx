@@ -1,702 +1,404 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { CreditCard, Pause, Play, Receipt, Repeat2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowUpRight, CreditCard, Heart, Repeat2 } from "lucide-react";
 import { toast } from "sonner";
-
-import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
+import { GivingHistory } from "@/components/giving/GivingHistory";
+import { GiftActionDialog, type GiftActionValues } from "@/components/giving/GiftActionDialog";
+import { RecurringGiftCard, type GiftAction } from "@/components/giving/RecurringGiftCard";
+import { fetchSession } from "@/features/auth/authSlice";
 import {
   cancelRecurringGiftWithReason,
   deactivatePaymentMethod,
-  getDonationDetail,
   getDonationHistory,
   getPaymentMethods,
   getRecurringGifts,
   pauseRecurringGift,
   resumeRecurringGift,
+  skipRecurringGift,
+  updateRecurringGift,
   updateRecurringGiftPaymentMethod,
 } from "@/features/catalog/api";
-import { frequencyLabel, formatMoney } from "@/lib/catalog";
+import { ApiError } from "@/lib/api";
+import type { RecurringDonation } from "@/lib/catalog";
+import { frequencyLabels, givingSummary, money } from "@/lib/giving";
+import { useClientReady } from "@/lib/useClientReady";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
-export const Route = createFileRoute("/my-giving")({ component: MyGiving });
+export const Route = createFileRoute("/my-giving")({
+  head: () => ({
+    meta: [{ title: "My Giving | AzarFaith" }, { name: "robots", content: "noindex, nofollow" }],
+  }),
+  component: MyGiving,
+});
 
 function MyGiving() {
-  const isAuthed = useRequireAuth();
-  const queryClient = useQueryClient();
-  const [selectedDonationId, setSelectedDonationId] = useState<string | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-
-  const { data: recurringDonations = [], isLoading } = useQuery({
-    queryKey: ["recurring-gifts"],
+  const authed = useRequireAuth();
+  const ready = useClientReady() && authed;
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const dispatch = useAppDispatch();
+  const cache = useQueryClient();
+  const [tab, setTab] = useState("regular");
+  const [target, setTarget] = useState<{ gift: RecurringDonation; action: GiftAction } | null>(
+    null,
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [removeId, setRemoveId] = useState<string | null>(null);
+  const recurring = useQuery({
+    queryKey: ["recurring-gifts", userId],
     queryFn: getRecurringGifts,
-    enabled: isAuthed,
+    enabled: ready,
+    retry: false,
   });
-  const { data: donations = [], isLoading: donationsLoading } = useQuery({
-    queryKey: ["donations"],
+  const history = useQuery({
+    queryKey: ["donations", userId],
     queryFn: getDonationHistory,
-    enabled: isAuthed,
+    enabled: ready,
+    retry: false,
   });
-  const { data: paymentMethods = [], isLoading: paymentMethodsLoading } = useQuery({
-    queryKey: ["payment-methods"],
+  const cards = useQuery({
+    queryKey: ["payment-methods", userId],
     queryFn: getPaymentMethods,
-    enabled: isAuthed,
+    enabled: ready,
+    retry: false,
   });
-  const { data: selectedDonation, isLoading: donationDetailLoading } = useQuery({
-    queryKey: ["donation-detail", selectedDonationId],
-    queryFn: () => getDonationDetail(selectedDonationId!),
-    enabled: isAuthed && Boolean(selectedDonationId),
-  });
-
-  const invalidateGivingQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ["recurring-gifts"] });
-    queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-    queryClient.invalidateQueries({ queryKey: ["donations"] });
-  };
-
-  const pauseMutation = useMutation({
-    mutationFn: (id: string) => pauseRecurringGift(id),
-    onSuccess: (result) => {
-      invalidateGivingQueries();
-      toast.success(result.message);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const resumeMutation = useMutation({
-    mutationFn: (id: string) => resumeRecurringGift(id),
-    onSuccess: (result) => {
-      invalidateGivingQueries();
-      toast.success(result.message);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      cancelRecurringGiftWithReason(id, reason ? { reason } : {}),
-    onSuccess: (result) => {
-      invalidateGivingQueries();
-      setCancelTarget(null);
-      setCancelReason("");
-      toast.success(result.message);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const updatePaymentMethodMutation = useMutation({
-    mutationFn: ({ giftId, authorizationId }: { giftId: string; authorizationId: string }) =>
-      updateRecurringGiftPaymentMethod(giftId, {
-        authorizationId,
-        consentToAutoCharge: true,
-      }),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["recurring-gifts"] });
-      queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
-      toast.success(result.message);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const deactivatePaymentMethodMutation = useMutation({
-    mutationFn: (id: string) => deactivatePaymentMethod(id),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
-      queryClient.invalidateQueries({ queryKey: ["recurring-gifts"] });
-      toast.success(result.message);
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const activePaymentMethods = paymentMethods.filter((method) => method.active && method.reusable);
-  const currentRecurring = recurringDonations.filter(
-    (gift) => gift.status !== "cancelled" && gift.status !== "completed",
-  );
-  const cancelledRecurring = recurringDonations.filter((gift) => gift.status === "cancelled");
-  const cancelledRecurringIds = new Set(cancelledRecurring.map((gift) => gift.id));
-  const completedDonations = donations.filter((donation) => {
-    if (donation.status !== "succeeded") return false;
-    if (!donation.recurringMode) return true;
-    return Boolean(
-      donation.recurringGiftId && cancelledRecurringIds.has(donation.recurringGiftId),
-    );
-  });
-  const recurringSetupIssues = cancelledRecurring.filter((gift) =>
-    gift.cancellationReason?.includes("reusable card authorization"),
-  );
-
-  const summary = useMemo(() => {
-    const successfulDonations = donations.filter((donation) => donation.status === "succeeded");
-    const lifetime = successfulDonations.reduce((sum, donation) => sum + donation.amount, 0);
-    const currentMonth = successfulDonations
-      .filter((donation) => {
-        const stamp = donation.paidAt ?? donation.createdAt;
-        return stamp.slice(0, 7) === currentMonthKey;
-      })
-      .reduce((sum, donation) => sum + donation.amount, 0);
-    const campaignsSupported = new Set(successfulDonations.map((donation) => donation.campaignId)).size;
-
-    return {
-      lifetime,
-      currentMonth,
-      campaignsSupported,
-    };
-  }, [currentMonthKey, donations]);
-
-  if (!isAuthed) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
-          <PageSpinner label="Redirecting to login..." />
-        </main>
-        <Footer />
-      </div>
-    );
+  const queryError = recurring.error ?? history.error ?? cards.error;
+  useEffect(() => {
+    if (queryError instanceof ApiError && [401, 403].includes(queryError.status))
+      dispatch(fetchSession());
+  }, [queryError, dispatch]);
+  async function refresh() {
+    for (const key of [
+      "recurring-gifts",
+      "payment-methods",
+      "donations",
+      "profile",
+      "dashboard",
+      "notifications",
+    ])
+      await cache.invalidateQueries({ queryKey: [key] });
   }
-
-  const printReceipt = () => {
-    if (!selectedDonation) return;
-
-    const receiptWindow = window.open("", "_blank", "width=900,height=700");
-    if (!receiptWindow) {
-      toast.error("Allow pop-ups to print the receipt.");
-      return;
-    }
-
-    receiptWindow.document.write(`
-      <html>
-        <head>
-          <title>AzarFaith Donation Receipt</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 32px; color: #1f2937; }
-            h1 { margin-bottom: 8px; }
-            .muted { color: #6b7280; margin-bottom: 24px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-            .row { margin-bottom: 14px; }
-            .label { font-size: 12px; text-transform: uppercase; color: #b45309; margin-bottom: 4px; }
-            .value { font-size: 15px; }
-          </style>
-        </head>
-        <body>
-          <h1>AzarFaith Donation Receipt</h1>
-          <p class="muted">Reference: ${selectedDonation.receipt.transactionReference}</p>
-          <div class="grid">
-            <div class="row"><div class="label">Campaign</div><div class="value">${selectedDonation.campaignTitle}</div></div>
-            <div class="row"><div class="label">Organization</div><div class="value">${selectedDonation.organizationName ?? "Independent campaign"}</div></div>
-            <div class="row"><div class="label">Donor name</div><div class="value">${selectedDonation.receipt.donorName}</div></div>
-            <div class="row"><div class="label">Public display</div><div class="value">${selectedDonation.donorDisplayName}</div></div>
-            <div class="row"><div class="label">Donation amount</div><div class="value">${formatMoney(selectedDonation.amount)}</div></div>
-            <div class="row"><div class="label">Platform fee</div><div class="value">${formatMoney(selectedDonation.platformFee)}</div></div>
-            <div class="row"><div class="label">Tip to AzarFaith</div><div class="value">${formatMoney(selectedDonation.tipAmount)}</div></div>
-            <div class="row"><div class="label">Total charged</div><div class="value">${formatMoney(selectedDonation.totalCharged)}</div></div>
-            <div class="row"><div class="label">Payment method</div><div class="value">${selectedDonation.paymentMethod}</div></div>
-            <div class="row"><div class="label">Date</div><div class="value">${selectedDonation.receipt.date}</div></div>
-          </div>
-        </body>
-      </html>
-    `);
-    receiptWindow.document.close();
-    receiptWindow.focus();
-    receiptWindow.print();
-  };
-
-  const downloadReceipt = () => {
-    if (!selectedDonation) return;
-
-    const html = `
-      <html><body>
-      <h1>AzarFaith Donation Receipt</h1>
-      <p>Reference: ${selectedDonation.receipt.transactionReference}</p>
-      <p>Campaign: ${selectedDonation.campaignTitle}</p>
-      <p>Organization: ${selectedDonation.organizationName ?? "Independent campaign"}</p>
-      <p>Donor: ${selectedDonation.receipt.donorName}</p>
-      <p>Total charged: ${formatMoney(selectedDonation.totalCharged)}</p>
-      </body></html>
-    `;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `azarfaith-receipt-${selectedDonation.id}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportCsv = () => {
-    const header = [
-      "Date",
-      "Campaign",
-      "Organization",
-      "Amount",
-      "Platform Fee",
-      "Tip",
-      "Total Charged",
-      "Status",
-      "Reference",
-    ];
-    const rows = completedDonations.map((donation) => [
-      donation.createdAt.slice(0, 10),
-      donation.campaignTitle,
-      donation.organizationName ?? "",
-      donation.amount.toString(),
-      donation.platformFee.toString(),
-      donation.tipAmount.toString(),
-      donation.totalCharged.toString(),
-      donation.status,
-      donation.reference,
-    ]);
-    const csv = [header, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "azarfaith-one-time-giving.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
+  const action = useMutation({
+    mutationFn: async ({
+      gift,
+      kind,
+      values,
+    }: {
+      gift: RecurringDonation;
+      kind: GiftAction;
+      values: GiftActionValues;
+    }) => {
+      if (kind === "edit")
+        return updateRecurringGift(gift.id, {
+          amount: values.amount,
+          frequency: values.frequency.toUpperCase() as "WEEKLY" | "MONTHLY" | "QUARTERLY",
+          expectedUpdatedAt: gift.updatedAt,
+          consentToAutoCharge: values.consent,
+        });
+      if (kind === "skip") return skipRecurringGift(gift.id, gift.updatedAt);
+      if (kind === "pause") return pauseRecurringGift(gift.id);
+      if (kind === "resume") return resumeRecurringGift(gift.id);
+      if (kind === "card")
+        return updateRecurringGiftPaymentMethod(gift.id, {
+          authorizationId: values.authorizationId,
+          consentToAutoCharge: values.consent,
+        });
+      return cancelRecurringGiftWithReason(gift.id, { reason: values.reason || undefined });
+    },
+    onSuccess: async (result) => {
+      setTarget(null);
+      toast.success(result.message);
+      await refresh();
+    },
+    onError: (error) => {
+      setActionError(error.message);
+      if (error instanceof ApiError && error.status === 409) {
+        setTarget(null);
+        toast.error(error.message);
+        void refresh();
+      }
+      if (error instanceof ApiError && [401, 403].includes(error.status)) dispatch(fetchSession());
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => deactivatePaymentMethod(id),
+    onSuccess: async (result) => {
+      setRemoveId(null);
+      toast.success(result.message);
+      await refresh();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  if (!ready || !userId) return <PageSpinner label="Checking your session..." />;
+  const summary = history.data ? givingSummary(history.data) : null;
+  const current = recurring.data?.filter(
+    (gift) => !["cancelled", "completed"].includes(gift.status),
+  );
+  const stopped = recurring.data?.filter((gift) =>
+    ["cancelled", "completed"].includes(gift.status),
+  );
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
-        <h1 className="font-display text-3xl tracking-tight">My giving</h1>
-        <p className="mt-2 text-muted-foreground">Track your generosity, recurring gifts, and receipts in one place.</p>
-
-        <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <SummaryCard label="Lifetime given" value={formatMoney(summary.lifetime)} />
-          <SummaryCard label="Given this month" value={formatMoney(summary.currentMonth)} />
-          <SummaryCard label="Campaigns supported" value={String(summary.campaignsSupported)} />
-          <SummaryCard
-            label="Impact summary"
-            value={`You've supported ${summary.campaignsSupported} cause${summary.campaignsSupported === 1 ? "" : "s"}.`}
-            muted="Detailed lives-impacted metrics are coming soon."
-          />
+    <DashboardShell>
+      <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="mb-2 text-xs uppercase tracking-[0.14em] text-[#777283]">
+            Your generosity, in one place
+          </p>
+          <h1 className="text-[clamp(28px,3vw,40px)] font-medium tracking-[-0.03em]">My giving</h1>
+          <p className="mt-2 text-[15px] text-[#777283]">
+            A record of your gifts. A little control over what comes next.
+          </p>
+        </div>
+        <Link to="/discover" className="dashboard-button secondary">
+          Find a cause <ArrowUpRight size={15} />
+        </Link>
+      </header>
+      {history.error ? (
+        <ErrorPanel
+          title="We couldn't load your giving totals"
+          error={history.error}
+          retry={() => history.refetch()}
+        />
+      ) : !summary ? (
+        <PageSpinner label="Loading your giving summary..." fullScreen={false} />
+      ) : (
+        <section aria-label="Giving summary" className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            ["Lifetime given", money(summary.lifetime)],
+            ["Given this month", money(summary.month)],
+            ["Causes supported", String(summary.campaigns)],
+            ["Available receipts", String(summary.receipts)],
+          ].map(([label, value]) => (
+            <div key={label} className="dashboard-panel p-4 sm:p-5">
+              <p className="text-xs text-[#777283]">{label}</p>
+              <p className="mt-2 break-words text-[clamp(21px,2vw,30px)] font-medium tracking-tight tabular-nums">
+                {value}
+              </p>
+            </div>
+          ))}
         </section>
-
-        {recurringSetupIssues.length > 0 ? (
-          <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-800">
-              Recurring setup needs attention
-            </h2>
-            <div className="mt-3 space-y-3 text-sm text-amber-950">
-              {recurringSetupIssues.map((gift) => (
-                <div key={gift.id} className="rounded-2xl border border-amber-200 bg-white/70 p-4">
-                  <p className="font-medium">{gift.targetName}</p>
-                  <p className="mt-1 text-amber-900">
-                    Your first donation succeeded, but automatic recurring charging was not activated because Paystack did not return a reusable authorization for this payment.
-                  </p>
-                  <p className="mt-2 text-xs text-amber-800">
-                    Donate again with a reusable card if you want automatic charges, or choose Reminder / Pledge instead.
-                  </p>
-                </div>
+      )}
+      {summary && (
+        <p className="mb-6 flex items-center gap-2 text-xs leading-relaxed text-[#777283]">
+          <Heart size={15} className="shrink-0 text-[#e88b00]" />
+          You've supported {summary.campaigns} cause{summary.campaigns === 1 ? "" : "s"}. More
+          impact insights are coming. Totals exclude platform fees and tips.
+        </p>
+      )}
+      <nav aria-label="Giving sections" className="mb-6 flex gap-6 border-b border-[#e8e5ed]">
+        {[
+          ["regular", "Regular gifts"],
+          ["history", "Payment history"],
+        ].map(([value, label]) => (
+          <button
+            type="button"
+            key={value}
+            aria-pressed={tab === value}
+            onClick={() => setTab(value)}
+            className={`border-b-2 px-1 pb-3 text-sm font-medium ${tab === value ? "border-[#130e30] text-[#130e30]" : "border-transparent text-[#777283]"}`}
+          >
+            {label}
+            {value === "regular" && current && (
+              <span className="ml-2 rounded-full bg-[#f2eff5] px-2 py-0.5 text-xs">
+                {current.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+      {tab === "history" ? (
+        history.error ? (
+          <ErrorPanel
+            title="History unavailable"
+            error={history.error}
+            retry={() => history.refetch()}
+          />
+        ) : history.data ? (
+          <GivingHistory donations={history.data} userId={userId} />
+        ) : (
+          <PageSpinner label="Loading payment history..." fullScreen={false} />
+        )
+      ) : (
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 text-sm text-[#615970]">
+            <Repeat2 size={16} />
+            <p>Regular support, on your terms. Pause, skip a date, or change your gift.</p>
+          </div>
+          {recurring.error ? (
+            <ErrorPanel
+              title="We couldn't load your recurring gifts"
+              error={recurring.error}
+              retry={() => recurring.refetch()}
+            />
+          ) : !current ? (
+            <PageSpinner label="Loading recurring gifts..." fullScreen={false} />
+          ) : current.length ? (
+            <div className="grid items-start gap-4 xl:grid-cols-2">
+              {current.map((gift) => (
+                <RecurringGiftCard
+                  key={gift.id}
+                  gift={gift}
+                  methods={cards.data}
+                  busy={action.isPending}
+                  onAction={(selected, kind) => {
+                    setActionError(null);
+                    setTarget({ gift: selected, action: kind });
+                  }}
+                />
               ))}
             </div>
-          </section>
-        ) : null}
-
-        <section className="mt-8 rounded-3xl border border-border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Repeat2 className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Active recurring
-              </h2>
+          ) : (
+            <div className="dashboard-panel flex flex-col items-center gap-3 p-10 text-center">
+              <Heart className="text-[#e88b00]" size={28} />
+              <h2 className="text-lg font-medium">Make support a regular thing</h2>
+              <p className="max-w-sm text-sm text-[#777283]">
+                Choose an ongoing cause and set up an automatic gift or a reminder-based pledge.
+                You're always in control.
+              </p>
+              <Link to="/discover" className="dashboard-button mt-2">
+                Explore causes
+              </Link>
             </div>
-            <span className="text-xs text-muted-foreground">
-              Manage pause, resume, payment method, or cancellation here.
-            </span>
-          </div>
-
-          <div className="mt-4 space-y-4">
-            {isLoading ? (
-              <PageSpinner label="Loading recurring gifts..." fullScreen={false} />
-            ) : currentRecurring.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                You do not have an active or paused recurring gift yet.
-              </div>
-            ) : (
-              currentRecurring.map((gift) => (
-                <div key={gift.id} className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 md:flex-row">
-                  <img src={gift.targetCover} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium">{gift.targetName}</p>
-                      <StatusBadge status={gift.status} />
-                    </div>
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Repeat2 className="h-3 w-3" />
-                      {formatMoney(gift.amount)} · {frequencyLabel[gift.frequency]} · {gift.mode === "auto" ? "Automatic" : "Pledge"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">Next scheduled date: {gift.nextDate}</p>
-                    {gift.nextReminderDate ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">Next reminder: {gift.nextReminderDate}</p>
-                    ) : null}
-                    {gift.mode === "auto" ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Auto-charge consent: {gift.autoChargeConsentAt ? "Recorded" : "Not recorded"}
+          )}
+          {Boolean(stopped?.length) && (
+            <section>
+              <h2 className="mb-3 text-sm font-medium text-[#777283]">Stopped gifts</h2>
+              <div className="divide-y divide-[#eeedf1] border-y border-[#eeedf1]">
+                {stopped?.map((gift) => (
+                  <div
+                    key={gift.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-4"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to="/campaign/$id"
+                        params={{ id: gift.targetId }}
+                        className="text-sm font-medium hover:underline"
+                      >
+                        {gift.targetName}
+                      </Link>
+                      <p className="mt-1 text-xs text-[#777283]">
+                        {money(gift.amount)} · {frequencyLabels[gift.frequency]} · {gift.status}
                       </p>
-                    ) : null}
-                    {gift.missedCount > 0 ? (
-                      <p className="mt-0.5 text-xs text-amber-700">Missed pledges: {gift.missedCount}</p>
-                    ) : null}
-                    {gift.retryCount > 0 ? (
-                      <p className="mt-0.5 text-xs text-amber-700">Retry attempts tracked: {gift.retryCount}</p>
-                    ) : null}
-                    {gift.mode === "auto" ? (
-                      activePaymentMethods.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <label className="text-xs text-muted-foreground">Saved payment method</label>
-                          <select
-                            value={gift.authorizationId ?? ""}
-                            onChange={(event) => {
-                              if (!event.target.value) return;
-                              updatePaymentMethodMutation.mutate({
-                                giftId: gift.id,
-                                authorizationId: event.target.value,
-                              });
-                            }}
-                            className="rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
-                            disabled={updatePaymentMethodMutation.isPending}
+                      {gift.cancellationReason && (
+                        <p className="mt-1 text-xs text-[#777283]">{gift.cancellationReason}</p>
+                      )}
+                    </div>
+                    <Link
+                      to="/donate/$id"
+                      params={{ id: gift.targetId }}
+                      search={{ freq: gift.frequency, amount: String(gift.amount) }}
+                      className="giving-small-button"
+                    >
+                      Start a new gift
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+          <section className="dashboard-panel p-5 sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-medium">
+              <CreditCard size={18} /> Saved payment methods
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#777283]">
+              Saved after a successful automatic card donation. We display only card metadata, never
+              your card number or Paystack authorization token.
+            </p>
+            {cards.error ? (
+              <ErrorPanel
+                title="Saved cards unavailable"
+                error={cards.error}
+                retry={() => cards.refetch()}
+              />
+            ) : !cards.data ? (
+              <PageSpinner label="Loading saved cards..." fullScreen={false} />
+            ) : cards.data.filter((card) => card.active && card.reusable).length === 0 ? (
+              <p className="mt-5 text-sm text-[#777283]">
+                No reusable saved card yet. Pledges don't need one.
+              </p>
+            ) : (
+              <ul className="mt-4 divide-y divide-[#eeedf1]">
+                {cards.data
+                  .filter((card) => card.active && card.reusable)
+                  .map((card) => (
+                    <li
+                      key={card.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-4"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{card.label}</p>
+                        <p className="mt-1 text-xs text-[#777283]">
+                          {card.expMonth && card.expYear
+                            ? `Expires ${card.expMonth}/${card.expYear}. `
+                            : ""}
+                          {card.linkedRecurringGiftCount} linked gift
+                          {card.linkedRecurringGiftCount === 1 ? "" : "s"}, including paused gifts.
+                        </p>
+                      </div>
+                      {removeId === card.id ? (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="giving-small-button"
+                            disabled={remove.isPending}
+                            onClick={() => setRemoveId(null)}
                           >
-                            <option value="">Select a saved payment method</option>
-                            {activePaymentMethods.map((method) => (
-                              <option key={method.id} value={method.id}>
-                                {method.label}
-                              </option>
-                            ))}
-                          </select>
+                            Keep card
+                          </button>
+                          <button
+                            type="button"
+                            className="giving-small-button text-red-700"
+                            disabled={remove.isPending}
+                            onClick={() => remove.mutate(card.id)}
+                          >
+                            Confirm removal
+                          </button>
                         </div>
                       ) : (
-                        <p className="mt-2 text-xs text-amber-700">
-                          No reusable saved payment method is linked yet.
-                        </p>
-                      )
-                    ) : null}
-                  </div>
-                  <div className="flex shrink-0 flex-row gap-2 md:flex-col">
-                    {gift.status === "paused" ? (
-                      <button
-                        type="button"
-                        onClick={() => resumeMutation.mutate(gift.id)}
-                        disabled={resumeMutation.isPending}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60"
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                        Resume
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => pauseMutation.mutate(gift.id)}
-                        disabled={pauseMutation.isPending}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-60"
-                      >
-                        <Pause className="h-3.5 w-3.5" />
-                        Pause
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setCancelTarget({ id: gift.id, name: gift.targetName })}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ))
+                        <button
+                          type="button"
+                          className="giving-small-button"
+                          disabled={remove.isPending || card.linkedRecurringGiftCount > 0}
+                          onClick={() => setRemoveId(card.id)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  ))}
+              </ul>
             )}
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-amber-600" />
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-              Saved payment methods
-            </h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Automatic recurring gifts use a reusable Paystack authorization saved after a successful first donation.
-          </p>
-
-          <div className="mt-4 space-y-3">
-            {paymentMethodsLoading ? (
-              <PageSpinner label="Loading saved payment methods..." fullScreen={false} />
-            ) : activePaymentMethods.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No reusable payment method has been saved yet. Complete the first automatic recurring donation with Paystack and it will appear here.
-              </div>
-            ) : (
-              activePaymentMethods.map((method) => (
-                <div key={method.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border p-4">
-                  <div>
-                    <p className="text-sm font-medium">{method.label}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {method.email}
-                      {method.expMonth && method.expYear ? ` · expires ${method.expMonth}/${method.expYear}` : ""}
-                    </p>
-                    {method.linkedRecurringGiftCount > 0 ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Linked to {method.linkedRecurringGiftCount} recurring gift
-                        {method.linkedRecurringGiftCount > 1 ? "s" : ""}.
-                      </p>
-                    ) : null}
-                  </div>
-                  <button
-                    onClick={() => deactivatePaymentMethodMutation.mutate(method.id)}
-                    disabled={
-                      deactivatePaymentMethodMutation.isPending || method.linkedRecurringGiftCount > 0
-                    }
-                    className="rounded-full border border-border px-3 py-1.5 text-xs font-medium transition hover:border-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-3xl border border-border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Completed donations
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={exportCsv}
-              className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-background"
-            >
-              Export CSV
-            </button>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Successful one-time donations and recurring setups that completed an initial charge but are no longer active.
-          </p>
-
-          <div className="mt-4 space-y-3">
-            {donationsLoading ? (
-              <PageSpinner label="Loading donation history..." fullScreen={false} />
-            ) : completedDonations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                No completed donations yet.
-              </div>
-            ) : (
-              completedDonations.map((donation) => (
-                <button
-                  key={donation.id}
-                  onClick={() =>
-                    setSelectedDonationId((current) => (current === donation.id ? null : donation.id))
-                  }
-                  className="flex w-full items-start justify-between gap-3 rounded-2xl border border-border p-4 text-left transition hover:border-amber-300"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{donation.campaignTitle}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {donation.createdAt.slice(0, 10)} · {donation.organizationName ?? "Independent campaign"}
-                    </p>
-                    {donation.recurringGiftStatus === "cancelled" && donation.recurringCancellationReason ? (
-                      <p className="mt-1 text-xs text-amber-700">{donation.recurringCancellationReason}</p>
-                    ) : null}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{formatMoney(donation.totalCharged)}</p>
-                    <p className="mt-1 text-xs text-amber-700">View receipt</p>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-
-          {selectedDonationId ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              {donationDetailLoading || !selectedDonation ? (
-                <PageSpinner label="Loading receipt..." fullScreen={false} />
-              ) : (
-                <div className="space-y-4 text-sm">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-amber-900">Donation receipt</h3>
-                    <span className="text-xs text-amber-800">
-                      {selectedDonation.status.replaceAll("_", " ")}
-                    </span>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <ReceiptRow label="Campaign" value={selectedDonation.campaignTitle} />
-                    <ReceiptRow
-                      label="Organization"
-                      value={selectedDonation.organizationName ?? "Independent campaign"}
-                    />
-                    <ReceiptRow label="Donor name" value={selectedDonation.receipt.donorName} />
-                    <ReceiptRow label="Public display" value={selectedDonation.donorDisplayName} />
-                    <ReceiptRow label="Donation amount" value={formatMoney(selectedDonation.amount)} />
-                    <ReceiptRow label="Platform fee" value={formatMoney(selectedDonation.platformFee)} />
-                    <ReceiptRow label="Tip to AzarFaith" value={formatMoney(selectedDonation.tipAmount)} />
-                    <ReceiptRow label="Total charged" value={formatMoney(selectedDonation.totalCharged)} />
-                    <ReceiptRow label="Reference" value={selectedDonation.receipt.transactionReference} />
-                    <ReceiptRow label="Payment method" value={selectedDonation.paymentMethod} />
-                  </div>
-                  {selectedDonation.note ? (
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-700">
-                        Note
-                      </p>
-                      <p className="mt-1 text-sm text-amber-950">{selectedDonation.note}</p>
-                    </div>
-                  ) : null}
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={printReceipt}
-                      className="rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
-                    >
-                      Print receipt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={downloadReceipt}
-                      className="rounded-full border border-amber-300 px-4 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                    >
-                      Download receipt
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </section>
-
-        {cancelledRecurring.length > 0 ? (
-          <section className="mt-8">
-            <h2 className="text-sm font-medium text-muted-foreground">Cancelled recurring gifts</h2>
-            <div className="mt-3 space-y-3">
-              {cancelledRecurring.map((gift) => (
-                <div key={gift.id} className="flex items-center gap-4 rounded-2xl border border-border p-4 opacity-60">
-                  <img src={gift.targetCover} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{gift.targetName}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatMoney(gift.amount)} · {frequencyLabel[gift.frequency]} · Cancelled
-                    </p>
-                    {gift.cancellationReason ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">{gift.cancellationReason}</p>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
           </section>
-        ) : null}
-
-        <Link
-          to="/discover"
-          className="mt-10 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 transition hover:text-amber-700"
-        >
-          Discover more causes to support
-        </Link>
-      </main>
-      <Footer />
-
-      {cancelTarget ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-5">
-          <div className="w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-xl">
-            <h2 className="font-display text-2xl">Cancel recurring gift?</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              This will permanently stop support for {cancelTarget.name}. You can add an optional reason for your records.
-            </p>
-            <label className="mt-4 block text-sm font-medium">Optional reason</label>
-            <textarea
-              value={cancelReason}
-              onChange={(event) => setCancelReason(event.target.value)}
-              rows={4}
-              maxLength={240}
-              className="mt-1 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              placeholder="Budget change, ministry priority shifted, paused for now..."
-            />
-            <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setCancelTarget(null);
-                  setCancelReason("");
-                }}
-                className="rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
-              >
-                Keep gift
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  cancelMutation.mutate({
-                    id: cancelTarget.id,
-                    reason: cancelReason.trim() || undefined,
-                  })
-                }
-                disabled={cancelMutation.isPending}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
-              >
-                {cancelMutation.isPending ? "Cancelling..." : "Cancel gift"}
-              </button>
-            </div>
-          </div>
         </div>
-      ) : null}
-    </div>
+      )}
+      {target && (
+        <GiftActionDialog
+          key={`${target.gift.id}-${target.action}`}
+          gift={target.gift}
+          action={target.action}
+          methods={cards.data ?? []}
+          busy={action.isPending}
+          error={actionError}
+          onClose={() => setTarget(null)}
+          onConfirm={(values) => action.mutate({ gift: target.gift, kind: target.action, values })}
+        />
+      )}
+    </DashboardShell>
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  muted,
-}: {
-  label: string;
-  value: string;
-  muted?: string;
-}) {
+function ErrorPanel({ title, error, retry }: { title: string; error: Error; retry: () => void }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-700">{label}</p>
-      <p className="mt-2 font-display text-2xl leading-tight">{value}</p>
-      {muted ? <p className="mt-1 text-xs text-muted-foreground">{muted}</p> : null}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const classes =
-    status === "on_track"
-      ? "bg-emerald-50 text-emerald-700"
-      : status === "paused"
-        ? "bg-slate-100 text-slate-700"
-        : status === "missed"
-          ? "bg-amber-50 text-amber-700"
-          : "bg-slate-100 text-slate-700";
-
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${classes}`}>
-      {status.replaceAll("_", " ")}
-    </span>
-  );
-}
-
-function ReceiptRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-700">{label}</p>
-      <p className="mt-1 text-sm text-amber-950">{value}</p>
-    </div>
+    <section role="alert" className="dashboard-panel my-5 p-6">
+      <h2 className="text-base font-medium">{title}</h2>
+      <p className="mt-2 text-sm text-[#777283]">{error.message}</p>
+      <button type="button" className="dashboard-button secondary mt-4" onClick={retry}>
+        Try again
+      </button>
+    </section>
   );
 }

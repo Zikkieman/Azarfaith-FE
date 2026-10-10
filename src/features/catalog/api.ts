@@ -1,4 +1,6 @@
 import { adminApiFetch, apiFetch } from "@/lib/api";
+import type { UserDashboard } from "@/lib/dashboard";
+import type { CatalogPage, DiscoverySort, DiscoveryView } from "@/lib/discovery";
 import type {
   AdminPayoutHistoryItem,
   AdminPayoutItem,
@@ -87,7 +89,7 @@ export type UploadMediaPayload = {
 
 export type UpdateProfilePayload = {
   fullName?: string;
-  phone?: string;
+  phone?: string | null;
   avatarUrl?: string;
 };
 
@@ -101,14 +103,21 @@ export type UpsertPayoutAccountPayload = ResolvePayoutAccountPayload & {
   accountName?: string;
 };
 
-export type SaveOrganizationDraftPayload = Partial<CreateOrganizationPayload>;
+export type SaveOrganizationDraftPayload = Omit<
+  Partial<CreateOrganizationPayload>,
+  "foundedYear"
+> & { foundedYear?: number | null };
 export type UpdateOrganizationPayload = Partial<CreateOrganizationPayload>;
-export type SaveCampaignDraftPayload = Partial<CreateCampaignPayload>;
-
-export type UpdateCampaignPayload = Omit<
+export type SaveCampaignDraftPayload = Omit<
   Partial<CreateCampaignPayload>,
-  "mode" | "type"
->;
+  "organizationId" | "goalAmount" | "coverImageUrl"
+> & {
+  organizationId?: string | null;
+  goalAmount?: number | null;
+  coverImageUrl?: string | null;
+};
+
+export type UpdateCampaignPayload = Omit<Partial<CreateCampaignPayload>, "mode" | "type">;
 
 export type AdminActivityItem = {
   id: string;
@@ -168,7 +177,10 @@ export type AdminOrganization = {
   createdAt: string;
 };
 
-export type AdminOrganizationDetail = Omit<AdminOrganization, "owner" | "createdAt" | "campaignIds"> & {
+export type AdminOrganizationDetail = Omit<
+  AdminOrganization,
+  "owner" | "createdAt" | "campaignIds"
+> & {
   campaigns: Array<{
     id: string;
     title: string;
@@ -266,6 +278,36 @@ const toQuery = (params: Record<string, string | undefined>) => {
   return queryString ? `?${queryString}` : "";
 };
 
+export const discoverCampaigns = (params: {
+  view?: DiscoveryView;
+  sort?: DiscoverySort;
+  search?: string;
+  faithCategory?: string;
+  page?: number;
+  pageSize?: number;
+}) =>
+  apiFetch<CatalogPage<Campaign>>(
+    `/campaigns/discover${toQuery({
+      ...params,
+      page: String(params.page ?? 1),
+      pageSize: String(params.pageSize ?? 12),
+    })}`,
+  );
+
+export const discoverOrganizations = (params: {
+  search?: string;
+  category?: string;
+  page?: number;
+  pageSize?: number;
+}) =>
+  apiFetch<CatalogPage<Org>>(
+    `/organizations/discover${toQuery({
+      ...params,
+      page: String(params.page ?? 1),
+      pageSize: String(params.pageSize ?? 12),
+    })}`,
+  );
+
 export const listOrganizations = (params?: { search?: string; category?: string }) =>
   apiFetch<Org[]>(`/organizations${toQuery(params ?? {})}`);
 
@@ -275,8 +317,7 @@ export const getOrganization = (id: string) =>
 export const listOrganizationDrafts = () =>
   apiFetch<OrganizationDraftSummary[]>("/organizations/mine/drafts");
 
-export const getOrganizationDraft = (id: string) =>
-  apiFetch<Org>(`/organizations/drafts/${id}`);
+export const getOrganizationDraft = (id: string) => apiFetch<Org>(`/organizations/drafts/${id}`);
 
 export const getOrganizationDashboard = (id: string) =>
   apiFetch<OrganizationDashboard>(`/organizations/${id}/dashboard`);
@@ -293,10 +334,7 @@ export const saveOrganizationDraft = (payload: SaveOrganizationDraftPayload) =>
     body: JSON.stringify(payload),
   });
 
-export const updateOrganizationDraft = (
-  id: string,
-  payload: SaveOrganizationDraftPayload,
-) =>
+export const updateOrganizationDraft = (id: string, payload: SaveOrganizationDraftPayload) =>
   apiFetch<Org>(`/organizations/${id}/draft`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -322,11 +360,9 @@ export const listCampaigns = (params?: {
 
 export const getCampaign = (id: string) => apiFetch<Campaign>(`/campaigns/${id}`);
 
-export const listCampaignDrafts = () =>
-  apiFetch<CampaignDraftSummary[]>("/campaigns/mine/drafts");
+export const listCampaignDrafts = () => apiFetch<CampaignDraftSummary[]>("/campaigns/mine/drafts");
 
-export const getCampaignDraft = (id: string) =>
-  apiFetch<Campaign>(`/campaigns/drafts/${id}`);
+export const getCampaignDraft = (id: string) => apiFetch<Campaign>(`/campaigns/drafts/${id}`);
 
 export const createCampaign = (payload: CreateCampaignPayload) =>
   apiFetch<Campaign>("/campaigns", {
@@ -340,10 +376,7 @@ export const saveCampaignDraft = (payload: SaveCampaignDraftPayload) =>
     body: JSON.stringify(payload),
   });
 
-export const updateCampaignDraft = (
-  id: string,
-  payload: SaveCampaignDraftPayload,
-) =>
+export const updateCampaignDraft = (id: string, payload: SaveCampaignDraftPayload) =>
   apiFetch<Campaign>(`/campaigns/${id}/draft`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -366,10 +399,7 @@ export const createCampaignComment = (id: string, payload: { body: string }) =>
     body: JSON.stringify(payload),
   });
 
-export const createCampaignUpdate = (
-  id: string,
-  payload: { title: string; body: string },
-) =>
+export const createCampaignUpdate = (id: string, payload: { title: string; body: string }) =>
   apiFetch<Campaign>(`/campaigns/${id}/updates`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -387,15 +417,15 @@ export const createDonation = (campaignId: string, payload: CreateDonationPayloa
     body: JSON.stringify(payload),
   });
 
+export const getCheckoutContext = (campaignId: string, recurringGiftId?: string) =>
+  apiFetch<import("@/lib/checkout").CheckoutContext>(
+    `/campaigns/${campaignId}/checkout${
+      recurringGiftId ? `?${new URLSearchParams({ recurringGiftId })}` : ""
+    }`,
+  );
+
 export const verifyDonation = (campaignId: string, reference: string) =>
-  apiFetch<{
-    message: string;
-    donationId: string;
-    recurringGiftId: string | null;
-    recurringSetupActive?: boolean;
-    amount: number;
-    totalCharged: number;
-  }>(
+  apiFetch<import("@/lib/checkout").DonationVerification>(
     `/campaigns/${campaignId}/donations/verify`,
     {
       method: "POST",
@@ -429,6 +459,11 @@ export const uploadMedia = async ({ file, folder, entityId }: UploadMediaPayload
 
 export const getProfile = () => apiFetch<Profile>("/me/profile");
 
+export const getDashboard = (organizationId?: string) =>
+  apiFetch<UserDashboard>(
+    `/me/dashboard${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+  );
+
 export const updateProfile = (payload: UpdateProfilePayload) =>
   apiFetch<Profile>("/me/profile", {
     method: "PATCH",
@@ -447,8 +482,7 @@ export const resolvePayoutAccount = (payload: ResolvePayoutAccountPayload) =>
     body: JSON.stringify(payload),
   });
 
-export const getPersonalPayoutAccount = () =>
-  apiFetch<PayoutAccount | null>("/me/payout-account");
+export const getPersonalPayoutAccount = () => apiFetch<PayoutAccount | null>("/me/payout-account");
 
 export const upsertPersonalPayoutAccount = (payload: UpsertPayoutAccountPayload) =>
   apiFetch<PayoutAccount>("/me/payout-account", {
@@ -456,27 +490,45 @@ export const upsertPersonalPayoutAccount = (payload: UpsertPayoutAccountPayload)
     body: JSON.stringify(payload),
   });
 
-export const getPersonalPayoutSummary = () =>
-  apiFetch<PayoutSummary>("/me/payout-summary");
+export const getPersonalPayoutSummary = () => apiFetch<PayoutSummary>("/me/payout-summary");
 
-export const getPersonalPayoutTransfers = () =>
-  apiFetch<PayoutTransfer[]>("/me/payout-transfers");
+export const getPersonalPayoutTransfers = () => apiFetch<PayoutTransfer[]>("/me/payout-transfers");
 
 export const getRecurringGifts = () => apiFetch<RecurringDonation[]>("/me/recurring-gifts");
 
+export const updateRecurringGift = (
+  id: string,
+  payload: {
+    amount: number;
+    frequency: "WEEKLY" | "MONTHLY" | "QUARTERLY";
+    expectedUpdatedAt: string;
+    consentToAutoCharge?: boolean;
+  },
+) =>
+  apiFetch<{ message: string; nextDate: string }>(`/me/recurring-gifts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+export const skipRecurringGift = (id: string, expectedUpdatedAt: string) =>
+  apiFetch<{ message: string; nextDate: string }>(`/me/recurring-gifts/${id}/skip`, {
+    method: "PATCH",
+    body: JSON.stringify({ expectedUpdatedAt }),
+  });
+
 export const getDonationHistory = () => apiFetch<DonationHistoryItem[]>("/me/donations");
 
-export const getDonationDetail = (id: string) =>
-  apiFetch<DonationDetail>(`/me/donations/${id}`);
+export const getDonationDetail = (id: string) => apiFetch<DonationDetail>(`/me/donations/${id}`);
 
-export const getPaymentMethods = () =>
-  apiFetch<SavedPaymentMethod[]>("/me/payment-methods");
+export const getPaymentMethods = () => apiFetch<SavedPaymentMethod[]>("/me/payment-methods");
 
 export const getNotifications = (params?: { page?: number; pageSize?: number }) =>
-  apiFetch<UserNotificationsPage>(`/me/notifications${toQuery({
-    page: params?.page ? String(params.page) : undefined,
-    pageSize: params?.pageSize ? String(params.pageSize) : undefined,
-  })}`);
+  apiFetch<UserNotificationsPage>(
+    `/me/notifications${toQuery({
+      page: params?.page ? String(params.page) : undefined,
+      pageSize: params?.pageSize ? String(params.pageSize) : undefined,
+    })}`,
+  );
 
 export const markNotificationAsRead = (id: string) =>
   apiFetch<{ message: string }>(`/me/notifications/${id}/read`, {
@@ -534,9 +586,7 @@ export const deactivatePaymentMethod = (id: string, payload?: { reason?: string 
   });
 
 export const getCloudinaryStatus = () =>
-  apiFetch<{ provider: string; enabled: boolean; missing: string[] }>(
-    "/media/cloudinary/status",
-  );
+  apiFetch<{ provider: string; enabled: boolean; missing: string[] }>("/media/cloudinary/status");
 
 export const getOrganizationPayoutAccount = (id: string) =>
   apiFetch<PayoutAccount | null>(`/organizations/${id}/payout-account`);
@@ -544,17 +594,13 @@ export const getOrganizationPayoutAccount = (id: string) =>
 export const getOrganizationPayoutSummary = (id: string) =>
   apiFetch<PayoutSummary>(`/organizations/${id}/payout-summary`);
 
-export const upsertOrganizationPayoutAccount = (
-  id: string,
-  payload: UpsertPayoutAccountPayload,
-) =>
+export const upsertOrganizationPayoutAccount = (id: string, payload: UpsertPayoutAccountPayload) =>
   apiFetch<PayoutAccount>(`/organizations/${id}/payout-account`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 
-export const getAdminDashboard = () =>
-  adminApiFetch<AdminDashboard>("/admin/review/dashboard");
+export const getAdminDashboard = () => adminApiFetch<AdminDashboard>("/admin/review/dashboard");
 
 export const getAdminNotifications = () =>
   adminApiFetch<AdminNotificationItem[]>("/admin/review/notifications");
@@ -576,13 +622,10 @@ export const updateAdminOrganizationStatus = (
     reason?: string;
   },
 ) =>
-  adminApiFetch<AdminOrganizationDetail>(
-    `/admin/review/organizations/${id}/status`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-  );
+  adminApiFetch<AdminOrganizationDetail>(`/admin/review/organizations/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 
 export const listAdminCampaigns = (params?: {
   status?: "VERIFIED" | "PENDING" | "UNVERIFIED";
@@ -602,13 +645,10 @@ export const updateAdminCampaignStatus = (
     reason?: string;
   },
 ) =>
-  adminApiFetch<AdminCampaignDetail>(
-    `/admin/review/campaigns/${id}/status`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-  );
+  adminApiFetch<AdminCampaignDetail>(`/admin/review/campaigns/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 
 export const listAdminUsers = (params?: { search?: string }) =>
   adminApiFetch<AdminUser[]>(`/admin/review/users${toQuery(params ?? {})}`);
@@ -645,8 +685,7 @@ export const updateAdminPlatformSettings = (
     body: JSON.stringify(payload),
   });
 
-export const getAdminPayouts = () =>
-  adminApiFetch<AdminPayoutsResponse>("/admin/review/payouts");
+export const getAdminPayouts = () => adminApiFetch<AdminPayoutsResponse>("/admin/review/payouts");
 
 export const releaseAdminPayout = (payload: {
   ownerType: "USER" | "ORGANIZATION";

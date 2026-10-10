@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:1000";
+  import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/, "") || "http://localhost:1000";
 
 export class ApiError extends Error {
   constructor(
@@ -7,13 +7,14 @@ export class ApiError extends Error {
     public readonly status: number,
   ) {
     super(message);
+    this.name = "ApiError";
   }
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers ?? {});
 
-  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+  if (init?.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -23,10 +24,17 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     credentials: "include",
   });
 
-  const data = (await response.json().catch(() => null)) as { message?: string } | null;
+  const data = (await response.json().catch(() => null)) as { message?: unknown } | null;
 
   if (!response.ok) {
-    const message = data?.message ?? "Request failed";
+    const rawMessage = data?.message;
+    const message =
+      typeof rawMessage === "string"
+        ? rawMessage
+        : Array.isArray(rawMessage)
+          ? rawMessage.filter((item): item is string => typeof item === "string").join(" ") ||
+            "Request failed"
+          : "Request failed";
     throw new ApiError(message, response.status);
   }
 

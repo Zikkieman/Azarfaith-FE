@@ -1,895 +1,721 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { Check, Eye, FileText, Plus, Repeat2, Siren, Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Banknote,
-  Briefcase,
-  Check,
-  Gift,
-  ImagePlus,
-  Loader2,
-  Repeat2,
-  Siren,
-  Target,
-  Users,
-} from "lucide-react";
-
-import { Navbar } from "@/components/Navbar";
 import { PageSpinner } from "@/components/PageSpinner";
+import { LoadError } from "@/components/profile/SettingsParts";
 import {
-  createCampaign,
+  CreationLogo,
+  CreationNotice,
+  Field,
+  MediaPicker,
+} from "@/components/creation/CreationParts";
+import { useCreationSession } from "@/components/creation/useCreationSession";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
   getCampaignDraft,
-  getCloudinaryStatus,
-  listOrganizations,
+  getProfile,
   saveCampaignDraft,
   submitCampaignDraft,
   updateCampaignDraft,
-  uploadMedia,
 } from "@/features/catalog/api";
 import {
   campaignTypeOptions,
   faithCategoryOptions,
-  frequencyOptions,
   formatAmountInput,
-  parseAmountInput,
+  formatMoney,
+  frequencyOptions,
   urgencyOptions,
+  type Campaign,
 } from "@/lib/catalog";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import {
+  campaignErrors,
+  campaignForm,
+  campaignPayload,
+  countWords,
+  focusError,
+  type CampaignForm,
+} from "@/lib/creation";
 
 export const Route = createFileRoute("/create")({
-  component: AzarFaithCreate,
+  validateSearch: (search: Record<string, unknown>): { draftId?: string } => ({
+    draftId: typeof search.draftId === "string" ? search.draftId : undefined,
+  }),
+  component: CreateCampaign,
 });
-
-const campaignTypeIcons = {
-  MONEY: Banknote,
-  ITEM: Gift,
-  VOLUNTEER: Users,
-  PROFESSIONAL: Briefcase,
-  EMERGENCY: Siren,
-} as const;
-
-function AzarFaithCreate() {
-  const isAuthed = useRequireAuth();
-  const nav = useNavigate();
-  const draftId =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("draftId") ?? undefined
-      : undefined;
-  const queryClient = useQueryClient();
-  const coverInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
-  const { data: orgs = [] } = useQuery({
-    queryKey: ["organizations", "create"],
-    queryFn: () => listOrganizations(),
-  });
-  const {
-    data: mediaStatus,
-    isLoading: mediaStatusLoading,
-    isError: mediaStatusError,
-  } = useQuery({
-    queryKey: ["media", "cloudinary-status"],
-    queryFn: getCloudinaryStatus,
-  });
-  const { data: draft } = useQuery({
-    queryKey: ["campaign-draft", draftId],
+const templates = [
+  {
+    label: "Building project",
+    line: "A roof, a hall, a classroom",
+    icon: Warehouse,
+    fields: { mode: "ONE_TIME", type: "MONEY", faithCategory: "CHURCH_BUILDING" },
+  },
+  {
+    label: "Monthly support",
+    line: "Missionaries, pastors, outreach",
+    icon: Repeat2,
+    fields: {
+      mode: "ONGOING",
+      type: "MONEY",
+      faithCategory: "MISSIONS_OUTREACH",
+      frequencies: ["MONTHLY"],
+    },
+  },
+  {
+    label: "Emergency relief",
+    line: "Urgent help for your community",
+    icon: Siren,
+    fields: {
+      mode: "ONE_TIME",
+      type: "EMERGENCY",
+      faithCategory: "EMERGENCY",
+      urgency: "CRITICAL",
+    },
+  },
+  { label: "Start blank", line: "Write it your way", icon: FileText, fields: {} },
+] as const;
+const checklist = [
+  ["mode", "Choose campaign mode"],
+  ["type", "Choose the kind of help"],
+  ["title", "Give it a title"],
+  ["faithCategory", "Choose a cause"],
+  ["location", "Add your location"],
+  ["story", "Tell your story"],
+  ["coverImageUrl", "Upload a cover photo"],
+  ["galleryImageUrls", "Add gallery photos"],
+] as const;
+function CreateCampaign() {
+  const { draftId } = Route.useSearch();
+  const { ready, userId } = useCreationSession();
+  const query = useQuery({
+    queryKey: ["campaign-draft", userId, draftId],
     queryFn: () => getCampaignDraft(draftId!),
-    enabled: isAuthed && Boolean(draftId),
+    enabled: ready && Boolean(draftId),
   });
-
-  const [step, setStep] = useState(0);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [form, setForm] = useState({
-    mode: "" as "ONE_TIME" | "ONGOING" | "",
-    type: "" as "MONEY" | "ITEM" | "VOLUNTEER" | "PROFESSIONAL" | "EMERGENCY" | "",
-    title: "",
-    story: "",
-    faithCategory: "" as string,
-    organizationId: "",
-    location: "",
-    goalAmount: "",
-    urgency: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-    frequencies: [] as Array<"WEEKLY" | "MONTHLY" | "QUARTERLY">,
-    coverImageUrl: "",
-    galleryImageUrls: [] as string[],
-  });
-
-  const countWords = (value: string) =>
-    value.trim().split(/\s+/).filter(Boolean).length;
-
-  useEffect(() => {
-    if (!draft) return;
-    setForm({
-      mode: draft.mode === "ongoing" ? "ONGOING" : "ONE_TIME",
-      type: draft.type.toUpperCase() as
-        | "MONEY"
-        | "ITEM"
-        | "VOLUNTEER"
-        | "PROFESSIONAL"
-        | "EMERGENCY",
-      title: draft.title,
-      story: draft.story,
-      faithCategory:
-        faithCategoryOptions.find((option) => option.label === draft.faithCategory)
-          ?.value ?? "",
-      organizationId: draft.orgId ?? "",
-      location: draft.location,
-      goalAmount: draft.goal ? formatAmountInput(String(draft.goal)) : "",
-      urgency: draft.urgency.toUpperCase() as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-      frequencies: (draft.frequencies ?? []).map((frequency) =>
-        frequency.toUpperCase(),
-      ) as Array<"WEEKLY" | "MONTHLY" | "QUARTERLY">,
-      coverImageUrl: draft.cover.startsWith("https://placehold.co/") ? "" : draft.cover,
-      galleryImageUrls: draft.gallery,
-    });
-  }, [draft]);
-
-  const uploadCoverMutation = useMutation({
-    mutationFn: async (file: File) =>
-      uploadMedia({
-        file,
-        folder: "campaign-cover",
-        entityId: form.title.trim() || undefined,
-      }),
-    onSuccess: (upload) => {
-      setForm((current) => ({ ...current, coverImageUrl: upload.url }));
-      toast.success("Cover image uploaded.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const uploadGalleryMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const uploads = await Promise.all(
-        files.map((file) =>
-          uploadMedia({
-            file,
-            folder: "campaign-gallery",
-            entityId: form.title.trim() || undefined,
-          }),
-        ),
-      );
-
-      return uploads.map((upload) => upload.url);
-    },
-    onSuccess: (urls) => {
-      setForm((current) => ({
-        ...current,
-        galleryImageUrls: [...current.galleryImageUrls, ...urls],
-      }));
-      toast.success(`${urls.length} gallery image${urls.length > 1 ? "s" : ""} uploaded.`);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const ensureMediaReady = () => {
-    if (mediaStatus?.enabled) return true;
-
-    if (mediaStatusLoading) {
-      toast.error("Checking media upload connection. Try again in a moment.");
-      return false;
-    }
-
-    if (mediaStatusError) {
-      toast.error("Could not confirm media upload setup. Refresh and try again.");
-      return false;
-    }
-
-    const missing = mediaStatus?.missing?.join(", ");
-    toast.error(
-      missing
-        ? `Media upload is not configured yet: ${missing}`
-        : "Media upload is not configured yet.",
-    );
-    return false;
-  };
-
-  const createCampaignMutation = useMutation({
-    mutationFn: () =>
-      createCampaign({
-        mode: form.mode || "ONE_TIME",
-        type: form.type || "MONEY",
-        title: form.title,
-        story: form.story,
-        faithCategory: form.faithCategory as
-          | "CHURCH_BUILDING"
-          | "MISSIONS_OUTREACH"
-          | "ORPHANAGE"
-          | "EDUCATION"
-          | "FOOD_RELIEF"
-          | "MEDICAL_MISSION"
-          | "EMERGENCY"
-          | "COMMUNITY_DEVELOPMENT",
-        organizationId: form.organizationId || undefined,
-        location: form.location,
-        goalAmount:
-          form.mode === "ONE_TIME" && form.type === "MONEY"
-            ? parseAmountInput(form.goalAmount) || undefined
-            : undefined,
-        urgency: form.urgency,
-        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
-        coverImageUrl: form.coverImageUrl || undefined,
-        galleryImageUrls:
-          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
-      }),
-    onSuccess: (campaign) => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      toast.success("Campaign created successfully.");
-      nav({ to: "/campaign/$id", params: { id: campaign.id } });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const saveDraftMutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        mode: form.mode || undefined,
-        type: form.type || undefined,
-        title: form.title,
-        story: form.story,
-        faithCategory: form.faithCategory
-          ? (form.faithCategory as
-              | "CHURCH_BUILDING"
-              | "MISSIONS_OUTREACH"
-              | "ORPHANAGE"
-              | "EDUCATION"
-              | "FOOD_RELIEF"
-              | "MEDICAL_MISSION"
-              | "EMERGENCY"
-              | "COMMUNITY_DEVELOPMENT")
-          : undefined,
-        organizationId: form.organizationId || undefined,
-        location: form.location,
-        goalAmount:
-          form.mode === "ONE_TIME" && form.type === "MONEY"
-            ? parseAmountInput(form.goalAmount) || undefined
-            : undefined,
-        urgency: form.urgency,
-        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
-        coverImageUrl: form.coverImageUrl || undefined,
-        galleryImageUrls:
-          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
-      };
-
-      return draftId ? updateCampaignDraft(draftId, payload) : saveCampaignDraft(payload);
-    },
-    onSuccess: async (campaign) => {
-      queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
-      toast.success("Campaign draft saved.");
-
-      if (!draftId) {
-        await nav({
-          to: "/create",
-          search: { draftId: campaign.id },
-          replace: true,
-        });
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const submitDraftMutation = useMutation({
-    mutationFn: async () => {
-      if (!draftId) {
-        throw new Error("No campaign draft selected.");
-      }
-
-      await updateCampaignDraft(draftId, {
-        mode: form.mode || undefined,
-        type: form.type || undefined,
-        title: form.title,
-        story: form.story,
-        faithCategory: form.faithCategory
-          ? (form.faithCategory as
-              | "CHURCH_BUILDING"
-              | "MISSIONS_OUTREACH"
-              | "ORPHANAGE"
-              | "EDUCATION"
-              | "FOOD_RELIEF"
-              | "MEDICAL_MISSION"
-              | "EMERGENCY"
-              | "COMMUNITY_DEVELOPMENT")
-          : undefined,
-        organizationId: form.organizationId || undefined,
-        location: form.location,
-        goalAmount:
-          form.mode === "ONE_TIME" && form.type === "MONEY"
-            ? parseAmountInput(form.goalAmount) || undefined
-            : undefined,
-        urgency: form.urgency,
-        frequencies: form.mode === "ONGOING" ? form.frequencies : undefined,
-        coverImageUrl: form.coverImageUrl || undefined,
-        galleryImageUrls:
-          form.galleryImageUrls.length > 0 ? form.galleryImageUrls : undefined,
-      });
-
-      return submitCampaignDraft(draftId);
-    },
-    onSuccess: (campaign) => {
-      queryClient.invalidateQueries({ queryKey: ["campaign", campaign.id] });
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      toast.success("Campaign submitted for review.");
-      nav({ to: "/campaign/$id", params: { id: campaign.id } });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const isOngoing = form.mode === "ONGOING";
-  const stepLabels = isOngoing
-    ? ["Mode", "Type", "Story", "Details", "Support", "Preview"]
-    : ["Mode", "Type", "Story", "Details", "Preview"];
-
-  const validate = () => {
-    const nextErrors: Record<string, string> = {};
-    if (step === 0 && !form.mode) nextErrors.mode = "Choose a campaign mode";
-    if (step === 1 && !form.type) nextErrors.type = "Choose a type";
-    if (step === 2) {
-      if (form.title.trim().length < 8)
-        nextErrors.title = "Title must be at least 8 characters";
-      if (form.title.trim().length > 150)
-        nextErrors.title = "Title cannot exceed 150 characters";
-      if (countWords(form.story) < 100)
-        nextErrors.story = "Story must be at least 100 words";
-      if (countWords(form.story) > 200)
-        nextErrors.story = "Story cannot exceed 200 words";
-      if (!form.coverImageUrl) nextErrors.coverImageUrl = "Upload a cover image";
-      if (form.galleryImageUrls.length < 1) {
-        nextErrors.galleryImageUrls = "Add at least one gallery image";
-      }
-    }
-    if (step === 3) {
-      if (!form.faithCategory) nextErrors.faithCategory = "Select a category";
-      if (!form.location.trim()) nextErrors.location = "Location is required";
-      if (
-        !isOngoing &&
-        form.type === "MONEY" &&
-        (!form.goalAmount || parseAmountInput(form.goalAmount) < 5000)
-      ) {
-        nextErrors.goalAmount = "Goal must be at least ₦5,000";
-      }
-    }
-    if (step === 4 && isOngoing && form.frequencies.length === 0) {
-      nextErrors.frequencies = "Select at least one giving frequency";
-    }
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const next = () => {
-    if (!validate()) return;
-    setStep((value) => value + 1);
-  };
-
-  if (!isAuthed) {
+  useCreationSession(query.error);
+  if (!ready || (draftId && query.isPending)) return <PageSpinner label="Loading campaign draft" />;
+  if (draftId && !query.data)
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <PageSpinner label="Redirecting to login..." />
+      <div className="mx-auto max-w-xl p-8">
+        <LoadError
+          message="Could not load this campaign draft. Nothing has been overwritten."
+          retry={() => void query.refetch()}
+        />
       </div>
     );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="mx-auto max-w-xl px-5 py-10">
-        {draftId ? (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            You are editing a saved campaign draft. Save as you go, then submit when everything is ready.
-          </div>
-        ) : null}
-
-        <div className="mb-8 flex items-center gap-2">
-          {stepLabels.map((label, index) => (
-            <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
-              <div
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${index <= step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}
-              >
-                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
-              </div>
-              <span
-                className={`hidden text-xs sm:block ${index === step ? "font-medium text-foreground" : "text-muted-foreground"}`}
-              >
-                {label}
-              </span>
-              {index < stepLabels.length - 1 && (
-                <div className={`h-px flex-1 ${index < step ? "bg-amber-400" : "bg-border"}`} />
-              )}
-            </div>
-          ))}
+    <CampaignEditor
+      key={`${userId}:${draftId ?? "new"}`}
+      draft={draftId ? query.data : undefined}
+      userId={userId!}
+    />
+  );
+}
+function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState(() => campaignForm(draft));
+  const [savedId, setSavedId] = useState(draft?.id);
+  const [showErrors, setShowErrors] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [need, setNeed] = useState("");
+  const [needError, setNeedError] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const profile = useQuery({ queryKey: ["profile", userId], queryFn: getProfile });
+  useCreationSession(profile.error);
+  const change = (patch: Partial<CampaignForm>) => {
+    setForm((current) => ({ ...current, ...patch }));
+    setDirty(true);
+  };
+  const allErrors = campaignErrors(form);
+  if (
+    form.organizationId &&
+    profile.data &&
+    !profile.data.ownedOrganizations.some(
+      (org) => org.id === form.organizationId && org.reviewAction !== "rejected",
+    )
+  )
+    allErrors.organizationId =
+      "Select one of your eligible organizations, or create a standalone campaign.";
+  const errors = showErrors ? allErrors : {};
+  const checks: Array<readonly [string, string]> = [...checklist];
+  if (form.mode === "ONE_TIME" && form.type === "MONEY")
+    checks.push(["goalAmount", "Set your goal"]);
+  if (form.mode === "ONGOING") checks.push(["frequencies", "Choose giving frequencies"]);
+  if (["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type))
+    checks.push(["needs", "List what you need"]);
+  const completed = checks.filter(([key]) => !allErrors[key]).length;
+  const mutation = useMutation({
+    mutationFn: async ({ submit, exit }: { submit: boolean; exit: boolean }) => {
+      const payload = campaignPayload(form);
+      const saved = savedId
+        ? await updateCampaignDraft(savedId, payload)
+        : await saveCampaignDraft(payload);
+      setSavedId(saved.id);
+      queryClient.setQueryData(["campaign-draft", userId, saved.id], saved);
+      const result = submit ? await submitCampaignDraft(saved.id) : saved;
+      return { result, submit, exit };
+    },
+    onSuccess: async ({ result, submit, exit }) => {
+      setDirty(false);
+      for (const key of ["campaign-drafts", "profile", "campaigns", "organizations", "dashboard"])
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      toast.success(
+        submit
+          ? "Campaign submitted. Its review status is shown on the preview page."
+          : "Campaign draft saved.",
+      );
+      if (submit) await navigate({ to: "/campaign/$id", params: { id: result.id } });
+      else if (exit) await navigate({ to: "/manage" });
+      else if (!draft)
+        await navigate({ to: "/create", search: { draftId: result.id }, replace: true });
+    },
+  });
+  useCreationSession(mutation.error);
+  const busy = mutation.isPending || uploading;
+  const submit = () => {
+    setShowErrors(true);
+    const missing = Object.keys(allErrors);
+    if (missing.length) {
+      focusError(missing[0]);
+      return;
+    }
+    mutation.mutate({ submit: true, exit: false });
+  };
+  const preview = (
+    <div className="overflow-hidden rounded-2xl border border-[#efedf3] bg-white shadow-sm">
+      {form.coverImageUrl ? (
+        <img
+          src={form.coverImageUrl}
+          alt="Campaign cover preview"
+          className="aspect-[1.6] w-full object-cover"
+        />
+      ) : (
+        <div className="grid aspect-[1.6] place-items-center bg-[#ebe7f2] text-sm text-[#777283]">
+          Add your cover photo
         </div>
-
-        {step === 0 && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">What kind of campaign?</h1>
-            <div className="grid gap-3">
-              {[
-                {
-                  value: "ONE_TIME",
-                  title: "One-time campaign",
-                  desc: "You have a specific target and need to close.",
-                  icon: Target,
-                },
-                {
-                  value: "ONGOING",
-                  title: "Ongoing support",
-                  desc: "Your ministry is continuous and needs faithful backing.",
-                  icon: Repeat2,
-                },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() =>
-                    setForm((current) => ({
-                      ...current,
-                      mode: option.value as "ONE_TIME" | "ONGOING",
-                    }))
-                  }
-                  className={`flex items-start gap-4 rounded-2xl border p-5 text-left transition ${form.mode === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                >
-                  <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${form.mode === option.value ? "bg-amber-200" : "bg-muted"}`}
-                  >
-                    <option.icon
-                      className={`h-5 w-5 ${form.mode === option.value ? "text-amber-700" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold">{option.title}</div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {option.desc}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            {errors.mode && <p className="text-xs text-destructive">{errors.mode}</p>}
+      )}
+      <div className="space-y-4 p-5">
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-[#f2eff7] px-3 py-1">
+            {form.mode === "ONGOING" ? "Ongoing support" : "One-time campaign"}
+          </span>
+          <span className="rounded-full bg-[#fff5db] px-3 py-1">Draft preview</span>
+        </div>
+        <h2 className="break-words text-xl font-semibold">{form.title || "Your campaign title"}</h2>
+        <p className="text-xs text-[#777283]">
+          {profile.data?.ownedOrganizations.find((org) => org.id === form.organizationId)?.name ||
+            profile.data?.fullName ||
+            "Your campaign"}
+          {form.location && ` · ${form.location}`}
+        </p>
+        {form.mode === "ONGOING" ? (
+          <p className="text-sm">
+            {form.frequencies.map((frequency) => frequency.toLowerCase()).join(" · ") ||
+              "Choose giving frequencies"}
+          </p>
+        ) : form.goalAmount ? (
+          <p className="text-sm">
+            Goal: {formatMoney(Number(form.goalAmount.replaceAll(",", "")))}
+          </p>
+        ) : null}
+        <p className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words border-t pt-4 text-sm leading-relaxed">
+          {form.story || "Your story will appear here as you write."}
+        </p>
+        {form.needs.length > 0 && (
+          <ul className="space-y-2 text-sm">
+            {form.needs.map((item) => (
+              <li key={item} className="break-words">
+                • {item}
+              </li>
+            ))}
+          </ul>
+        )}
+        {form.galleryImageUrls.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {form.galleryImageUrls.map((url) => (
+              <img
+                key={url}
+                src={url}
+                alt="Campaign gallery preview"
+                className="aspect-square w-full rounded-lg object-cover"
+              />
+            ))}
           </div>
         )}
-
-        {step === 1 && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">What are you asking for?</h1>
-            <div className="space-y-2">
-              {campaignTypeOptions.map((option) => {
-                const Icon = campaignTypeIcons[option.value];
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() =>
-                      setForm((current) => ({ ...current, type: option.value }))
-                    }
-                    className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition ${form.type === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                  >
-                    <div
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${form.type === option.value ? "bg-amber-100" : "bg-muted"}`}
-                    >
-                      <Icon
-                        className={`h-4.5 w-4.5 ${form.type === option.value ? "text-amber-600" : "text-muted-foreground"}`}
-                      />
-                    </div>
-                    <div className="flex-1 text-sm font-medium">{option.label}</div>
-                    {form.type === option.value && (
-                      <Check className="h-4 w-4 text-amber-600" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {errors.type && <p className="text-xs text-destructive">{errors.type}</p>}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">Tell your story</h1>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Campaign title</label>
-              <input
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.title}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, title: event.target.value }))
-                }
-              />
-              {errors.title && <p className="mt-1 text-xs text-destructive">{errors.title}</p>}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">What's the need?</label>
-              <textarea
-                rows={6}
-                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.story}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, story: event.target.value }))
-                }
-              />
-              <div className="mt-1 flex items-center justify-between">
-                {errors.story ? <p className="text-xs text-destructive">{errors.story}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{countWords(form.story)} / 200 words</span>
-              </div>
-            </div>
-
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) uploadCoverMutation.mutate(file);
-                event.target.value = "";
-              }}
+      </div>
+    </div>
+  );
+  const section = (title: string, subtitle: string) => (
+    <div className="mb-6">
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-[#777283]">{subtitle}</p>
+    </div>
+  );
+  return (
+    <div className="creation-layout dashboard-layout min-h-screen bg-white text-[#130e30]">
+      <header className="sticky top-0 z-30 border-b border-[#efedf3] bg-white/95 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+          <span className="hidden sm:inline">
+            <CreationLogo />
+          </span>
+          <Link to="/manage" className="text-sm">
+            Manage
+          </Link>
+          <span className="rounded-full bg-[#f2eff7] px-3 py-1 text-xs">Draft</span>
+          <span className="mr-auto text-xs text-[#777283]">
+            {mutation.isPending ? "Saving..." : dirty || !savedId ? "Unsaved changes" : "Saved"}
+          </span>
+          <button
+            type="button"
+            className="giving-small-button lg:hidden"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye size={15} /> Preview
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="giving-small-button"
+            onClick={() => mutation.mutate({ submit: false, exit: false })}
+          >
+            Save draft
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={submit}
+            className="rounded-full bg-[#130e30] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Submit for review
+          </button>
+        </div>
+      </header>
+      <div className="mx-auto grid max-w-[1600px] xl:grid-cols-[230px_minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">
+        <aside className="hidden border-r border-[#efedf3] bg-[#faf9fc] p-5 xl:block">
+          <div className="sticky top-28">
+            <h2 className="mb-2 text-sm font-semibold">Ready for review</h2>
+            <p className="mb-3 text-xs text-[#777283]">
+              {completed}/{checks.length} requirements complete
+            </p>
+            <progress
+              aria-label="Campaign completion"
+              value={completed}
+              max={checks.length}
+              className="mb-5 h-2 w-full accent-[#130e30]"
             />
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                if (files.length > 0) uploadGalleryMutation.mutate(files);
-                event.target.value = "";
-              }}
-            />
-
-            <div className="rounded-2xl border-2 border-dashed border-border py-8 text-center">
-              {form.coverImageUrl ? (
-                <img
-                  src={form.coverImageUrl}
-                  alt=""
-                  className="mx-auto mb-4 h-48 w-full max-w-md rounded-2xl object-cover"
-                />
-              ) : (
-                <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-              )}
-              <p className="text-sm font-medium">Upload campaign cover</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {mediaStatusLoading
-                  ? "Checking Cloudinary connection..."
-                  : mediaStatus?.enabled
-                    ? "The cover will be stored in Cloudinary under AzarFaith campaign folders."
-                    : mediaStatusError
-                      ? "Could not confirm Cloudinary status. You can retry after refresh."
-                      : `Uploads are unavailable until these credentials are set: ${(mediaStatus?.missing ?? []).join(", ") || "CLOUDINARY_*"}`}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!ensureMediaReady()) return;
-                  coverInputRef.current?.click();
-                }}
-                disabled={uploadCoverMutation.isPending}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {uploadCoverMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4" />
-                )}
-                {uploadCoverMutation.isPending
-                  ? "Uploading..."
-                  : form.coverImageUrl
-                    ? "Replace cover"
-                    : "Choose cover"}
-              </button>
-              {errors.coverImageUrl ? (
-                <p className="mt-3 text-xs text-destructive">{errors.coverImageUrl}</p>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border-2 border-dashed border-border py-8 text-center">
-              <ImagePlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-              <p className="text-sm font-medium">Upload campaign gallery</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Add more context photos for the campaign detail page. At least one is required before submission.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!ensureMediaReady()) return;
-                  galleryInputRef.current?.click();
-                }}
-                disabled={uploadGalleryMutation.isPending}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {uploadGalleryMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4" />
-                )}
-                {uploadGalleryMutation.isPending ? "Uploading..." : "Choose gallery images"}
-              </button>
-              {errors.galleryImageUrls ? (
-                <p className="mt-3 text-xs text-destructive">{errors.galleryImageUrls}</p>
-              ) : null}
-            </div>
-
-            {form.galleryImageUrls.length > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-medium">Gallery preview</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {form.galleryImageUrls.map((url) => (
-                    <img
-                      key={url}
-                      src={url}
-                      alt=""
-                      className="aspect-square w-full rounded-2xl object-cover"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">Campaign details</h1>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Faith category</label>
-              <div className="grid grid-cols-2 gap-2">
-                {faithCategoryOptions.map((option) => (
+            <ul className="space-y-2">
+              {checks.map(([key, label]) => (
+                <li key={key}>
                   <button
-                    key={option.value}
                     type="button"
-                    onClick={() =>
-                      setForm((current) => ({ ...current, faithCategory: option.value }))
-                    }
-                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${form.faithCategory === option.value ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border hover:border-amber-200"}`}
+                    onClick={() => focusError(key)}
+                    className="flex items-start gap-2 text-left text-xs leading-relaxed"
                   >
-                    <span>{option.icon}</span> {option.label}
-                  </button>
-                ))}
-              </div>
-              {errors.faithCategory && (
-                <p className="mt-1 text-xs text-destructive">{errors.faithCategory}</p>
-              )}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Location</label>
-              <input
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.location}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, location: event.target.value }))
-                }
-              />
-              {errors.location && (
-                <p className="mt-1 text-xs text-destructive">{errors.location}</p>
-              )}
-            </div>
-            {!isOngoing && form.type === "MONEY" && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Fundraising goal (₦)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="2,500,000"
-                  value={form.goalAmount}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      goalAmount: formatAmountInput(event.target.value),
-                    }))
-                  }
-                />
-                {errors.goalAmount && (
-                  <p className="mt-1 text-xs text-destructive">{errors.goalAmount}</p>
-                )}
-              </div>
-            )}
-            {!isOngoing && (
-              <div>
-                <label className="mb-2 block text-sm font-medium">Urgency</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {urgencyOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() =>
-                        setForm((current) => ({ ...current, urgency: option.value }))
-                      }
-                      className={`rounded-xl border p-3 text-left transition ${form.urgency === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
+                    <span
+                      className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${!allErrors[key] ? "border-[#130e30] bg-[#130e30] text-white" : "border-[#d8d5e0]"}`}
                     >
-                      <span className="text-sm font-medium">{option.label}</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">{option.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Link to an org</label>
-              <select
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.organizationId}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, organizationId: event.target.value }))
-                }
-              >
-                <option value="">No org selected</option>
-                {orgs.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {step === 4 && isOngoing && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">Giving frequencies</h1>
-            <div className="space-y-3">
-              {frequencyOptions.map((option) => {
-                const selected = form.frequencies.includes(option.value);
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        frequencies: selected
-                          ? current.frequencies.filter((frequency) => frequency !== option.value)
-                          : [...current.frequencies, option.value],
-                      }))
-                    }
-                    className={`flex w-full items-center justify-between rounded-xl border p-4 transition ${selected ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Repeat2
-                        className={`h-4 w-4 ${selected ? "text-amber-600" : "text-muted-foreground"}`}
-                      />
-                      <span className="text-sm font-medium">{option.label}</span>
-                    </div>
-                    {selected && <Check className="h-4 w-4 text-amber-600" />}
-                  </button>
-                );
-              })}
-            </div>
-            {errors.frequencies && <p className="text-xs text-destructive">{errors.frequencies}</p>}
-          </div>
-        )}
-
-        {((isOngoing && step === 5) || (!isOngoing && step === 4)) && (
-          <div className="space-y-5">
-            <h1 className="font-display text-2xl">Preview &amp; publish</h1>
-            <div className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="flex aspect-[16/9] items-center justify-center bg-muted">
-                {form.coverImageUrl ? (
-                  <img src={form.coverImageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <ImagePlus className="h-10 w-10 text-muted-foreground" />
-                )}
-              </div>
-              <div className="space-y-3 p-5">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${isOngoing ? "bg-amber-100 text-amber-700" : "bg-muted text-foreground"}`}
-                  >
-                    {isOngoing ? "Ongoing" : "One-time"}
-                  </span>
-                  {form.faithCategory && (
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-foreground">
-                      {
-                        faithCategoryOptions.find(
-                          (option) => option.value === form.faithCategory,
-                        )?.label
-                      }
+                      {!allErrors[key] && <Check size={11} />}
                     </span>
-                  )}
-                </div>
-                <h2 className="font-display text-xl">{form.title}</h2>
-                <p className="line-clamp-3 text-sm text-muted-foreground">{form.story}</p>
-                {!isOngoing && form.goalAmount && (
-                  <div className="text-sm">
-                    Goal: <span className="font-semibold">₦{parseAmountInput(form.goalAmount).toLocaleString()}</span>
-                  </div>
-                )}
-                {isOngoing && form.frequencies.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    Give: {form.frequencies.join(" · ")}
-                  </div>
-                )}
-                {form.galleryImageUrls.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 pt-2">
-                    {form.galleryImageUrls.map((url) => (
-                      <img
-                        key={url}
-                        src={url}
-                        alt=""
-                        className="aspect-square w-full rounded-2xl object-cover"
-                      />
+                    {label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 text-xs leading-relaxed text-[#777283]">
+              Saving a draft does not publish it. Submit when your details are complete.
+            </p>
+          </div>
+        </aside>
+        <main className="min-w-0 px-5 py-8 sm:px-8 xl:px-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight">Create a campaign</h1>
+            <p className="mt-2 text-sm text-[#777283]">
+              A clear story. A real need. A way for people to help.
+            </p>
+          </div>
+          {mutation.error && (
+            <div role="alert" className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+              {mutation.error.message} Your details are still here.{" "}
+              {mutation.error.message.toLowerCase().includes("payout") && (
+                <Link to="/profile" hash="payouts" className="underline">
+                  Check your payout settings
+                </Link>
+              )}
+            </div>
+          )}
+          <fieldset disabled={busy} className="min-w-0 space-y-8">
+            <div>
+              {section(
+                "Start with a template",
+                "Templates set your campaign type, not your story. Existing details are kept.",
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {templates.map((template) => (
+                  <button
+                    type="button"
+                    key={template.label}
+                    onClick={() => change(template.fields as Partial<CampaignForm>)}
+                    className="flex gap-3 rounded-xl border border-[#efedf3] p-4 text-left transition hover:border-[#130e30]"
+                  >
+                    <template.icon size={21} className="shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">{template.label}</p>
+                      <p className="mt-1 text-xs text-[#777283]">{template.line}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <section className="border-t border-[#efedf3] pt-8">
+              {section("The basics", "Tell people what you are raising support for.")}
+              <div className="space-y-5">
+                <Field id="mode" label="Campaign mode" error={errors.mode}>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      ["ONE_TIME", "One-time"],
+                      ["ONGOING", "Ongoing support"],
+                    ].map(([mode, label]) => (
+                      <button
+                        type="button"
+                        key={mode}
+                        aria-pressed={form.mode === mode}
+                        onClick={() => change({ mode: mode as CampaignForm["mode"] })}
+                        className={`rounded-xl border p-3 text-sm ${form.mode === mode ? "border-[#130e30] bg-[#f4f0fa]" : "border-[#efedf3]"}`}
+                      >
+                        {label}
+                      </button>
                     ))}
                   </div>
+                </Field>
+                <Field id="type" label="Kind of help" error={errors.type}>
+                  <select
+                    id="type"
+                    className="giving-input"
+                    value={form.type}
+                    onChange={(event) =>
+                      change({ type: event.target.value as CampaignForm["type"] })
+                    }
+                  >
+                    <option value="">Choose a type</option>
+                    {campaignTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field id="title" label="Campaign title" error={errors.title}>
+                  <input
+                    id="title"
+                    className="giving-input"
+                    value={form.title}
+                    maxLength={150}
+                    onChange={(event) => change({ title: event.target.value })}
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field id="faithCategory" label="Cause category" error={errors.faithCategory}>
+                    <select
+                      id="faithCategory"
+                      className="giving-input"
+                      value={form.faithCategory}
+                      onChange={(event) =>
+                        change({
+                          faithCategory: event.target.value as CampaignForm["faithCategory"],
+                        })
+                      }
+                    >
+                      <option value="">Choose a cause</option>
+                      {faithCategoryOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field id="location" label="City and state" error={errors.location}>
+                    <input
+                      id="location"
+                      className="giving-input"
+                      value={form.location}
+                      maxLength={160}
+                      onChange={(event) => change({ location: event.target.value })}
+                    />
+                  </Field>
+                </div>
+                <Field id="urgency" label="Urgency">
+                  <select
+                    id="urgency"
+                    className="giving-input"
+                    value={form.urgency}
+                    onChange={(event) =>
+                      change({ urgency: event.target.value as CampaignForm["urgency"] })
+                    }
+                  >
+                    {urgencyOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </section>
+            <section className="border-t border-[#efedf3] pt-8">
+              {section(
+                "Tell your story",
+                "Who you serve, what you need, what it costs, and how you will report back.",
+              )}
+              <Field
+                id="story"
+                label="Campaign story"
+                error={errors.story}
+                hint={`${countWords(form.story)} / 200 words. Write at least 100 words.`}
+              >
+                <textarea
+                  id="story"
+                  rows={10}
+                  className="giving-input resize-y"
+                  value={form.story}
+                  aria-invalid={Boolean(errors.story)}
+                  onChange={(event) => change({ story: event.target.value })}
+                />
+              </Field>
+            </section>
+            <section className="border-t border-[#efedf3] pt-8">
+              {section("Support and goals", "Make it clear how people can help.")}
+              <div className="space-y-5">
+                {form.mode === "ONGOING" ? (
+                  <Field
+                    id="frequencies"
+                    label="Available giving frequencies"
+                    error={errors.frequencies}
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {frequencyOptions.map((option) => (
+                        <button
+                          type="button"
+                          key={option.value}
+                          aria-pressed={form.frequencies.includes(option.value)}
+                          className={`rounded-full border px-4 py-2 text-sm ${form.frequencies.includes(option.value) ? "border-[#130e30] bg-[#130e30] text-white" : "border-[#efedf3]"}`}
+                          onClick={() =>
+                            change({
+                              frequencies: form.frequencies.includes(option.value)
+                                ? form.frequencies.filter((value) => value !== option.value)
+                                : [...form.frequencies, option.value],
+                            })
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                ) : (
+                  ["MONEY", "EMERGENCY"].includes(form.type) && (
+                    <Field
+                      id="goalAmount"
+                      label={
+                        form.type === "EMERGENCY"
+                          ? "Goal amount (NGN, optional)"
+                          : "Goal amount (NGN)"
+                      }
+                      error={errors.goalAmount}
+                    >
+                      <input
+                        id="goalAmount"
+                        className="giving-input"
+                        inputMode="numeric"
+                        value={form.goalAmount}
+                        onChange={(event) =>
+                          change({ goalAmount: formatAmountInput(event.target.value) })
+                        }
+                      />
+                    </Field>
+                  )
+                )}
+                {["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) && (
+                  <Field
+                    id="needs"
+                    label={
+                      form.type === "ITEM"
+                        ? "Items needed"
+                        : form.type === "VOLUNTEER"
+                          ? "Volunteer roles"
+                          : "Professional skills"
+                    }
+                    error={errors.needs || needError}
+                  >
+                    <div className="flex gap-2">
+                      <input
+                        id="needs"
+                        className="giving-input min-w-0"
+                        maxLength={200}
+                        value={need}
+                        onChange={(event) => setNeed(event.target.value)}
+                        placeholder="Describe one item, role or skill"
+                      />
+                      <button
+                        type="button"
+                        className="giving-small-button shrink-0"
+                        onClick={() => {
+                          if (
+                            !need.trim() ||
+                            form.needs.includes(need.trim()) ||
+                            form.needs.length >= 8
+                          ) {
+                            setNeedError("Add up to 8 different items, roles or skills.");
+                            return;
+                          }
+                          change({ needs: [...form.needs, need.trim()] });
+                          setNeed("");
+                          setNeedError("");
+                        }}
+                      >
+                        <Plus size={15} /> Add
+                      </button>
+                    </div>
+                    <ul className="mt-3 space-y-2">
+                      {form.needs.map((item, index) => (
+                        <li
+                          key={item}
+                          className="flex items-center justify-between gap-3 rounded-xl bg-[#f8f7fa] p-3 text-sm"
+                        >
+                          <span className="break-words">{item}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove need ${index + 1}`}
+                            onClick={() =>
+                              change({ needs: form.needs.filter((value) => value !== item) })
+                            }
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </Field>
                 )}
               </div>
+            </section>
+            <section className="space-y-5 border-t border-[#efedf3] pt-8">
+              {section("Photos", "Use real photos that help people understand your work.")}
+              <div id="field-coverImageUrl">
+                <MediaPicker
+                  label="Cover photo"
+                  folder="campaign-cover"
+                  urls={form.coverImageUrl ? [form.coverImageUrl] : []}
+                  limit={1}
+                  onChange={(urls) => change({ coverImageUrl: urls[0] || "" })}
+                  onBusy={setUploading}
+                  error={errors.coverImageUrl}
+                />
+              </div>
+              <div id="field-galleryImageUrls">
+                <MediaPicker
+                  label="Gallery photos"
+                  folder="campaign-gallery"
+                  urls={form.galleryImageUrls}
+                  limit={8}
+                  onChange={(galleryImageUrls) => change({ galleryImageUrls })}
+                  onBusy={setUploading}
+                  error={errors.galleryImageUrls}
+                />
+              </div>
+            </section>
+            <section className="border-t border-[#efedf3] pt-8">
+              {section(
+                "Organization",
+                "Link an organization you own, or raise support in your own name.",
+              )}
+              {profile.isPending ? (
+                <p className="text-sm">Loading your organizations...</p>
+              ) : !profile.data || profile.isError ? (
+                <LoadError
+                  message="Could not load your organizations. Retry before choosing one."
+                  retry={() => void profile.refetch()}
+                />
+              ) : (
+                <Field
+                  id="organizationId"
+                  label="Organization (optional)"
+                  error={errors.organizationId}
+                >
+                  <select
+                    id="organizationId"
+                    className="giving-input"
+                    value={form.organizationId ?? ""}
+                    onChange={(event) => change({ organizationId: event.target.value })}
+                  >
+                    <option value="">Standalone campaign</option>
+                    {profile.data.ownedOrganizations.map((org) => (
+                      <option
+                        key={org.id}
+                        value={org.id}
+                        disabled={org.reviewAction === "rejected"}
+                      >
+                        {org.name} (
+                        {org.reviewAction === "rejected"
+                          ? "Rejected"
+                          : org.verificationStatus.replaceAll("_", " ")}
+                        )
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <div className="mt-5">
+                <CreationNotice>
+                  You need a saved payout account to submit. Your profile account can be used for
+                  standalone and organization-linked campaigns.{" "}
+                  <Link to="/profile" hash="payouts" className="font-medium underline">
+                    Payout settings
+                  </Link>
+                </CreationNotice>
+              </div>
+            </section>
+            <CreationNotice>
+              Campaigns are reviewed before going live. A campaign linked to an organization is only
+              available to donors when that organization is also approved.
+            </CreationNotice>
+            <div className="flex flex-wrap justify-between gap-3 border-t pt-6">
+              <button
+                type="button"
+                onClick={() => mutation.mutate({ submit: false, exit: true })}
+                className="giving-small-button"
+              >
+                Save and exit
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                className="rounded-full bg-[#130e30] px-6 py-3 text-sm font-semibold text-white"
+              >
+                Submit for review
+              </button>
             </div>
+          </fieldset>
+        </main>
+        <aside className="hidden border-l border-[#efedf3] bg-[#faf9fc] px-5 py-8 lg:block">
+          <div className="sticky top-28">
+            <p className="mb-4 text-sm font-medium">Your campaign preview</p>
+            {preview}
+            <p className="mt-4 text-xs text-[#777283]">
+              Preview only. No donations have been collected.
+            </p>
           </div>
-        )}
-
-        <div className="mt-8 flex items-center justify-between">
-          {step > 0 ? (
-            <button
-              onClick={() => setStep((value) => value - 1)}
-              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
-            >
-              Back
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => saveDraftMutation.mutate()}
-              disabled={
-                saveDraftMutation.isPending ||
-                submitDraftMutation.isPending ||
-                createCampaignMutation.isPending ||
-                uploadCoverMutation.isPending ||
-                uploadGalleryMutation.isPending
-              }
-              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
-            >
-              {saveDraftMutation.isPending ? "Saving draft..." : "Save draft"}
-            </button>
-            {step < stepLabels.length - 1 ? (
-              <button
-                onClick={next}
-                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
-              >
-                Continue
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  if (draftId) {
-                    submitDraftMutation.mutate();
-                    return;
-                  }
-
-                  createCampaignMutation.mutate();
-                }}
-                disabled={
-                  createCampaignMutation.isPending ||
-                  submitDraftMutation.isPending ||
-                  uploadCoverMutation.isPending ||
-                  uploadGalleryMutation.isPending
-                }
-                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-              >
-                {draftId
-                  ? submitDraftMutation.isPending
-                    ? "Submitting..."
-                    : "Submit for review"
-                  : createCampaignMutation.isPending
-                    ? "Submitting..."
-                    : "Submit for review"}
-              </button>
-            )}
-          </div>
-        </div>
+        </aside>
       </div>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+          <DialogTitle>Your campaign preview</DialogTitle>
+          <DialogDescription>Preview only. Save or submit from the editor.</DialogDescription>
+          {preview}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

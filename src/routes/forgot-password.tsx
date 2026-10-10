@@ -1,92 +1,76 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthField } from "@/components/auth/AuthField";
+import { AuthButton, AuthError, AuthHeading } from "@/components/auth/AuthContent";
 import { clearAuthError, forgotPassword } from "@/features/auth/authSlice";
+import { getErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/forgot-password")({ component: ForgotPassword });
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function ForgotPassword() {
   const dispatch = useAppDispatch();
-  const { loading, forgotPasswordSent, error } = useAppSelector((state) => state.auth);
+  const { loading, error } = useAppSelector((state) => state.auth);
   const [email, setEmail] = useState("");
-  const [fieldError, setFieldError] = useState<string | null>(null);
-
-  const validateForm = () => {
-    if (emailPattern.test(email.trim())) {
-      setFieldError(null);
-      return true;
-    }
-
-    setFieldError("Enter a valid email address.");
-    return false;
-  };
+  const [fieldError, setFieldError] = useState<string>();
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    dispatch(clearAuthError());
+  }, [dispatch]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center px-6 py-14">
-        <div className="w-full max-w-md">
-          <h1 className="font-display text-3xl tracking-tight">Reset your password</h1>
-          <p className="mt-2 text-muted-foreground">
-            Enter your email and we'll send you a link to reset your password.
+    <AuthLayout prompt="Remember your password?" linkLabel="Sign in" linkTo="/login">
+      <AuthHeading title={sent ? "Check your inbox" : "Forgot your password?"}>
+        {sent
+          ? "If an account exists for that email, we've sent a reset link. Check your spam folder too."
+          : "Enter the email you signed up with and we'll send you a reset link."}
+      </AuthHeading>
+      {sent ? (
+        <div className="space-y-6">
+          <p role="status" className="text-sm leading-relaxed text-[#667085]">
+            The reset link expires after 30 minutes.
           </p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!validateForm()) return;
-
-              dispatch(clearAuthError());
-              try {
-                await dispatch(forgotPassword({ email })).unwrap();
-                toast.success("If the account exists, a reset link has been sent.");
-              } catch (err) {
-                const message = err instanceof Error ? err.message : "Request failed";
-                toast.error(message);
-              }
-            }}
-            className="mt-8 space-y-5"
-          >
-            <div>
-              <label className="text-sm font-medium">Email address</label>
-              <input
-                type="email"
-                placeholder="you@email.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setFieldError(null);
-                }}
-                className="mt-1.5 w-full px-4 py-3 rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-              />
-              {fieldError && <p className="mt-1 text-sm text-red-600">{fieldError}</p>}
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {forgotPasswordSent && (
-              <p className="text-sm text-emerald-700">
-                If an account exists for that email, a reset link has been sent.
-              </p>
-            )}
-            <button
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-amber-500 text-white font-semibold transition hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? "Sending..." : "Send reset link"}
-            </button>
-          </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Remember your password?{" "}
-            <Link to="/login" className="text-amber-600 font-medium hover:underline">
-              Log in
-            </Link>
-          </p>
+          <AuthButton type="button" onClick={() => setSent(false)}>
+            Try another email
+          </AuthButton>
         </div>
-      </main>
-      <Footer />
-    </div>
+      ) : (
+        <form
+          noValidate
+          className="space-y-5"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (loading) return;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+              setFieldError("Enter a valid email address.");
+              return;
+            }
+            dispatch(clearAuthError());
+            try {
+              await dispatch(forgotPassword({ email: email.trim().toLowerCase() })).unwrap();
+              setSent(true);
+            } catch (err) {
+              toast.error(getErrorMessage(err, "Could not send a reset link"));
+            }
+          }}
+        >
+          <AuthField
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            value={email}
+            error={fieldError}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setFieldError(undefined);
+            }}
+          />
+          <AuthError message={error} />
+          <AuthButton disabled={loading}>{loading ? "Sending..." : "Send reset link"}</AuthButton>
+        </form>
+      )}
+    </AuthLayout>
   );
 }

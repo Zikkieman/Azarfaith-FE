@@ -55,7 +55,7 @@ function AdminProfile() {
     mutationFn: async (file: File) =>
       uploadMedia({
         file,
-        folder: "admin-avatar",
+        folder: "user-avatar",
         entityId: profile?.id,
       }),
     onSuccess: (upload) => {
