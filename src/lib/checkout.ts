@@ -1,5 +1,6 @@
 export type CheckoutContext = {
   currency: "NGN";
+  givingPaused?: boolean;
   platformFeePercent: number;
   minDonation: number;
   maxDonation: number;
@@ -78,6 +79,8 @@ export function validateCheckout(
   context: CheckoutContext,
 ) {
   const errors: Record<string, string> = {};
+  if (context.givingPaused)
+    errors.availability = "Giving is temporarily paused. Please try again later.";
   if (
     !Number.isSafeInteger(input.amount) ||
     input.amount < context.minDonation ||

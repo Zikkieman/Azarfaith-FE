@@ -9,6 +9,8 @@ import { AdminStatCard } from "@/components/admin/AdminStatCard";
 import { AdminBarChart } from "@/components/admin/AdminBarChart";
 import { AdminActivityFeed } from "@/components/admin/AdminActivityFeed";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
+import { AdminAnalytics } from "@/components/admin/AdminAnalytics";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -16,7 +18,7 @@ export const Route = createFileRoute("/admin/")({
 
 function AdminDashboard() {
   const isClient = typeof window !== "undefined";
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin", "dashboard"],
     queryFn: getAdminDashboard,
     enabled: isClient,
@@ -28,7 +30,7 @@ function AdminDashboard() {
         {isLoading ? (
           <PageSpinner label="Loading admin dashboard..." fullScreen={false} />
         ) : (
-          <p className="text-sm text-muted-foreground">Could not load dashboard.</p>
+          <AdminLoadError retry={() => void refetch()} />
         )}
       </AdminPageWrapper>
     );
@@ -37,6 +39,7 @@ function AdminDashboard() {
   return (
     <AdminPageWrapper title="Dashboard">
       <div className="space-y-6">
+        <AdminAnalytics />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <AdminStatCard
             label="Total Users"
@@ -95,7 +98,8 @@ function AdminDashboard() {
                 >
                   <div>
                     <p className="text-sm font-medium text-amber-800">
-                      {data.pendingOrganizations} organization{data.pendingOrganizations > 1 ? "s" : ""} awaiting verification
+                      {data.pendingOrganizations} organization
+                      {data.pendingOrganizations > 1 ? "s" : ""} awaiting verification
                     </p>
                     <p className="text-xs text-amber-600">Review and verify organizations</p>
                   </div>

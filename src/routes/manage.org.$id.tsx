@@ -16,6 +16,7 @@ import { ApiError } from "@/lib/api";
 import { PageSpinner } from "@/components/PageSpinner";
 import { getOrganizationDashboard } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
+import { PayoutSettings } from "@/components/profile/PayoutSettings";
 
 export const Route = createFileRoute("/manage/org/$id")({
   component: ManageOrganizationDashboard,
@@ -254,6 +255,10 @@ function ManageOrganizationDashboard() {
             </div>
           </div>
         </section>
+      </div>
+
+      <div className="mt-6">
+        <PayoutSettings userId={userId!} organizationId={id} />
       </div>
 
       <div className="mt-6">

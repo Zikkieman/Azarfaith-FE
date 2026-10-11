@@ -11,18 +11,18 @@ import {
   Calendar,
   Megaphone,
 } from "lucide-react";
-import {
-  getAdminOrganization,
-  updateAdminOrganizationStatus,
-} from "@/features/catalog/api";
+import { getAdminOrganization, updateAdminOrganizationStatus } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { AdminReviewPanel } from "@/components/admin/AdminReviewPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
+import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/orgs/$id")({
   component: AdminOrgDetail,
@@ -34,7 +34,13 @@ function AdminOrgDetail() {
   const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-  const { data: org, isLoading } = useQuery({
+  const [infoDialog, setInfoDialog] = useState(false);
+  const {
+    data: org,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "org", id],
     queryFn: () => getAdminOrganization(id),
     enabled: isClient,
@@ -44,28 +50,43 @@ function AdminOrgDetail() {
       status,
       reason,
     }: {
-      status: "VERIFIED" | "UNVERIFIED";
+      status: "VERIFIED" | "UNVERIFIED" | "PENDING";
       reason?: string;
     }) =>
       updateAdminOrganizationStatus(id, {
         status,
         reason,
-        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+        reviewAction:
+          status === "VERIFIED"
+            ? "APPROVED"
+            : status === "PENDING"
+              ? "MORE_INFO_REQUESTED"
+              : "REJECTED",
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
         variables.status === "VERIFIED"
           ? `${org?.name ?? "Organization"} has been verified`
-          : `${org?.name ?? "Organization"} moved to unverified`,
+          : variables.status === "PENDING"
+            ? "More information requested"
+            : `${org?.name ?? "Organization"} moved to unverified`,
       );
       setApproveDialog(false);
       setRejectDialog(false);
+      setInfoDialog(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
     },
   });
+
+  if (error && !(error instanceof ApiError && error.status === 404))
+    return (
+      <AdminPageWrapper title="Organization review">
+        <AdminLoadError retry={() => void refetch()} />
+      </AdminPageWrapper>
+    );
 
   if (!org) {
     if (isLoading) {
@@ -112,7 +133,7 @@ function AdminOrgDetail() {
               className="h-16 w-16 rounded-2xl object-cover"
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-2xl font-bold text-gray-900">{org.name}</h2>
                 <StatusBadge status={org.verificationStatus} />
               </div>
@@ -120,9 +141,16 @@ function AdminOrgDetail() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {org.verificationStatus === "pending" && (
               <>
+                <Button
+                  variant="outline"
+                  disabled={updateStatusMutation.isPending}
+                  onClick={() => setInfoDialog(true)}
+                >
+                  Request more info
+                </Button>
                 <Button
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => setApproveDialog(true)}
@@ -208,6 +236,20 @@ function AdminOrgDetail() {
           </div>
 
           <div className="space-y-6">
+            <section className="rounded-xl border border-line-soft p-5">
+              <h3 className="text-sm font-semibold">Application contact</h3>
+              <p className="mt-3 text-sm">{org.owner.fullName}</p>
+              <p className="mt-1 text-sm">{org.owner.email}</p>
+              <p className="mt-1 text-sm text-muted-ink">
+                {org.owner.phone || "No phone provided"}
+              </p>
+              <p className="mt-3 text-xs text-muted-ink">
+                Submitted {new Date(org.submittedAt ?? org.createdAt).toLocaleString("en-NG")}
+              </p>
+              {org.reviewReason && (
+                <p className="mt-3 rounded-lg bg-panel p-3 text-sm">{org.reviewReason}</p>
+              )}
+            </section>
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="mb-4 text-sm font-semibold text-gray-900">Statistics</h3>
               <div className="space-y-4">
@@ -243,7 +285,9 @@ function AdminOrgDetail() {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Megaphone className="h-4 w-4 text-gray-400" />
-                  {org.category === "other" && org.otherCategoryLabel ? org.otherCategoryLabel : org.denomination}
+                  {org.category === "other" && org.otherCategoryLabel
+                    ? org.otherCategoryLabel
+                    : org.denomination}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="h-4 w-4 text-gray-400" />
@@ -315,7 +359,9 @@ function AdminOrgDetail() {
         </div>
       </div>
 
+      <AdminReviewPanel key={id} type="organization" id={id} />
       <AdminConfirmDialog
+        pending={updateStatusMutation.isPending}
         open={approveDialog}
         onOpenChange={setApproveDialog}
         title="Verify Organization"
@@ -327,12 +373,22 @@ function AdminOrgDetail() {
       />
 
       <AdminRejectDialog
+        pending={updateStatusMutation.isPending}
         open={rejectDialog}
         onOpenChange={setRejectDialog}
         title={`Reject ${org.name}`}
         onReject={(reason) => {
           updateStatusMutation.mutate({ status: "UNVERIFIED", reason });
         }}
+      />
+      <AdminRejectDialog
+        open={infoDialog}
+        onOpenChange={setInfoDialog}
+        pending={updateStatusMutation.isPending}
+        title="Request more information"
+        confirmLabel="Send request"
+        description="Tell the organization owner what you need before approving their application."
+        onReject={(reason) => updateStatusMutation.mutate({ status: "PENDING", reason })}
       />
     </AdminPageWrapper>
   );

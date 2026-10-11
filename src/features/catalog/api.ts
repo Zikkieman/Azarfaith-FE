@@ -19,6 +19,7 @@ import type {
   Profile,
   RecurringDonation,
   SavedPaymentMethod,
+  UserNotification,
   UserNotificationsPage,
 } from "@/lib/catalog";
 
@@ -88,6 +89,7 @@ export type UploadMediaPayload = {
 };
 
 export type UpdateProfilePayload = {
+  city?: string;
   fullName?: string;
   phone?: string | null;
   avatarUrl?: string;
@@ -120,6 +122,7 @@ export type SaveCampaignDraftPayload = Omit<
 export type UpdateCampaignPayload = Omit<Partial<CreateCampaignPayload>, "mode" | "type">;
 
 export type AdminActivityItem = {
+  createdAt?: string;
   id: string;
   type: "org_registered" | "campaign_submitted" | "donation";
   title: string;
@@ -181,6 +184,9 @@ export type AdminOrganizationDetail = Omit<
   AdminOrganization,
   "owner" | "createdAt" | "campaignIds"
 > & {
+  owner: AdminOrganization["owner"];
+  createdAt: string;
+  submittedAt: string | null;
   campaigns: Array<{
     id: string;
     title: string;
@@ -242,6 +248,13 @@ export type AdminUser = {
 };
 
 export type AdminUserDetail = AdminUser & {
+  donations: Array<{
+    id: string;
+    amount: number;
+    date: string;
+    campaign: { id: string; title: string };
+  }>;
+  campaigns: Array<{ id: string; title: string }>;
   suspendReason?: string;
   suspendedAt?: string;
 };
@@ -267,11 +280,11 @@ export type AdminPayoutsResponse = {
   history: AdminPayoutHistoryItem[];
 };
 
-const toQuery = (params: Record<string, string | undefined>) => {
+const toQuery = (params: Record<string, string | number | undefined>) => {
   const query = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (value) query.set(key, value);
+    if (value !== undefined && value !== "") query.set(key, String(value));
   });
 
   const queryString = query.toString();
@@ -540,6 +553,75 @@ export const markAllNotificationsAsRead = () =>
     method: "PATCH",
   });
 
+export type AdminInboxPage = Omit<UserNotificationsPage, "items"> & {
+  asOf: string;
+  items: Array<
+    Omit<UserNotification, "type"> & {
+      type:
+        | "signup"
+        | "organization_review"
+        | "campaign_review"
+        | "donation"
+        | "audit"
+        | "payout_request";
+    }
+  >;
+};
+export const getAdminInbox = (params: { page: number; pageSize: number; asOf?: string }) =>
+  adminApiFetch<AdminInboxPage>(`/admin/review/notifications/inbox${toQuery(params)}`);
+
+export const markAdminNotificationRead = (id: string) =>
+  adminApiFetch<{ message: string }>(`/admin/review/notifications/${encodeURIComponent(id)}/read`, {
+    method: "PATCH",
+  });
+
+export const markAdminInboxRead = (through: string) =>
+  adminApiFetch<{ message: string }>("/admin/review/notifications/read-all", {
+    method: "PATCH",
+    body: JSON.stringify({ through }),
+  });
+
+export type AdminReviewRecordType = "organization" | "campaign" | "user";
+export type AdminReviewRecords = {
+  notes: Array<{
+    id: string;
+    body: string;
+    createdAt: string;
+    author: { id: string; fullName: string };
+  }>;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+  checklist: Array<{
+    key: string;
+    label: string;
+    checked: boolean;
+    version: string | null;
+    updatedBy: { id: string; fullName: string } | null;
+  }>;
+};
+const reviewPath = (type: AdminReviewRecordType, id: string) =>
+  `/admin/review/records/${type}/${encodeURIComponent(id)}`;
+export const getAdminReviewRecords = (type: AdminReviewRecordType, id: string, page: number) =>
+  adminApiFetch<AdminReviewRecords>(
+    `${reviewPath(type, id)}/review${toQuery({ page, pageSize: 8 })}`,
+  );
+export const addAdminReviewNote = (type: AdminReviewRecordType, id: string, body: string) =>
+  adminApiFetch<{ id: string; message: string }>(`${reviewPath(type, id)}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+export const updateAdminReviewCheck = (
+  type: AdminReviewRecordType,
+  id: string,
+  payload: { key: string; checked: boolean; expectedVersion?: string },
+) =>
+  adminApiFetch<{ version: string; message: string }>(`${reviewPath(type, id)}/checklist`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
 export const getNotificationPreferences = () =>
   apiFetch<NotificationPreferences>("/me/notification-preferences");
 
@@ -604,6 +686,35 @@ export const getAdminDashboard = () => adminApiFetch<AdminDashboard>("/admin/rev
 
 export const getAdminNotifications = () =>
   adminApiFetch<AdminNotificationItem[]>("/admin/review/notifications");
+
+export type AdminAuditPage = {
+  items: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    entityLabel: string | null;
+    reason: string | null;
+    createdAt: string;
+    actor: { id: string; fullName: string; email: string };
+  }>;
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+};
+export const getAdminActivity = (
+  params: {
+    page?: number;
+    pageSize?: number;
+    action?: string;
+    entityType?: string;
+    actorId?: string;
+    entityId?: string;
+    from?: string;
+    to?: string;
+  } = {},
+) => adminApiFetch<AdminAuditPage>(`/admin/review/activity${toQuery(params)}`);
 
 export const listAdminOrganizations = (params?: {
   status?: "VERIFIED" | "PENDING" | "UNVERIFIED";
@@ -688,6 +799,7 @@ export const updateAdminPlatformSettings = (
 export const getAdminPayouts = () => adminApiFetch<AdminPayoutsResponse>("/admin/review/payouts");
 
 export const releaseAdminPayout = (payload: {
+  requestId?: string;
   ownerType: "USER" | "ORGANIZATION";
   ownerId: string;
   amount?: number;
@@ -703,3 +815,6 @@ export const finalizeAdminPayout = (id: string, payload: { otp: string }) =>
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+
+export const reconcileAdminPayout = (id: string) =>
+  adminApiFetch<PayoutTransfer>(`/admin/review/payouts/${id}/reconcile`, { method: "PATCH" });

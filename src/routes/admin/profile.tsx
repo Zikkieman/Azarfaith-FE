@@ -5,7 +5,11 @@ import { ImagePlus, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageSpinner } from "@/components/PageSpinner";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { useAppDispatch } from "@/app/hooks";
+import { fetchSession } from "@/features/auth/authSlice";
+import { validateAvatar } from "@/lib/profile";
 import {
   getCloudinaryStatus,
   getNotificationPreferences,
@@ -20,9 +24,14 @@ export const Route = createFileRoute("/admin/profile")({
 });
 
 function AdminProfile() {
+  const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const { data: profile, isLoading } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["profile"],
     queryFn: getProfile,
   });
@@ -76,6 +85,7 @@ function AdminProfile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void dispatch(fetchSession());
       setEditing(false);
       toast.success("Profile updated.");
     },
@@ -116,7 +126,7 @@ function AdminProfile() {
         {isLoading ? (
           <PageSpinner label="Loading admin profile..." fullScreen={false} />
         ) : (
-          <p className="text-sm text-gray-500">Could not load your admin profile.</p>
+          <AdminLoadError retry={() => void refetch()} />
         )}
       </AdminPageWrapper>
     );
@@ -136,7 +146,7 @@ function AdminProfile() {
             )}
             <div className="min-w-0">
               <h1 className="font-display text-2xl text-gray-900">{profile.fullName}</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 break-all text-sm text-gray-500">
                 {profile.email}
                 {profile.phone ? ` · ${profile.phone}` : ""}
               </p>
@@ -171,11 +181,15 @@ function AdminProfile() {
               <input
                 ref={avatarInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
-                  if (file) uploadAvatarMutation.mutate(file);
+                  if (file) {
+                    const error = validateAvatar(file);
+                    if (error) toast.error(error);
+                    else uploadAvatarMutation.mutate(file);
+                  }
                   event.target.value = "";
                 }}
               />
@@ -225,7 +239,9 @@ function AdminProfile() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-900">Phone number</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-900">
+                  Phone number
+                </label>
                 <input
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
@@ -279,7 +295,8 @@ function AdminProfile() {
               Notification preferences
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Choose which in-app notifications AzarFaith should store and show in your admin account.
+              Choose which in-app notifications AzarFaith should store and show in your admin
+              account.
             </p>
           </div>
           <div className="mt-4 space-y-3">

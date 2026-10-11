@@ -6,7 +6,13 @@ import { useAppDispatch } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
 import { getErrorMessage } from "@/lib/errors";
 
-export function LogoutButton({ className }: { className?: string }) {
+export function LogoutButton({
+  className,
+  to = "/login",
+}: {
+  className?: string;
+  to?: "/login" | "/admin/login";
+}) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -23,7 +29,7 @@ export function LogoutButton({ className }: { className?: string }) {
           await dispatch(logout()).unwrap();
           await queryClient.cancelQueries();
           queryClient.clear();
-          navigate({ to: "/login" });
+          navigate({ to });
         } catch (error) {
           toast.error(getErrorMessage(error, "Could not sign out. Please try again."));
         } finally {

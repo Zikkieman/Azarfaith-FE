@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PayoutSettings } from "@/components/profile/PayoutSettings";
+import { EmailChange } from "@/components/profile/EmailChange";
 import { LoadError, SaveActions, SettingsSection } from "@/components/profile/SettingsParts";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -31,7 +32,7 @@ import {
 import { validateAvatar, validatePassword } from "@/lib/profile";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { useClientReady } from "@/lib/useClientReady";
-import { ApiError } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 export const Route = createFileRoute("/profile")({ component: Profile });
 
@@ -203,13 +204,17 @@ function ProfileSettings({ profile }: { profile: UserProfile }) {
 }
 
 function ProfileEditor({ profile }: { profile: UserProfile }) {
-  const [draft, setDraft] = useState<{ fullName: string; phone: string; avatarUrl: string } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<{
+    fullName: string;
+    phone: string;
+    avatarUrl: string;
+    city: string;
+  } | null>(null);
   const values = draft ?? {
     fullName: profile.fullName,
     phone: profile.phone ?? "",
     avatarUrl: profile.avatarUrl ?? "",
+    city: profile.city ?? "",
   };
   const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
@@ -240,6 +245,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
     draft &&
     (values.fullName !== profile.fullName ||
       values.phone !== (profile.phone ?? "") ||
+      values.city !== (profile.city ?? "") ||
       values.avatarUrl !== (profile.avatarUrl ?? "")),
   );
   return (
@@ -259,6 +265,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
             fullName: values.fullName.trim(),
             phone: values.phone.trim() || null,
             avatarUrl: values.avatarUrl,
+            city: values.city.trim(),
           });
         }}
       >
@@ -341,9 +348,19 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
               Email address
               <input className="giving-input" type="email" readOnly value={profile.email} />
               <span className="mt-2 block text-xs font-normal text-[#777283]">
-                Your sign-in email cannot be changed here.
+                Changing your sign-in email requires verification of both inboxes.
                 {profile.verifications.includes("Email verified") ? " Email verified." : ""}
               </span>
+            </label>
+            <label className="giving-label sm:col-span-2">
+              City (optional)
+              <input
+                className="giving-input"
+                autoComplete="address-level2"
+                maxLength={100}
+                value={values.city}
+                onChange={(event) => setDraft({ ...values, city: event.target.value })}
+              />
             </label>
           </div>
         </fieldset>
@@ -361,6 +378,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
           }}
         />
       </form>
+      <EmailChange currentEmail={profile.email} />
     </SettingsSection>
   );
 }
@@ -452,6 +470,17 @@ function PaymentMethods({ userId }: { userId: string }) {
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["payment-methods", userId], queryFn: getPaymentMethods });
   const [selected, setSelected] = useState<SavedPaymentMethod | null>(null);
+  const preferred = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ message: string }>(`/me/payment-methods/${encodeURIComponent(id)}/preferred`, {
+        method: "PATCH",
+      }),
+    onSuccess: (response) => {
+      void client.invalidateQueries({ queryKey: ["payment-methods"] });
+      toast.success(response.message);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   const remove = useMutation({
     mutationFn: (id: string) => deactivatePaymentMethod(id),
     onSuccess: () => {
@@ -484,17 +513,39 @@ function PaymentMethods({ userId }: { userId: string }) {
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#efedf3] p-4"
             >
               <div>
-                <p className="text-sm font-semibold">{card.label}</p>
+                <p className="text-sm font-semibold">
+                  {card.label}
+                  {card.isPreferred && (
+                    <span className="ml-2 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                      Preferred
+                    </span>
+                  )}
+                </p>
                 <p className="mt-1 text-xs text-[#777283]">
                   {card.linkedRecurringGiftCount
                     ? `Used by ${card.linkedRecurringGiftCount} recurring gifts. Change or cancel those gifts before removing this card.`
                     : "Not linked to an active or paused recurring gift."}
                 </p>
               </div>
+              {card.active && card.reusable && card.channel === "card" && !card.isPreferred && (
+                <button
+                  type="button"
+                  className="giving-small-button"
+                  disabled={preferred.isPending || remove.isPending}
+                  onClick={() => preferred.mutate(card.id)}
+                >
+                  Make preferred
+                </button>
+              )}
               <button
                 type="button"
                 className="giving-small-button"
-                disabled={card.linkedRecurringGiftCount > 0 || remove.isPending}
+                disabled={
+                  card.linkedRecurringGiftCount > 0 ||
+                  remove.isPending ||
+                  preferred.isPending ||
+                  !card.active
+                }
                 onClick={() => setSelected(card)}
               >
                 Remove
@@ -509,6 +560,15 @@ function PaymentMethods({ userId }: { userId: string }) {
       >
         Manage recurring gifts
       </Link>
+      <p className="mt-3 text-xs text-muted-ink">
+        A preferred card is suggested when choosing a card. It does not change the card already
+        linked to a recurring gift or authorize a new charge.
+      </p>
+      {preferred.isError && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          {preferred.error.message}
+        </p>
+      )}
       <Dialog
         open={Boolean(selected)}
         onOpenChange={(open) => {
@@ -558,6 +618,14 @@ function Security() {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");
+  const [devicesDialog, setDevicesDialog] = useState(false);
+  const devices = useMutation({
+    mutationFn: () => apiFetch("/auth/signout-other-devices", { method: "POST" }),
+    onSuccess: () => {
+      setDevicesDialog(false);
+      toast.success("Other sessions revoked. This browser remains signed in.");
+    },
+  });
   const change = useMutation({
     mutationFn: () =>
       dispatch(changePassword({ currentPassword: current, newPassword: password })).unwrap(),
@@ -643,6 +711,57 @@ function Security() {
           }}
         />
       </form>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-panel p-4">
+        <p className="text-sm text-muted-ink">
+          Keep this browser signed in and revoke existing sessions on your other devices.
+        </p>
+        <button
+          type="button"
+          className="giving-small-button"
+          disabled={change.isPending || devices.isPending}
+          onClick={() => {
+            devices.reset();
+            setDevicesDialog(true);
+          }}
+        >
+          Sign out other devices
+        </button>
+      </div>
+      <Dialog
+        open={devicesDialog}
+        onOpenChange={(value) => {
+          if (!devices.isPending) setDevicesDialog(value);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Sign out other devices?</DialogTitle>
+          <DialogDescription>
+            Other browsers will need to log in again. This browser receives a new secure session
+            cookie. No device count is inferred.
+          </DialogDescription>
+          {devices.isError && (
+            <p role="alert" className="text-sm text-red-700">
+              {devices.error.message}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              className="giving-small-button"
+              disabled={devices.isPending}
+              onClick={() => setDevicesDialog(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="giving-small-button bg-black text-white"
+              disabled={devices.isPending}
+              onClick={() => devices.mutate()}
+            >
+              {devices.isPending ? "Signing out..." : "Confirm"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SettingsSection>
   );
 }

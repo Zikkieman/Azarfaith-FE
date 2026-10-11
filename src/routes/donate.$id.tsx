@@ -48,6 +48,7 @@ function Donate() {
   });
   const checkout = useQuery({
     queryKey: ["checkout", id, user?.id ?? "guest", search.recurringGiftId],
+    refetchInterval: 30000,
     queryFn: () => getCheckoutContext(id, search.recurringGiftId || undefined),
     enabled: ready && !reference,
     retry: false,
@@ -109,10 +110,16 @@ function Donate() {
         <main className="mx-auto max-w-xl px-5 py-14 text-center">
           <h1 className="text-2xl font-semibold">Sign in to continue</h1>
           <p className="mt-4 text-sm text-[#686479]">
-            Please sign in, then reopen your donation or reminder link. Recurring gifts are tied to
+            Please sign in to return to your donation or reminder link. Recurring gifts are tied to
             your account.
           </p>
-          <Link to="/login" className="public-button mt-6">
+          <Link
+            to="/login"
+            search={{
+              returnTo: `/donate/${encodeURIComponent(id)}?${new URLSearchParams({ amount: search.amount, freq: search.freq, recurringGiftId: search.recurringGiftId })}`,
+            }}
+            className="public-button mt-6"
+          >
             Log in
           </Link>
         </main>

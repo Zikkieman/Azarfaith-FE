@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
@@ -16,7 +16,9 @@ import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
 import { fetchSession } from "@/features/auth/authSlice";
 import { getDashboard } from "@/features/catalog/api";
-import { ApiError } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
+import { toast } from "sonner";
+import { PayoutRequests } from "@/components/profile/PayoutRequests";
 import { dashboardStatus, type DashboardReview, type UserDashboard } from "@/lib/dashboard";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
@@ -233,6 +235,9 @@ function Dashboard() {
                                 timeZone: "UTC",
                               })}
                             </time>
+                            {gift.canThank && (
+                              <ThankDonor donationId={gift.id} donorName={gift.donorName} />
+                            )}
                           </div>
                         </li>
                       ))}
@@ -264,6 +269,12 @@ function Dashboard() {
                       Add a payout account in your profile to receive funds.
                     </p>
                   )}
+                  <PayoutRequests
+                    key={data.selectedOrganization?.id ?? "personal"}
+                    organizationId={data.selectedOrganization?.id}
+                    balance={data.payout.availableBalance}
+                    verified={data.payout.account?.status === "verified"}
+                  />
                   {data.selectedOrganization && !data.selectedOrganization.isDraft ? (
                     <Link
                       to="/manage/org/$id"
@@ -510,6 +521,34 @@ function Panel({
       </div>
       {children}
     </section>
+  );
+}
+
+function ThankDonor({ donationId, donorName }: { donationId: string; donorName: string }) {
+  const thanks = useMutation({
+    mutationFn: () =>
+      apiFetch<{ message: string }>(
+        `/me/received-donations/${encodeURIComponent(donationId)}/thank-you`,
+        { method: "POST" },
+      ),
+    onSuccess: (result) => toast.success(result.message),
+  });
+  return (
+    <div className="mt-3">
+      <button
+        className="giving-small-button"
+        disabled={thanks.isPending || thanks.isSuccess}
+        onClick={() => thanks.mutate()}
+        aria-label={`Thank ${donorName}`}
+      >
+        {thanks.isPending ? "Queuing..." : thanks.isSuccess ? "Thank-you queued" : "Say thanks"}
+      </button>
+      {thanks.isError && (
+        <p role="alert" className="mt-2 text-xs text-red-700">
+          {thanks.error.message}
+        </p>
+      )}
+    </div>
   );
 }
 

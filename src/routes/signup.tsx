@@ -15,10 +15,12 @@ import {
   verifyOtp,
 } from "@/features/auth/authSlice";
 import { getErrorMessage } from "@/lib/errors";
+import { checkoutReturn } from "@/lib/auth-return";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>) => ({
     mode: search.mode === "otp" ? "otp" : "form",
+    returnTo: checkoutReturn(search.returnTo),
   }),
   component: Signup,
 });
@@ -30,7 +32,9 @@ type Errors = Partial<
 function Signup() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { mode } = Route.useSearch();
+  const { mode, returnTo } = Route.useSearch();
+  const finish = () =>
+    returnTo ? window.location.assign(returnTo) : navigate({ to: "/dashboard" });
   const { loading, pendingVerificationEmail, error } = useAppSelector((state) => state.auth);
   const [values, setValues] = useState({ fullName: "", email: "", phone: "+234", password: "" });
   const [terms, setTerms] = useState(false);
@@ -75,14 +79,14 @@ function Signup() {
       ).unwrap();
       setCountdown(30);
       setOtp("");
-      navigate({ to: "/signup", search: { mode: "otp" } });
+      navigate({ to: "/signup", search: { mode: "otp", returnTo } });
     } catch (err) {
       toast.error(getErrorMessage(err, "Signup failed"));
     }
   };
 
   return (
-    <AuthLayout prompt="Already a member?" linkLabel="Sign in" linkTo="/login">
+    <AuthLayout prompt="Already a member?" linkLabel="Sign in" linkTo="/login" returnTo={returnTo}>
       <AuthHeading title={verifying ? "Check your email" : "Create your account"}>
         {verifying
           ? `Enter the 4-digit verification code sent to ${pendingVerificationEmail}.`
@@ -102,7 +106,7 @@ function Signup() {
             dispatch(clearAuthError());
             try {
               await dispatch(verifyOtp({ email: pendingVerificationEmail!, code: otp })).unwrap();
-              navigate({ to: "/dashboard" });
+              finish();
             } catch (err) {
               toast.error(getErrorMessage(err, "Verification failed"));
             }
@@ -177,7 +181,7 @@ function Signup() {
             onClick={() => {
               dispatch(clearPendingVerification());
               setOtp("");
-              navigate({ to: "/signup", search: { mode: "form" } });
+              navigate({ to: "/signup", search: { mode: "form", returnTo } });
             }}
           >
             Use a different email
@@ -191,7 +195,7 @@ function Signup() {
               dispatch(clearAuthError());
               try {
                 await dispatch(googleAuth({ idToken })).unwrap();
-                navigate({ to: "/dashboard" });
+                finish();
               } catch (err) {
                 toast.error(getErrorMessage(err, "Google sign-in failed"));
               }

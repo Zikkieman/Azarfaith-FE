@@ -69,7 +69,6 @@ export type PayoutAccount = {
   bankName: string;
   accountNumberMasked: string;
   accountName: string;
-  recipientCode: string;
   currency: string;
   status: PayoutAccountStatus;
   active: boolean;
@@ -93,6 +92,8 @@ export type PayoutTransfer = {
 };
 
 export type PayoutSummary = {
+  totalPlatformFees: number;
+  totalNetCollected: number;
   ownerType: PayoutOwnerType;
   ownerId?: string;
   ownerName?: string;
@@ -106,6 +107,8 @@ export type PayoutSummary = {
 };
 
 export type AdminPayoutItem = {
+  totalPlatformFees: number;
+  totalNetCollected: number;
   ownerType: PayoutOwnerType;
   ownerId: string;
   ownerName: string;
@@ -250,6 +253,7 @@ export type SavedPaymentMethod = {
   expMonth?: string | null;
   expYear?: string | null;
   reusable: boolean;
+  isPreferred?: boolean;
   active: boolean;
   deactivatedAt?: string | null;
   lastUsedAt?: string | null;
@@ -323,6 +327,7 @@ export type DonationDetail = {
 };
 
 export type Profile = {
+  city?: string;
   id: string;
   createdAt: string;
   fullName: string;

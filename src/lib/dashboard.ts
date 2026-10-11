@@ -52,6 +52,7 @@ export type UserDashboard = {
     date: string;
     campaignId: string;
     campaignTitle: string;
+    canThank?: boolean;
   }>;
   payout: {
     availableBalance: number;

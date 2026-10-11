@@ -18,6 +18,7 @@ type AdminConfirmDialogProps = {
   cancelLabel?: string;
   variant?: "default" | "destructive";
   onConfirm: () => void;
+  pending?: boolean;
 };
 
 export function AdminConfirmDialog({
@@ -28,6 +29,7 @@ export function AdminConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "default",
+  pending = false,
   onConfirm,
 }: AdminConfirmDialogProps) {
   return (
@@ -38,20 +40,18 @@ export function AdminConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </Button>
           <Button
             variant={variant === "destructive" ? "destructive" : "default"}
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
+            disabled={pending}
+            onClick={onConfirm}
             className={cn(
               variant !== "destructive" && "bg-amber-500 hover:bg-amber-600 text-white",
             )}
           >
-            {confirmLabel}
+            {pending ? "Saving..." : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

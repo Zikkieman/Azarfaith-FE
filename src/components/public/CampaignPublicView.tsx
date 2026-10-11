@@ -7,6 +7,9 @@ import { PhotoGallery } from "./PhotoGallery";
 import { GiveBox } from "./GiveBox";
 import { VerifiedBadge } from "./CatalogCards";
 import { ShareCause } from "./ShareCause";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+import { CommentLikes, type CommentReaction } from "./CommentLikes";
 
 export function CampaignPublicView({
   campaign,
@@ -28,6 +31,19 @@ export function CampaignPublicView({
   commenting: boolean;
 }) {
   const published = isPublished(campaign);
+  const reactions = useQuery({
+    queryKey: [
+      "comment-reactions",
+      campaign.id,
+      authenticated,
+      campaign.comments.map((comment) => comment.id).join(","),
+    ],
+    queryFn: () =>
+      apiFetch<CommentReaction[]>(
+        `/campaigns/${encodeURIComponent(campaign.id)}/comments/reactions`,
+      ),
+    enabled: campaign.comments.length > 0,
+  });
   return (
     <PublicShell>
       <Link to="/discover" className="text-sm text-muted-foreground">
@@ -180,9 +196,25 @@ export function CampaignPublicView({
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
                       {comment.body}
                     </p>
+                    {published && (
+                      <CommentLikes
+                        campaignId={campaign.id}
+                        commentId={comment.id}
+                        authenticated={authenticated}
+                        state={reactions.data?.find((state) => state.id === comment.id)}
+                      />
+                    )}
                   </article>
                 ))}
             </div>
+            {reactions.isError && (
+              <p role="alert" className="mt-3 text-xs text-red-700">
+                Comment likes could not load.{" "}
+                <button className="underline" onClick={() => void reactions.refetch()}>
+                  Retry
+                </button>
+              </p>
+            )}
           </section>
           <section className="mt-9">
             <div className="flex items-center justify-between">

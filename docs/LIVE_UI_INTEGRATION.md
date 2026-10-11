@@ -27,8 +27,8 @@ hard-coded statistics, or local-only verification states into the live app.
 
 Other existing live screens are retained, including payouts, guest checkout,
 organization documents, draft submission, recurring giving and notification
-preferences. The dashboard and public catalog/detail screens below have been ported;
-the remaining layouts are still listed for subsequent phases.
+preferences. The supported screen migrations listed below are complete;
+unsupported product features remain explicitly listed as separate API work.
 The side-panel photograph is decorative, not an invented verified organization
 or claimed donation result. There is no unsupported Facebook sign-in button.
 
@@ -113,8 +113,9 @@ or claimed donation result. There is no unsupported Facebook sign-in button.
 - Deploy backend before frontend. No new migration/environment variable is needed.
   Existing cookies require a fresh sign-in once because of password-bound JWT
   session versions. See backend `docs/PROFILE_NOTIFICATIONS_API.md`.
-- Unsupported email/city edits, account closure, default-card selection, fictional
-  device counts and email/SMS opt-outs are not represented as functioning controls.
+- Verified email change, city editing, preferred-card selection and revoking other
+  sessions are now wired to real APIs. Account closure, invented device counts
+  and transactional email/SMS opt-outs remain deliberately excluded.
 
 ## Completed: Manage And Creation
 
@@ -144,7 +145,47 @@ or claimed donation result. There is no unsupported Facebook sign-in button.
   and empty item/volunteer/professional needs lists. Draft goals can remain partial.
 - Deploy backend first. No database migration or new environment variable required.
 
-## Remaining Screen Migration
+## Completed: Payouts And Admin
+
+- Refreshed full-height admin navigation, top-aligned content and accessible
+  mobile drawer. Existing cookie/role guards and admin-only profile stay intact.
+- Organization/campaign queues and user details use real endpoints, real reasons,
+  request-info/change dialogs and retry states. Failed decisions retain their input.
+- New paginated `/admin/review/activity` returns real audit records with filters,
+  actor, target, reason and date, without exposing private audit metadata.
+- Admin settings save real backend fields. Unsupported SMS, verification claims,
+  emergency pause and obsolete custom-tip-cap controls are not simulated.
+- Profile and organization dashboards show inherited bank accounts, net balance,
+  platform fees and real transfer history. Organization overrides use their own API.
+- Admin payouts require a bank/amount confirmation and UUID request ID. Pending
+  is never called paid; OTP finalization and reference reconciliation remain
+  available from transfer history. Server reservations protect unsettled funds.
+- Signed transfer webhooks reconcile results. Deploy backend first; see backend
+  `docs/ADMIN_PAYOUTS_API.md`. The payout refresh needs no new migration; the
+  subsequent inbox/review phase below requires two additive migrations.
+
+## Completed: Persistent Admin Inbox And Review Records
+
+- Admin bell now uses `/admin/review/notifications/inbox`, with real pagination,
+  unread count and per-admin persisted read/read-all state. No local read flags.
+- The first page's server snapshot is retained for loading more and marking all
+  read, leaving later arrivals unread. API failures show retry, not fake zero.
+- Registrations, review submissions, successful payments and admin audit events
+  are recorded by transactional database triggers. Drafts and rolled-back changes
+  cannot create phantom notices; repeated successes do not duplicate notices.
+- Organization, campaign and user details include private append-only admin notes.
+  Organization/campaign checklists use server-defined manual checks, not fabricated
+  BVN/phone verification. User details have notes only.
+- Checklist writes require the current server version. Conflicts refetch instead
+  of overwriting another admin; failed note saves preserve the unsaved draft.
+- All routes are active-platform-admin-only; readers/authors come from the session.
+  Note bodies stay out of public records, audit metadata and shared inbox text.
+- Apply `20261011090000_persistent_admin_notifications` and
+  `20261011100000_admin_review_notes_and_checks` with backend
+  `npm run prisma:migrate:deploy`, then deploy API/worker before the frontend.
+  No new environment variable is needed. See backend `docs/ADMIN_INBOX_REVIEW_API.md`.
+
+## Migration Coverage
 
 My Giving is now refreshed with real payment history, summary cards, receipts,
 saved-card controls and server-backed skip/edit dialogs. New authenticated
@@ -154,8 +195,8 @@ History includes successful active recurring payments previously omitted from
 the old completed-only list. CSV/HTML exports safely escape untrusted values.
 Deploy the API and worker first. No migration or new environment variable is needed.
 
-Port these next without introducing new data stores. Show actual empty/loading/
-error states; never replace a failed request with sample records.
+Supported screens now show actual empty/loading/error states; failed requests
+are not replaced by sample records. This does not mean all PRD features exist.
 
 | Order | Screen                            | Available endpoints                                                                                                                                          | Integration notes                                                                                                                                              |
 | ----- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -165,38 +206,50 @@ error states; never replace a failed request with sample records.
 | Done  | My Giving                         | `GET /me/donations`, `/me/donations/:id`, `/me/recurring-gifts`; `PATCH /me/recurring-gifts/:id`, `/skip`, `/pause`, `/resume`, `/cancel`, `/payment-method` | Refreshed with real history/receipts and schedule controls, explicit consent, pending-payment protection and truthful errors.                                  |
 | Done  | Profile and notifications         | `GET/PATCH /me/profile`; `/me/payment-methods`; `/me/notifications`; `/me/notification-preferences`; `POST /auth/change-password`                            | Refreshed with real settings, cards, personal payout tools, mobile inbox and password revocation. No local-only mock controls.                                 |
 | Done  | Manage, registration and creation | `/organizations/mine/drafts`, `/campaigns/mine/drafts`, draft/detail/create/edit/submit endpoints                                                            | Refreshed with server drafts, owner dashboard, validation, real media/documents, needs, frequencies and moderation. No mock autosave or instant-public claims. |
-| 7     | User and admin payouts            | `/me/payout-*`, `/organizations/:id/payout-*`, `/admin/review/payouts`, `/payouts/release`, `/payouts/:id/finalize`                                          | The redesign omits existing payout screens. Retain/port them rather than deleting working functionality.                                                       |
-| 8     | Admin review, users and settings  | `/admin/review/dashboard`, `/organizations`, `/campaigns`, `/users`, their detail/status routes; `/users/:id/role`; `GET/PATCH /settings`                    | Keep server authorization, audit logging, reasons and notifications. Existing list filters are limited to the controller contracts.                            |
+| Done  | User and admin payouts            | `/me/payout-*`, `/organizations/:id/payout-*`, `/admin/review/payouts`, `/payouts/release`, `/payouts/:id/finalize`, `/payouts/:id/reconcile`                | Real balances, inherited accounts, explicit confirmation, idempotent requests, OTP and status reconciliation. No mock transfers.                               |
+| Done  | Admin review, users and settings  | `/admin/review/dashboard`, `/organizations`, `/campaigns`, `/users`, their detail/status routes; `/users/:id/role`; `GET/PATCH /settings`; `/activity`       | Refreshed with role guards, audit records, retained review reasons, real user details and settings. No fabricated notes/checklist state.                       |
 
-## API Work Needed For New Design Features
+## Full Feature Pass
 
-These are proposed contracts, not existing routes. Build and test one module at a
-time, then enable its frontend controls.
+Implemented with live backend contracts:
 
-| Priority | Feature / screen                       | API or data work needed                                                                                                                                                                                          |
-| -------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 4        | Admin notification read state          | Existing `/admin/review/notifications` returns a generated feed. Add persisted per-admin read state, pagination, unread counts and read/read-all mutations. Do not claim notices are read just in local storage. |
-| 5        | Admin activity screen                  | Add a paginated audit-log query with actor/target/date/action filters. Current dashboard activity is a limited subset, not a complete log endpoint.                                                              |
-| 6        | Admin internal notes and review checks | Add notes/checklist models, admin-only read/write routes and audit entries. User and organization notes in the redesign are local-only.                                                                          |
-| 7        | Admin emergency pause all giving       | Add a platform setting enforced by both donation initialization and recurring workers. A frontend toggle alone is unsafe. Define resume and overdue-charge policy.                                               |
-| 8        | Admin detailed user verification       | Source email/phone/BVN verification independently. Do not infer them from a single `isVerified` flag or offer local-only BVN verification.                                                                       |
-| 9        | Admin lists at scale                   | Public discovery pagination/filtering is implemented. Admin lists still need server pagination, sorting and additional filters.                                                                                  |
-| 10       | Analytics / reporting                  | Add the aggregate metrics missing from current dashboard responses, with documented date ranges. CSV of already available records can be generated client-side; new metrics need backend queries.                |
+- Admin server-paginated/filterable/sortable directories, versioned batch moderation
+  with partial-success results, actual search palette and 7/30-day analytics exports.
+- Audited platform-wide giving pause/resume, enforced by checkout and worker.
+- Profile city, preferred saved cards, other-session revocation and a secure two-inbox
+  email-change flow that revokes old sessions and reset links.
+- Owner payout requests and admin release/decline, keeping actual net balances,
+  UUID retry identity and the existing Paystack confirmation/OTP/reconciliation.
+- Real donor thank-you delivery, comment reactions, consented saved-card one-time
+  checkout and safe donation return navigation through login/signup/OTP/Google.
+- Durable admin-decision, thank-you and confirmed-donation delivery retries.
+- Public landing, map, story and informational guides with real public aggregates,
+  actual featured campaigns, FAQ and working guest/authenticated navigation.
 
-Bulk review is not an existing backend endpoint. It can initially call the
-existing single-record mutations with explicit partial-success handling; an
-atomic bulk API is separate work. Persistent batch results must not be simulated.
+Apply all backend migrations, generate Prisma and deploy API/worker before FE.
+See backend docs/UI_FEATURE_PARITY_API.md for contracts, financial safety and
+resume behavior. Previous per-phase statements about requiring no migrations
+apply only to those earlier phases, not this full feature pass.
 
-Additional product gaps: comment author edit/delete and creator replies, update
-editing with history, and a flagged-content moderation queue are not covered by
-the current create-comment/create-update endpoints. Public FAQ/about content can
-be static approved copy; it does not require a new API unless CMS editing is wanted.
+### Explicit Exceptions
 
-Checkout-specific gap: using an existing saved card for a new one-time gift needs
-an owned-authorization charge endpoint and consent/duplicate-attempt protection.
-The payment-method list alone does not implement this; no fake saved card option
-has been ported. A guest selecting recurring must sign in and reopen the donation
-link; checkout return-after-login/signup is a separate navigation enhancement.
+No source demo data is promoted into a real claim. Independent phone/BVN checks
+need a provider; SMS remains excluded by PM agreement. Standalone card enrollment
+needs an initial-charge/refund policy. Account closure needs retention and
+outstanding-funds/creator-handover rules. Those controls are not simulated.
+
+The source public legal/refund copy, press numbers, testimonials, case study
+(/jos), vacancies/events and team/matching/sponsorship features need approved
+company content or product policy. They are not published as verified facts.
+Supported public routes are /, /map, /story, /about, /verification, /give-once,
+/recurring, /monthly-support, /payment-security, /payouts, /update-posts,
+/help-center and /support. Unsupported slugs return not-found rather than
+pretending their feature exists. The map uses approximate state outlines,
+aggregated campaign/org locations and confirmed gifts only; it is not a live
+donor-location tracker.
+
+Comment author edit/delete, threaded creator replies, update edit history and
+a flagged-content queue are wider PRD work, not source screen parity.
 
 ## Verification
 
@@ -213,6 +266,16 @@ claims, worker due-date checks, anonymity and transaction-reference correlation.
 Future giving work: server-paginated reporting, dedicated recurring-action audit
 history and durable confirmation delivery retries. Current confirmations are
 best-effort, and live provider/database-lock testing is separate from fixture QA.
+Run `node --test tests/admin-payouts.test.mjs` for live admin/activity contracts,
+net payout eligibility, truthful statuses, scoped organization accounts,
+persistent inbox snapshot/read contracts and private versioned review writes.
+Run backend `npm run test:database` to exercise the complete migration chain,
+transactional inbox triggers, queue backfill and private record constraints
+against disposable embedded PostgreSQL, without reading the live database URL.
+Backend tests cover reservations, idempotency, signature checks, correlated
+transfer events, reversal, OTP and reconciliation. Browser QA covers review
+dialogs, API failure/retry, real details, settings, bank confirmations, permission
+denial and mobile layouts. No fixture check implies a real transfer was executed.
 Backend dashboard tests cover ownership, successful-only accounting, anonymity,
 UTC months, empty data, real JWT cookies, validation and suspended/expired sessions.
 The unit tests execute production API/auth modules using isolated test transport

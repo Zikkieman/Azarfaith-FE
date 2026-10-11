@@ -7,25 +7,41 @@ import {
   getPersonalPayoutSummary,
   resolvePayoutAccount,
   upsertPersonalPayoutAccount,
+  getOrganizationPayoutAccount,
+  getOrganizationPayoutSummary,
+  upsertOrganizationPayoutAccount,
 } from "@/features/catalog/api";
 import { formatMoney, type PayoutAccount, type PayoutBank } from "@/lib/catalog";
 import { LoadError, SettingsSection } from "./SettingsParts";
 
-export function PayoutSettings({ userId }: { userId: string }) {
+export function PayoutSettings({
+  userId,
+  organizationId,
+}: {
+  userId: string;
+  organizationId?: string;
+}) {
+  const scope = organizationId ?? "personal";
   const account = useQuery({
-    queryKey: ["payout-account", "personal", userId],
-    queryFn: getPersonalPayoutAccount,
+    queryKey: ["payout-account", scope, userId],
+    queryFn: () =>
+      organizationId ? getOrganizationPayoutAccount(organizationId) : getPersonalPayoutAccount(),
   });
   const banks = useQuery({ queryKey: ["payout-banks", userId], queryFn: getPayoutBanks });
   const summary = useQuery({
-    queryKey: ["payout-summary", "personal", userId],
-    queryFn: getPersonalPayoutSummary,
+    queryKey: ["payout-summary", scope, userId],
+    queryFn: () =>
+      organizationId ? getOrganizationPayoutSummary(organizationId) : getPersonalPayoutSummary(),
   });
   return (
     <SettingsSection
       id="payouts"
-      title="Payout account"
-      description="Use one bank account for your personal campaigns and eligible organizations. An admin reviews and releases payouts; saving an account does not release money."
+      title={organizationId ? "Organization payouts" : "Payout account"}
+      description={
+        organizationId
+          ? "Your verified profile account is used by default. Add a separate destination only if this organization needs a different bank account. An admin must release each payout."
+          : "Use one bank account for your personal campaigns and eligible organizations. An admin reviews and releases payouts; saving an account does not release money."
+      }
     >
       {account.isPending || banks.isPending ? (
         <p role="status">Getting payout account...</p>
@@ -54,7 +70,19 @@ export function PayoutSettings({ userId }: { userId: string }) {
               </p>
             </div>
           )}
-          <PayoutEditor userId={userId} account={account.data ?? null} banks={banks.data ?? []} />
+          {organizationId && account.data?.ownerType === "user" && (
+            <p className="mb-4 text-sm text-[#777283]">
+              Using your profile payout account. Saving below creates an organization-specific
+              destination.
+            </p>
+          )}
+          <PayoutEditor
+            key={`${scope}-${userId}`}
+            userId={userId}
+            organizationId={organizationId}
+            account={account.data ?? null}
+            banks={banks.data ?? []}
+          />
         </>
       )}
       <div className="mt-6 border-t border-[#efedf3] pt-5">
@@ -67,10 +95,12 @@ export function PayoutSettings({ userId }: { userId: string }) {
           />
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 ["Collected", summary.data.totalCollected],
-                ["Released", summary.data.totalReleased],
+                ["Platform fees", summary.data.totalPlatformFees],
+                ["Net collected", summary.data.totalNetCollected],
+                ["Released / reserved", summary.data.totalReleased],
                 ["Available for release", summary.data.availableBalance],
               ].map(([label, amount]) => (
                 <div key={label} className="rounded-xl bg-[#f7f6fa] p-4">
@@ -79,6 +109,10 @@ export function PayoutSettings({ userId }: { userId: string }) {
                 </div>
               ))}
             </div>
+            <p className="mt-3 text-xs text-[#777283]">
+              Available balance excludes platform fees and payouts that are completed, processing or
+              awaiting OTP. Tips belong to AzarFaith and are not payable to creators.
+            </p>
             <h3 className="mt-5 text-sm font-semibold">Recent payouts</h3>
             {!summary.data.recentTransfers.length ? (
               <p className="mt-2 text-sm text-[#777283]">No payouts have been released yet.</p>
@@ -99,6 +133,9 @@ export function PayoutSettings({ userId }: { userId: string }) {
                         {new Date(transfer.releasedAt).toLocaleDateString("en-NG")}
                       </time>
                     </div>
+                    {transfer.failureMessage && (
+                      <p className="w-full text-xs text-red-700">{transfer.failureMessage}</p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -112,10 +149,12 @@ export function PayoutSettings({ userId }: { userId: string }) {
 
 function PayoutEditor({
   userId,
+  organizationId,
   account,
   banks,
 }: {
   userId: string;
+  organizationId?: string;
   account: PayoutAccount | null;
   banks: PayoutBank[];
 }) {
@@ -163,10 +202,15 @@ function PayoutEditor({
     };
   }, [bankCode, accountNumber, retry]);
   const save = useMutation({
-    mutationFn: upsertPersonalPayoutAccount,
+    mutationFn: (payload: Parameters<typeof upsertPersonalPayoutAccount>[0]) =>
+      organizationId
+        ? upsertOrganizationPayoutAccount(organizationId, payload)
+        : upsertPersonalPayoutAccount(payload),
     onSuccess: (result) => {
-      client.setQueryData(["payout-account", "personal", userId], result);
+      client.setQueryData(["payout-account", organizationId ?? "personal", userId], result);
       void client.invalidateQueries({ queryKey: ["payout-summary"] });
+      void client.invalidateQueries({ queryKey: ["dashboard"] });
+      void client.invalidateQueries({ queryKey: ["organization-dashboard"] });
       toast.success(
         result.status === "verified"
           ? "Payout account saved and verified."

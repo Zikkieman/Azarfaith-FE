@@ -13,6 +13,7 @@ type AdminFilterBarProps = {
   filters: {
     label: string;
     value: string;
+    selectedValue?: string;
     options: FilterOption[];
     onChange: (value: string) => void;
   }[];
@@ -43,6 +44,8 @@ export function AdminFilterBar({
       {filters.map((filter) => (
         <select
           key={filter.value}
+          aria-label={filter.label}
+          value={filter.selectedValue ?? ""}
           onChange={(e) => filter.onChange(e.target.value)}
           className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
         >
@@ -55,7 +58,7 @@ export function AdminFilterBar({
         </select>
       ))}
 
-      {activeFilters.length > 0 && (
+      {(activeFilters.length > 0 || searchValue) && (
         <button
           onClick={onClearFilters}
           className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"

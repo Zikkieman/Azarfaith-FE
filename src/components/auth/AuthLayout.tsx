@@ -8,11 +8,13 @@ export function AuthLayout({
   prompt,
   linkLabel,
   linkTo,
+  returnTo,
   children,
 }: {
   prompt: string;
   linkLabel: string;
   linkTo: "/login" | "/signup";
+  returnTo?: string;
   children: ReactNode;
 }) {
   return (
@@ -25,7 +27,11 @@ export function AuthLayout({
           </Link>
           <p className="text-sm text-[#4a4660]">
             <span className="hidden sm:inline">{prompt} </span>
-            <Link to={linkTo} className="font-semibold text-[#130e30] underline underline-offset-4">
+            <Link
+              to={linkTo}
+              search={{ returnTo }}
+              className="font-semibold text-[#130e30] underline underline-offset-4"
+            >
               {linkLabel}
             </Link>
           </p>

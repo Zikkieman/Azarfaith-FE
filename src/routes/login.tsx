@@ -13,12 +13,21 @@ import {
   setPendingVerificationEmail,
 } from "@/features/auth/authSlice";
 import { getErrorMessage } from "@/lib/errors";
+import { checkoutReturn } from "@/lib/auth-return";
 
-export const Route = createFileRoute("/login")({ component: Login });
+export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): { returnTo?: string } => ({
+    returnTo: checkoutReturn(search.returnTo),
+  }),
+  component: Login,
+});
 
 function Login() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { returnTo } = Route.useSearch();
+  const finish = () =>
+    returnTo ? window.location.assign(returnTo) : navigate({ to: "/dashboard" });
   const { loading, error } = useAppSelector((state) => state.auth);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +38,12 @@ function Login() {
   }, [dispatch]);
 
   return (
-    <AuthLayout prompt="New here?" linkLabel="Create an account" linkTo="/signup">
+    <AuthLayout
+      prompt="New here?"
+      linkLabel="Create an account"
+      linkTo="/signup"
+      returnTo={returnTo}
+    >
       <AuthHeading title="Welcome back">
         Sign in to follow the causes you support and manage your giving.
       </AuthHeading>
@@ -40,7 +54,7 @@ function Login() {
             dispatch(clearAuthError());
             try {
               await dispatch(googleAuth({ idToken })).unwrap();
-              navigate({ to: "/dashboard" });
+              finish();
             } catch (err) {
               toast.error(getErrorMessage(err, "Google sign-in failed"));
             }
@@ -62,13 +76,13 @@ function Login() {
             dispatch(clearAuthError());
             try {
               await dispatch(login({ identifier: identifier.trim(), password })).unwrap();
-              navigate({ to: "/dashboard" });
+              finish();
             } catch (err) {
               const message = getErrorMessage(err, "Login failed");
               const email = identifier.trim().toLowerCase();
               if (message.includes("not verified") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 dispatch(setPendingVerificationEmail(email));
-                navigate({ to: "/signup", search: { mode: "otp" } });
+                navigate({ to: "/signup", search: { mode: "otp", returnTo } });
                 return;
               }
               toast.error(message);

@@ -7,6 +7,16 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-gsf: "Google Sans Flex", "Plus Jakarta Sans", sans-serif;
+  --color-paper: #ffffff;
+  --color-panel: #f7f5f3;
+  --color-ink: #130e30;
+  --color-ink-soft: #4a4660;
+  --color-muted-ink: #667085;
+  --color-line-soft: #eae8ed;
+  --color-line-input: #d0d5dd;
+  --color-brand: #fe5102;
+  --color-brand-ink: #a63a05;
   --font-display: "Fraunces", Georgia, serif;
   --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 6px);
@@ -185,6 +195,46 @@
 }
 
 @layer utilities {
+  .admin-frame h1,
+  .admin-frame h2,
+  .admin-frame h3,
+  .admin-frame .font-display {
+    font-family: var(--font-gsf);
+  }
+  .admin-page :is(.border-gray-200, .border-gray-100) {
+    border-color: #eae8ed;
+  }
+  .admin-page .text-gray-900 {
+    color: #130e30;
+  }
+  .admin-page :is(.text-gray-500, .text-gray-600) {
+    color: #667085;
+  }
+  .admin-page .rounded-xl {
+    border-radius: 14px;
+  }
+  .admin-page :is(.bg-amber-500, .bg-amber-400) {
+    background-color: #fe5102;
+  }
+  .admin-page .font-display {
+    font-weight: 600;
+  }
+  .admin-page table th {
+    background: #f7f5f3;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .admin-page table td {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .admin-frame :focus-visible {
+    outline: 2px solid #a63a05;
+    outline-offset: 3px;
+  }
+  .admin-page :is(p, h2, h3, dd, a) {
+    overflow-wrap: anywhere;
+  }
   .public-layout {
     --color-background: #fff;
     --color-card: #fff;

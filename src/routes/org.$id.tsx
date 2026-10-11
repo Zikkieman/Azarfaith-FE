@@ -28,14 +28,11 @@ import { isPublished } from "@/lib/discovery";
 import {
   getCloudinaryStatus,
   getOrganization,
-  getOrganizationPayoutSummary,
-  getPayoutBanks,
-  resolvePayoutAccount,
   submitOrganizationDraft,
   updateOrganization,
-  upsertOrganizationPayoutAccount,
   uploadMedia,
 } from "@/features/catalog/api";
+import { PayoutSettings } from "@/components/profile/PayoutSettings";
 import { formatMoney, orgCategoryOptions } from "@/lib/catalog";
 
 export const Route = createFileRoute("/org/$id")({
@@ -69,16 +66,6 @@ function OrgProfile() {
     queryFn: getCloudinaryStatus,
     enabled: ready && hydrated && ownerTools && isOwner,
   });
-  const { data: payoutBanks } = useQuery({
-    queryKey: ["payout-banks"],
-    queryFn: getPayoutBanks,
-    enabled: ready && hydrated && ownerTools && isOwner,
-  });
-  const { data: payoutSummary } = useQuery({
-    queryKey: ["organization", id, "payout-summary", user?.id],
-    queryFn: () => getOrganizationPayoutSummary(id),
-    enabled: ready && hydrated && ownerTools && isOwner,
-  });
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -94,11 +81,6 @@ function OrgProfile() {
     registrationDocumentUrls: [] as string[],
   });
   const [externalLinkInput, setExternalLinkInput] = useState("");
-  const [payoutBankCode, setPayoutBankCode] = useState("");
-  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
-  const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
-  const [resolvedPayoutAccountName, setResolvedPayoutAccountName] = useState("");
-  const [resolveError, setResolveError] = useState("");
   const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
@@ -122,13 +104,6 @@ function OrgProfile() {
       registrationDocumentUrls: org.registrationDocuments,
     });
   }, [org]);
-
-  useEffect(() => {
-    if (!payoutSummary?.payoutAccount) return;
-    setPayoutBankCode(payoutSummary.payoutAccount.bankCode);
-    setPayoutAccountHolderName(payoutSummary.payoutAccount.accountHolderName);
-    setResolvedPayoutAccountName(payoutSummary.payoutAccount.accountName);
-  }, [payoutSummary]);
 
   const uploadPhotosMutation = useMutation({
     mutationFn: async (files: File[]) => {
@@ -212,53 +187,6 @@ function OrgProfile() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
-  const resolvePayoutMutation = useMutation({
-    mutationFn: () =>
-      resolvePayoutAccount({
-        bankCode: payoutBankCode,
-        accountNumber: payoutAccountNumber,
-      }),
-    onSuccess: (response) => {
-      setResolvedPayoutAccountName(response.accountName);
-      setResolveError("");
-    },
-    onError: (error: Error) => {
-      setResolveError(
-        error.message ||
-          "Paystack could not confirm this account right now. You can still save it manually as pending.",
-      );
-    },
-  });
-  const requestPayoutResolution = resolvePayoutMutation.mutate;
-  useEffect(() => {
-    if (!ownerTools || !isOwner || !payoutBankCode || payoutAccountNumber.length !== 10) {
-      setResolveError("");
-      return;
-    }
-    const timeoutId = window.setTimeout(() => requestPayoutResolution(), 500);
-    return () => window.clearTimeout(timeoutId);
-  }, [ownerTools, isOwner, payoutBankCode, payoutAccountNumber, requestPayoutResolution]);
-
-  const savePayoutMutation = useMutation({
-    mutationFn: () =>
-      upsertOrganizationPayoutAccount(id, {
-        accountHolderName: payoutAccountHolderName.trim(),
-        bankCode: payoutBankCode,
-        accountNumber: payoutAccountNumber,
-        accountName: resolvedPayoutAccountName.trim() || payoutAccountHolderName.trim(),
-      }),
-    onSuccess: (response) => {
-      setResolvedPayoutAccountName(response.accountName);
-      queryClient.invalidateQueries({ queryKey: ["organization", id, "payout-summary"] });
-      toast.success(
-        response.status === "verified"
-          ? "Payout account saved. This organization can now use your verified profile payout destination."
-          : "Payout account saved. Your profile payout destination is still the default until this extra organization payout setup is verified.",
-      );
-    },
-    onError: (error: Error) => toast.error(error.message),
-  });
-
   if (error instanceof ApiError && error.status === 404) throw notFound();
   if (ready && hydrated && error)
     return (
@@ -830,141 +758,8 @@ function OrgProfile() {
               </div>
             ) : null}
 
-            <div className="mt-6 rounded-2xl border border-border bg-background p-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                    Organization payout destination
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    This organization uses your profile payout account by default. Add a separate
-                    organization-specific payout account only if you want a different destination
-                    for this organization.
-                  </p>
-                </div>
-                {payoutSummary?.payoutAccount ? (
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    {payoutSummary.payoutAccount.bankName} ·{" "}
-                    {payoutSummary.payoutAccount.accountNumberMasked}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Bank</label>
-                  <select
-                    value={payoutBankCode}
-                    onChange={(event) => setPayoutBankCode(event.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  >
-                    <option value="">Select a bank</option>
-                    {(payoutBanks ?? []).map((bank) => (
-                      <option key={bank.code} value={bank.code}>
-                        {bank.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Account number</label>
-                  <input
-                    value={payoutAccountNumber}
-                    onChange={(event) =>
-                      setPayoutAccountNumber(event.target.value.replace(/\D/g, "").slice(0, 10))
-                    }
-                    placeholder="10-digit account number"
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                </div>
-                <Field
-                  label="Account holder name"
-                  value={payoutAccountHolderName}
-                  onChange={setPayoutAccountHolderName}
-                />
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Beneficiary name</label>
-                  <input
-                    value={resolvedPayoutAccountName}
-                    onChange={(event) => setResolvedPayoutAccountName(event.target.value)}
-                    placeholder="Beneficiary account name"
-                    className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    AzarFaith will try to confirm this automatically. If Paystack is unavailable,
-                    you can still save it manually and it will stay pending. Your profile payout
-                    account remains the default unless this organization-specific one is verified.
-                  </p>
-                </div>
-              </div>
-
-              {resolvePayoutMutation.isPending ? (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Checking account details with Paystack...
-                </p>
-              ) : null}
-              {resolveError ? <p className="mt-3 text-xs text-amber-700">{resolveError}</p> : null}
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!payoutBankCode || payoutAccountNumber.length !== 10) {
-                      toast.error("Select a bank and enter a valid 10-digit account number.");
-                      return;
-                    }
-                    resolvePayoutMutation.mutate();
-                  }}
-                  disabled={resolvePayoutMutation.isPending}
-                  className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
-                >
-                  {resolvePayoutMutation.isPending ? "Checking..." : "Retry account check"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (
-                      !payoutBankCode ||
-                      payoutAccountNumber.length !== 10 ||
-                      !payoutAccountHolderName.trim() ||
-                      !resolvedPayoutAccountName.trim()
-                    ) {
-                      toast.error(
-                        "Complete the organization-specific payout account form before saving.",
-                      );
-                      return;
-                    }
-                    savePayoutMutation.mutate();
-                  }}
-                  disabled={savePayoutMutation.isPending}
-                  className="rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-                >
-                  {savePayoutMutation.isPending ? "Saving..." : "Save separate org payout account"}
-                </button>
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="font-display text-2xl">
-                    {formatMoney(payoutSummary?.totalCollected ?? 0)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Collected for this organization
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="font-display text-2xl">
-                    {formatMoney(payoutSummary?.totalReleased ?? 0)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Already released</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <p className="font-display text-2xl">
-                    {formatMoney(payoutSummary?.availableBalance ?? 0)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Available for admin release</p>
-                </div>
-              </div>
+            <div className="mt-6">
+              <PayoutSettings userId={user!.id} organizationId={id} />
             </div>
           </section>
         ) : null}

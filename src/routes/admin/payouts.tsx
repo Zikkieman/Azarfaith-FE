@@ -1,303 +1,566 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Landmark, Send, ShieldAlert } from "lucide-react";
+import { Landmark, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-
 import {
   finalizeAdminPayout,
   getAdminPayouts,
+  reconcileAdminPayout,
   releaseAdminPayout,
 } from "@/features/catalog/api";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
 import { PageSpinner } from "@/components/PageSpinner";
-import { formatMoney } from "@/lib/catalog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  formatMoney,
+  formatAmountInput,
+  parseAmountInput,
+  type AdminPayoutItem,
+} from "@/lib/catalog";
+import { payoutOutcome, payoutReleaseError } from "@/lib/admin";
+import { adminApiFetch } from "@/lib/api";
+import type { PayoutRequest } from "@/lib/payout-request";
+import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 
-export const Route = createFileRoute("/admin/payouts")({
-  component: AdminPayoutsPage,
-});
-
-function formatNumberInput(value: string) {
-  if (!value) return "";
-  const digits = value.replace(/[^\d]/g, "");
-  if (!digits) return "";
-  return Number(digits).toLocaleString();
-}
+export const Route = createFileRoute("/admin/payouts")({ component: AdminPayoutsPage });
+type Release = { item: AdminPayoutItem; amount: number; reason: string; requestId: string };
 
 function AdminPayoutsPage() {
-  const isClient = typeof window !== "undefined";
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin", "payouts"],
-    queryFn: getAdminPayouts,
-    enabled: isClient,
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: ["admin", "payouts"], queryFn: getAdminPayouts });
+  const requests = useQuery({
+    queryKey: ["admin", "payout-requests"],
+    queryFn: () => adminApiFetch<PayoutRequest[]>("/admin/review/payout-requests"),
   });
-  const [draftAmounts, setDraftAmounts] = useState<Record<string, string>>({});
-  const [draftReasons, setDraftReasons] = useState<Record<string, string>>({});
-  const [otpTransferId, setOtpTransferId] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-
-  const releaseMutation = useMutation({
-    mutationFn: ({
-      ownerType,
-      ownerId,
-      amount,
-      reason,
-    }: {
-      ownerType: "USER" | "ORGANIZATION";
-      ownerId: string;
-      amount?: number;
-      reason?: string;
-    }) => releaseAdminPayout({ ownerType, ownerId, amount, reason }),
-    onSuccess: (transfer) => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "payouts"] });
-      if (transfer.status === "otp") {
-        setOtpTransferId(transfer.id);
-        toast.success("Payout initiated. Enter the Paystack OTP to finalize it.");
-        return;
-      }
-      toast.success("Payout released successfully.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const finalizeMutation = useMutation({
-    mutationFn: () => finalizeAdminPayout(otpTransferId, { otp: otpCode }),
+  const [decline, setDecline] = useState<PayoutRequest | null>(null);
+  const declineMutation = useMutation({
+    mutationFn: (reason: string) =>
+      adminApiFetch(`/admin/review/payout-requests/${decline!.id}/decline`, {
+        method: "PATCH",
+        body: JSON.stringify({ reason }),
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "payouts"] });
-      setOtpCode("");
-      setOtpTransferId("");
-      toast.success("Payout finalized.");
+      setDecline(null);
+      void client.invalidateQueries({ queryKey: ["admin"] });
+      void client.invalidateQueries({ queryKey: ["payout-requests"] });
+    },
+  });
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [confirmation, setConfirmation] = useState<Release | null>(null);
+  const [otpTransferId, setOtpTransferId] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: ["admin"] });
+    void client.invalidateQueries({ queryKey: ["payout-summary"] });
+    void client.invalidateQueries({ queryKey: ["dashboard"] });
+    void client.invalidateQueries({ queryKey: ["payout-requests"] });
+  };
+  const release = useMutation({
+    mutationFn: (value: Release) =>
+      releaseAdminPayout({
+        requestId: value.requestId,
+        ownerType: value.item.ownerType === "user" ? "USER" : "ORGANIZATION",
+        ownerId: value.item.ownerId,
+        amount: value.amount,
+        reason: value.reason,
+      }),
+    onSuccess: (result, value) => {
+      refresh();
+      setConfirmation(null);
+      setAmounts((old) => ({ ...old, [`${value.item.ownerType}:${value.item.ownerId}`]: "" }));
+      toast.info(payoutOutcome(result.status));
+      if (result.status === "otp") {
+        setOtpTransferId(result.id);
+        setOtp("");
+      }
     },
     onError: (error: Error) => {
+      refresh();
       toast.error(error.message);
     },
   });
-
+  const finalize = useMutation({
+    mutationFn: () => finalizeAdminPayout(otpTransferId!, { otp }),
+    onSuccess: (result) => {
+      refresh();
+      toast.info(payoutOutcome(result.status));
+      if (result.status !== "otp") {
+        setOtpTransferId(null);
+        setOtp("");
+      }
+    },
+    onError: (error: Error) => {
+      refresh();
+      toast.error(error.message);
+    },
+  });
+  const reconcile = useMutation({
+    mutationFn: reconcileAdminPayout,
+    onSuccess: (result) => {
+      refresh();
+      toast.info(payoutOutcome(result.status));
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const busy = release.isPending || finalize.isPending || reconcile.isPending;
   return (
-    <AdminPageWrapper title="Payouts">
-      <div className="space-y-6">
-        {otpTransferId ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="mt-0.5 h-5 w-5 text-amber-700" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-900">Finalize Paystack payout</p>
-                <p className="mt-1 text-sm text-amber-800">
-                  Paystack requested an OTP before this transfer can complete. Enter the OTP sent for the transfer.
+    <AdminPageWrapper
+      title="Payouts"
+      lead="Review the destination and net balance before releasing money through Paystack."
+      actions={
+        <button
+          type="button"
+          className="giving-small-button"
+          disabled={busy || query.isFetching}
+          onClick={() => void query.refetch()}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
+      }
+    >
+      {query.isPending ? (
+        <PageSpinner label="Loading payouts" fullScreen={false} />
+      ) : query.isError ? (
+        <AdminLoadError
+          retry={() => void query.refetch()}
+          message="Could not load payout balances. No release is available until balances can be checked."
+        />
+      ) : (
+        query.data && (
+          <div className="space-y-8">
+            <section className="rounded-xl border border-line-soft bg-white p-5">
+              <h2 className="mb-4 font-semibold">Creator payout requests</h2>
+              <p className="mb-4 text-xs text-muted-ink">
+                Latest 50 requests. A request is not a completed payment.
+              </p>
+              {requests.isError ? (
+                <AdminLoadError retry={() => void requests.refetch()} />
+              ) : !requests.data ? (
+                <p role="status" className="text-sm">
+                  Loading requests...
                 </p>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                  <input
-                    value={otpCode}
-                    onChange={(event) =>
-                      setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 12))
-                    }
-                    placeholder="Enter transfer OTP"
-                    className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 sm:max-w-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!otpCode.trim()) {
-                        toast.error("Enter the Paystack OTP first.");
-                        return;
-                      }
-                      finalizeMutation.mutate();
-                    }}
-                    disabled={finalizeMutation.isPending}
-                    className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-                  >
-                    {finalizeMutation.isPending ? "Finalizing..." : "Finalize payout"}
-                  </button>
+              ) : !requests.data.length ? (
+                <p className="text-sm text-muted-ink">No payout requests yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {requests.data.map((request) => {
+                    const item = query.data.items.find(
+                      (item) =>
+                        item.ownerId === request.ownerId &&
+                        item.ownerType === (request.ownerType === "USER" ? "user" : "organization"),
+                    );
+                    return (
+                      <article
+                        key={request.id}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-line-soft p-4"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">
+                            {request.ownerName} · {formatMoney(request.amount)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-ink">
+                            {request.transfer?.status ??
+                              (request.status === "OPEN"
+                                ? "Awaiting review"
+                                : request.status.toLowerCase())}{" "}
+                            · {new Date(request.createdAt).toLocaleDateString()}
+                          </p>
+                          {request.note && <p className="mt-2 text-xs">{request.note}</p>}
+                          {request.decisionReason && (
+                            <p className="mt-2 text-xs text-red-700">{request.decisionReason}</p>
+                          )}
+                        </div>
+                        {request.status === "OPEN" && !request.transfer && (
+                          <div className="flex gap-2">
+                            <button
+                              className="giving-small-button"
+                              disabled={!item || !!payoutReleaseError(item, request.amount) || busy}
+                              onClick={() => {
+                                if (item) {
+                                  release.reset();
+                                  setConfirmation({
+                                    item,
+                                    amount: request.amount,
+                                    reason: request.note ?? "Creator payout request",
+                                    requestId: request.id,
+                                  });
+                                }
+                              }}
+                            >
+                              Review payout
+                            </button>
+                            <button
+                              className="giving-small-button text-red-700"
+                              disabled={busy || declineMutation.isPending}
+                              onClick={() => {
+                                declineMutation.reset();
+                                setDecline(request);
+                              }}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
-              </div>
+              )}
+            </section>
+            <div className="rounded-xl border border-line-soft bg-panel p-4 text-sm leading-relaxed text-muted-ink">
+              Available funds are net of platform fees. Processing and OTP payouts reserve their
+              amounts. A submitted payout is not proof of payment; its status must be confirmed by
+              Paystack.
             </div>
-          </div>
-        ) : null}
-
-        {isLoading && !data ? (
-          <PageSpinner label="Loading payouts..." fullScreen={false} />
-        ) : null}
-
-        {!isLoading && data && data.items.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
-            <Landmark className="mx-auto h-8 w-8 text-gray-400" />
-            <p className="mt-3 text-sm font-medium text-gray-900">No payout owners yet</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Payout-eligible organizations and personal creators will show up here once they have a balance or a payout account.
-            </p>
-          </div>
-        ) : null}
-
-        {data?.items.length ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {data.items.map((item) => {
-              const amountInput = draftAmounts[item.ownerId] ?? "";
-              const amountDisplay = formatNumberInput(amountInput);
-              const reasonInput = draftReasons[item.ownerId] ?? "";
-
-              return (
-                <div key={`${item.ownerType}-${item.ownerId}`} className="rounded-xl border border-gray-200 bg-white p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                        {item.ownerType === "organization" ? "Organization payout" : "Personal payout"}
-                      </p>
-                      <h2 className="mt-2 text-lg font-semibold text-gray-900">{item.ownerName}</h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Verification: {item.verificationStatus.replaceAll("_", " ")}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                      {item.campaignCount} campaign{item.campaignCount === 1 ? "" : "s"}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-3 gap-3">
-                    <PayoutStat label="Collected" value={formatMoney(item.totalCollected)} />
-                    <PayoutStat label="Released" value={formatMoney(item.totalReleased)} />
-                    <PayoutStat label="Available" value={formatMoney(item.availableBalance)} />
-                  </div>
-
-                  <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                      Destination account
-                    </p>
-                    {item.payoutAccount ? (
-                      <>
-                        <p className="mt-2 text-sm font-medium text-gray-900">
-                          {item.payoutAccount.bankName} · {item.payoutAccount.accountNumberMasked}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">
-                          {item.payoutAccount.accountName} · {item.payoutAccount.accountHolderName}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-2 text-sm text-rose-600">
-                        No verified payout account has been saved yet.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 grid gap-3">
-                    <input
-                      value={amountDisplay}
-                      onChange={(event) =>
-                        setDraftAmounts((current) => ({
-                          ...current,
-                          [item.ownerId]: event.target.value.replace(/[^\d]/g, ""),
-                        }))
-                      }
-                      placeholder={`Amount to release (max ${item.availableBalance.toLocaleString()})`}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    />
-                    <input
-                      value={reasonInput}
-                      onChange={(event) =>
-                        setDraftReasons((current) => ({
-                          ...current,
-                          [item.ownerId]: event.target.value,
-                        }))
-                      }
-                      placeholder="Reason for payout release"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    />
-                  </div>
-
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!item.payoutAccount) {
-                          toast.error("This owner needs a verified payout account first.");
-                          return;
-                        }
-                        if (item.availableBalance <= 0) {
-                          toast.error("There is no available balance to release.");
-                          return;
-                        }
-
-                        const parsedAmount = amountInput.trim()
-                          ? Number(amountInput.trim())
-                          : undefined;
-                        if (parsedAmount !== undefined && (!Number.isFinite(parsedAmount) || parsedAmount < 1)) {
-                          toast.error("Enter a valid release amount.");
-                          return;
-                        }
-
-                        releaseMutation.mutate({
-                          ownerType: item.ownerType === "organization" ? "ORGANIZATION" : "USER",
-                          ownerId: item.ownerId,
-                          amount: parsedAmount,
-                          reason: reasonInput.trim() || undefined,
-                        });
-                      }}
-                      disabled={releaseMutation.isPending}
-                      className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+            {!query.data.items.length ? (
+              <div className="rounded-xl border border-dashed border-line-input p-10 text-center">
+                <Landmark className="mx-auto h-6 w-6 text-muted-ink" />
+                <h2 className="mt-3 text-sm font-medium">No payout owners yet</h2>
+                <p className="mt-2 text-sm text-muted-ink">
+                  Creators with a bank account or collected funds will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-5 xl:grid-cols-2">
+                {query.data.items.map((item) => {
+                  const key = `${item.ownerType}:${item.ownerId}`;
+                  const rawAmount = amounts[key] ?? "";
+                  return (
+                    <section
+                      key={key}
+                      className="min-w-0 rounded-xl border border-line-soft bg-paper p-5"
                     >
-                      <Send className="h-4 w-4" />
-                      {releaseMutation.isPending ? "Releasing..." : "Release payout"}
-                    </button>
-                  </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-ink">
+                            {item.ownerType === "organization"
+                              ? "Organization"
+                              : "Personal creator"}
+                          </p>
+                          <h2 className="mt-1 text-lg font-semibold">{item.ownerName}</h2>
+                        </div>
+                        <span className="shrink-0 rounded-md bg-panel px-2 py-1 text-xs">
+                          {item.campaignCount} campaigns
+                        </span>
+                      </div>
+                      <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        {[
+                          ["Collected", item.totalCollected],
+                          ["Platform fees", item.totalPlatformFees],
+                          ["Net collected", item.totalNetCollected],
+                          ["Released / reserved", item.totalReleased],
+                          ["Available", item.availableBalance],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <dt className="text-xs text-muted-ink">{label}</dt>
+                            <dd className="mt-1 text-base font-medium tabular-nums">
+                              {formatMoney(Number(value))}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <div className="my-5 rounded-xl bg-panel p-4 text-sm">
+                        <p className="text-xs text-muted-ink">Destination account</p>
+                        {item.payoutAccount ? (
+                          <>
+                            <p className="mt-2 font-medium">
+                              {item.payoutAccount.bankName} ·{" "}
+                              {item.payoutAccount.accountNumberMasked}
+                            </p>
+                            <p className="mt-1">{item.payoutAccount.accountName}</p>
+                            <p className="mt-1 text-xs text-muted-ink">
+                              {item.payoutAccount.active ? item.payoutAccount.status : "inactive"}
+                              {item.payoutAccount.ownerType === "user" &&
+                              item.ownerType === "organization"
+                                ? " · inherited profile account"
+                                : ""}
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-2 text-red-700">No verified payout account saved.</p>
+                        )}
+                      </div>
+                      <fieldset disabled={busy} className="space-y-4">
+                        <label className="giving-label">
+                          Amount to release for {item.ownerName}
+                          <input
+                            className="giving-input"
+                            inputMode="numeric"
+                            value={formatAmountInput(rawAmount)}
+                            onChange={(event) =>
+                              setAmounts((old) => ({
+                                ...old,
+                                [key]: event.target.value.replace(/\D/g, ""),
+                              }))
+                            }
+                            placeholder={`Up to ${formatMoney(item.availableBalance)}`}
+                          />
+                        </label>
+                        <label className="giving-label">
+                          Release reason for {item.ownerName}
+                          <input
+                            className="giving-input"
+                            maxLength={240}
+                            value={reasons[key] ?? ""}
+                            onChange={(event) =>
+                              setReasons((old) => ({ ...old, [key]: event.target.value }))
+                            }
+                            placeholder="Optional audit note"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="w-full rounded-xl bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-40"
+                          disabled={busy || !!payoutReleaseError(item, parseAmountInput(rawAmount))}
+                          onClick={() => {
+                            const amount = parseAmountInput(rawAmount),
+                              error = payoutReleaseError(item, amount);
+                            if (error) {
+                              toast.error(error);
+                              return;
+                            }
+                            release.reset();
+                            setConfirmation({
+                              item,
+                              amount,
+                              reason: (reasons[key] ?? "").trim(),
+                              requestId: crypto.randomUUID(),
+                            });
+                          }}
+                        >
+                          Review payout
+                        </button>
+                      </fieldset>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+            <section>
+              <h2 className="mb-4 text-base font-semibold">Recent transfer history</h2>
+              <p className="mb-4 text-xs text-muted-ink">
+                Latest 50 transfers. Status checks do not send a new payment.
+              </p>
+              {!query.data.history.length ? (
+                <p className="text-sm text-muted-ink">No payout history yet.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-line-soft">
+                  <table className="w-full min-w-[780px] text-left text-sm">
+                    <thead>
+                      <tr>
+                        {[
+                          "Recipient",
+                          "Amount",
+                          "Status",
+                          "Reference / reason",
+                          "Released by",
+                          "Actions",
+                        ].map((label) => (
+                          <th key={label} className="px-4 py-3">
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {query.data.history.map((transfer) => (
+                        <tr key={transfer.id} className="border-t border-line-soft">
+                          <td className="px-4">
+                            {transfer.ownerName}
+                            <time
+                              className="mt-1 block text-xs text-muted-ink"
+                              dateTime={transfer.releasedAt}
+                            >
+                              {new Date(transfer.releasedAt).toLocaleString("en-NG")}
+                            </time>
+                          </td>
+                          <td className="px-4 tabular-nums">{formatMoney(transfer.amount)}</td>
+                          <td className="px-4">
+                            <span className="rounded-md bg-panel px-2 py-1 text-xs">
+                              {transfer.status}
+                            </span>
+                          </td>
+                          <td className="max-w-60 px-4">
+                            <p className="break-all text-xs">{transfer.reference}</p>
+                            <p className="mt-1 text-xs text-muted-ink">{transfer.reason}</p>
+                            {transfer.failureMessage && (
+                              <p className="mt-1 text-xs text-red-700">{transfer.failureMessage}</p>
+                            )}
+                          </td>
+                          <td className="px-4 text-xs">{transfer.releasedByEmail}</td>
+                          <td className="px-4">
+                            <div className="flex flex-col gap-2">
+                              {transfer.status === "otp" && (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  className="giving-small-button"
+                                  onClick={() => {
+                                    finalize.reset();
+                                    setOtpTransferId(transfer.id);
+                                    setOtp("");
+                                  }}
+                                >
+                                  Enter OTP
+                                </button>
+                              )}
+                              {["pending", "otp", "success"].includes(transfer.status) && (
+                                <button
+                                  type="button"
+                                  className="giving-small-button"
+                                  disabled={busy}
+                                  onClick={() => reconcile.mutate(transfer.id)}
+                                >
+                                  Check status
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              );
-            })}
+              )}
+            </section>
           </div>
-        ) : null}
-
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-            Payout history
-          </h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-gray-200 text-xs uppercase tracking-[0.18em] text-gray-500">
-                <tr>
-                  <th className="px-3 py-3">Owner</th>
-                  <th className="px-3 py-3">Amount</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Reference</th>
-                  <th className="px-3 py-3">Released by</th>
-                  <th className="px-3 py-3">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.history ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-sm text-gray-500">
-                      No payout history yet.
-                    </td>
-                  </tr>
-                ) : (
-                  data?.history.map((transfer) => (
-                    <tr key={transfer.id} className="border-b border-gray-100 last:border-b-0">
-                      <td className="px-3 py-3 font-medium text-gray-900">{transfer.ownerName}</td>
-                      <td className="px-3 py-3 text-gray-700">{formatMoney(transfer.amount)}</td>
-                      <td className="px-3 py-3 text-gray-700">{transfer.status.replaceAll("_", " ")}</td>
-                      <td className="px-3 py-3 text-xs text-gray-500">{transfer.reference}</td>
-                      <td className="px-3 py-3 text-gray-700">{transfer.releasedByEmail}</td>
-                      <td className="px-3 py-3 text-gray-700">
-                        {new Date(transfer.releasedAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+        )
+      )}
+      <Dialog
+        open={!!confirmation}
+        onOpenChange={(open) => {
+          if (!open && !release.isPending) setConfirmation(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm payout release</DialogTitle>
+            <DialogDescription>
+              Paystack will transfer this amount to the destination below. Review it carefully.
+            </DialogDescription>
+          </DialogHeader>
+          {confirmation && (
+            <>
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-muted-ink">Recipient</dt>
+                  <dd className="font-medium">{confirmation.item.ownerName}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-ink">Amount</dt>
+                  <dd className="text-xl font-semibold">{formatMoney(confirmation.amount)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-ink">Bank account</dt>
+                  <dd>
+                    {confirmation.item.payoutAccount?.bankName} ·{" "}
+                    {confirmation.item.payoutAccount?.accountNumberMasked}
+                  </dd>
+                  <dd>{confirmation.item.payoutAccount?.accountName}</dd>
+                </div>
+              </dl>
+              {release.isError && (
+                <p role="alert" className="text-sm text-red-700">
+                  {release.error.message}
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  className="giving-small-button"
+                  disabled={release.isPending}
+                  onClick={() => setConfirmation(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl bg-black px-4 py-3 text-sm text-white disabled:opacity-40"
+                  disabled={release.isPending}
+                  onClick={() => release.mutate(confirmation)}
+                >
+                  {release.isPending ? "Submitting..." : "Release via Paystack"}
+                </button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!otpTransferId}
+        onOpenChange={(open) => {
+          if (!open && !finalize.isPending) {
+            setOtpTransferId(null);
+            setOtp("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Paystack OTP</DialogTitle>
+            <DialogDescription>
+              Enter the OTP sent by Paystack. This completes the existing transfer, not a new
+              payment.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (/^\d{4,12}$/.test(otp)) finalize.mutate();
+            }}
+          >
+            <label className="giving-label">
+              Transfer OTP
+              <input
+                className="giving-input"
+                value={otp}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                pattern="[0-9]{4,12}"
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 12))}
+              />
+            </label>
+            {finalize.isError && (
+              <p role="alert" className="text-sm text-red-700">
+                {finalize.error.message}
+              </p>
+            )}
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-black px-4 py-3 text-sm text-white disabled:opacity-40"
+              disabled={finalize.isPending || !/^\d{4,12}$/.test(otp)}
+            >
+              {finalize.isPending ? "Confirming..." : "Confirm transfer"}
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <AdminRejectDialog
+        key={decline?.id}
+        open={Boolean(decline)}
+        onOpenChange={(value) => {
+          if (!value) setDecline(null);
+        }}
+        title="Decline payout request"
+        description="Explain why this payout request is not approved. No transfer will be initiated."
+        confirmLabel="Decline request"
+        minLength={5}
+        error={declineMutation.isError ? declineMutation.error.message : undefined}
+        pending={declineMutation.isPending}
+        onReject={(reason) => declineMutation.mutate(reason)}
+      />
     </AdminPageWrapper>
-  );
-}
-
-function PayoutStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-      <p className="text-lg font-semibold text-gray-900">{value}</p>
-      <p className="mt-1 text-xs text-gray-500">{label}</p>
-    </div>
   );
 }
