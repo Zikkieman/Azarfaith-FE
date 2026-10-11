@@ -15,7 +15,11 @@ async function run(name, fn, options = {}) {
   page.setDefaultTimeout(15000); page.on("pageerror", (error) => errors.push(error.message));
   await context.route("https://fonts.googleapis.com/**", (route) => route.abort());
   await context.route("https://accounts.google.com/**", (route) => route.abort());
-  let profile = structuredClone(baseline), preferences = { donationsReceived: true, campaignUpdates: true, comments: true, systemMessages: true }, payout = structuredClone(saved), cards = [structuredClone(card)];
+  let profile = { ...structuredClone(baseline), avatarUrl: options.avatarUrl ?? null }, preferences = { donationsReceived: true, campaignUpdates: true, comments: true, systemMessages: true }, payout = structuredClone(saved), cards = [structuredClone(card)];
+  await context.route("https://fixture.example/**", (route) => {
+    if (new URL(route.request().url()).pathname === "/broken-avatar.png") return route.abort();
+    return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBMUAAAAASUVORK5CYII=", "base64") });
+  });
   let profileFails = options.profileFails ?? 0, prefSaveFails = options.prefSaveFails ?? 0, prefReadFails = options.prefReadFails ?? 0, passwordFails = options.passwordFails ?? 0, notificationFails = options.notificationFails ?? 0, readFails = options.readFails ?? 0;
   let signedOut = options.guest ?? false;
   let profileGets = 0;
@@ -110,10 +114,35 @@ try {
   await run("Valid avatar uploads to the user-avatar folder and is persisted only after saving profile", async ({ page, requests }) => {
     await page.goto(`${origin}/profile`); const details = section(page, "details");
     await details.locator('input[type="file"]').setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBMUAAAAASUVORK5CYII=", "base64") });
-    await details.getByAltText("Profile photo preview").waitFor(); assert.equal(patch(requests, "/me/profile").length, 0);
+    await details.getByRole("img", { name: "Profile photo preview", exact: true }).locator("img").waitFor({ state: "visible" }); assert.equal(patch(requests, "/me/profile").length, 0);
     assert.ok(requests.find((req) => req.path === "/media/upload").multipart.includes("user-avatar"));
     await details.getByRole("button", { name: "Save changes" }).click(); await page.getByText("Profile updated.", { exact: true }).waitFor(); assert.equal(patch(requests, "/me/profile")[0].body.avatarUrl, "https://fixture.example/avatar.png");
   });
+  for (const width of [390, 1440]) {
+    await run(`Broken avatar falls back in header and editor ${width}px and recovers after upload`, async ({ page, requests }) => {
+      await page.goto(`${origin}/profile`);
+      const header = page.getByRole("img", { name: "Profile photo", exact: true });
+      const preview = section(page, "details").getByRole("img", { name: "Profile photo preview", exact: true });
+      for (const avatar of [header, preview]) {
+        await avatar.getByText("RD", { exact: true }).waitFor();
+        await avatar.locator("img").waitFor({ state: "detached" });
+        const bounds = await avatar.boundingBox();
+        assert.equal(bounds.width, 64); assert.equal(bounds.height, 64);
+      }
+      assert.equal(patch(requests, "/me/profile").length, 0);
+      const details = section(page, "details");
+      await details.getByLabel("Full name", { exact: true }).fill("");
+      await preview.locator("svg").waitFor();
+      await details.getByLabel("Full name", { exact: true }).fill("Riverlight Donor");
+      await details.locator('input[type="file"]').setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jBMUAAAAASUVORK5CYII=", "base64") });
+      await preview.locator("img").waitFor({ state: "visible" });
+      await details.getByRole("button", { name: "Save changes" }).click();
+      await page.getByText("Profile updated.", { exact: true }).waitFor();
+      await header.locator("img").waitFor({ state: "visible" });
+      assert.equal(patch(requests, "/me/profile")[0].body.avatarUrl, "https://fixture.example/avatar.png");
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    }, { width, avatarUrl: "https://fixture.example/broken-avatar.png" });
+  }
   await run("Preference load failure does not invent enabled toggles", async ({ page }) => {
     await page.goto(`${origin}/profile`); const prefs = section(page, "notifications"); await prefs.getByText("Could not load notification preferences.").waitFor(); assert.equal(await prefs.getByRole("switch").count(), 0); await prefs.getByRole("button", { name: "Retry", exact: true }).click(); await prefs.getByRole("switch", { name: "Comments", exact: true }).waitFor();
   }, { prefReadFails: 4 });

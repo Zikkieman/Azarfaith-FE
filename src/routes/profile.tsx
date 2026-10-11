@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
 import { LogoutButton } from "@/components/LogoutButton";
+import { UserAvatar } from "@/components/UserAvatar";
 import { PayoutSettings } from "@/components/profile/PayoutSettings";
 import { EmailChange } from "@/components/profile/EmailChange";
 import { LoadError, SaveActions, SettingsSection } from "@/components/profile/SettingsParts";
@@ -86,13 +87,7 @@ function ProfileSettings({ profile }: { profile: UserProfile }) {
     <>
       <div className="mb-9 flex flex-wrap items-center justify-between gap-5 border-b border-[#efedf3] pb-8">
         <div className="flex min-w-0 items-center gap-4">
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#eee8ff] text-2xl font-semibold">
-              {profile.fullName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <UserAvatar src={profile.avatarUrl} name={profile.fullName} className="text-2xl" />
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{profile.fullName}</h1>
             <p className="mt-1 break-all text-sm text-[#777283]">{profile.email}</p>
@@ -271,17 +266,11 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
       >
         <fieldset disabled={save.isPending || upload.isPending}>
           <div className="mb-6 flex flex-wrap items-center gap-4">
-            {values.avatarUrl ? (
-              <img
-                src={values.avatarUrl}
-                alt="Profile photo preview"
-                className="h-16 w-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="grid h-16 w-16 place-items-center rounded-full bg-[#eee8ff] text-xl font-semibold">
-                {values.fullName.charAt(0).toUpperCase()}
-              </div>
-            )}
+            <UserAvatar
+              src={values.avatarUrl}
+              name={values.fullName}
+              label="Profile photo preview"
+            />
             <div>
               <button
                 type="button"

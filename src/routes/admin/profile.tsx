@@ -5,6 +5,7 @@ import { ImagePlus, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageSpinner } from "@/components/PageSpinner";
+import { UserAvatar } from "@/components/UserAvatar";
 import { AdminLoadError } from "@/components/admin/AdminLoadError";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
 import { useAppDispatch } from "@/app/hooks";
@@ -137,13 +138,11 @@ function AdminProfile() {
       <div className="space-y-6">
         <section className="rounded-2xl border border-gray-200 bg-white p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            {profile.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="" className="h-20 w-20 rounded-2xl object-cover" />
-            ) : (
-              <div className="grid h-20 w-20 place-items-center rounded-2xl bg-amber-100 font-display text-3xl text-amber-700">
-                {profile.fullName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <UserAvatar
+              src={profile.avatarUrl}
+              name={profile.fullName}
+              className="h-20 w-20 rounded-2xl bg-amber-100 font-display text-3xl text-amber-700"
+            />
             <div className="min-w-0">
               <h1 className="font-display text-2xl text-gray-900">{profile.fullName}</h1>
               <p className="mt-1 break-all text-sm text-gray-500">
@@ -196,13 +195,12 @@ function AdminProfile() {
               <div className="md:col-span-2 rounded-2xl border border-gray-200 p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-                    ) : (
-                      <div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 font-display text-2xl text-amber-700">
-                        {fullName.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
+                    <UserAvatar
+                      src={avatarUrl}
+                      name={fullName}
+                      label="Profile photo preview"
+                      className="rounded-2xl bg-amber-100 font-display text-2xl text-amber-700"
+                    />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Profile avatar</p>
                       <p className="mt-1 text-xs text-gray-500">
