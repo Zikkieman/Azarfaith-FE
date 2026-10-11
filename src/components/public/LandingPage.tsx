@@ -70,7 +70,7 @@ export function LandingPage() {
             Support verified churches, missions and ministries across Nigeria. Follow confirmed
             gifts through receipts and campaign updates.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link to="/discover" className="public-button">
               Start giving <ArrowRight className="size-4" />
             </Link>
@@ -178,7 +178,7 @@ export function LandingPage() {
             Help them keep going. Find a cause to support, or share the work of your own
             organization.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <Link to="/discover" className="public-button">
               Find a cause
             </Link>
