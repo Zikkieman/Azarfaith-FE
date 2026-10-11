@@ -18,12 +18,15 @@ import {
 } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { AdminReviewPanel } from "@/components/admin/AdminReviewPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { StatusBadge, AdminBadge } from "@/components/admin/AdminBadge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
+import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/campaigns/$id")({
   component: AdminCampaignDetail,
@@ -35,7 +38,13 @@ function AdminCampaignDetail() {
   const queryClient = useQueryClient();
   const [approveDialog, setApproveDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
-  const { data: campaign, isLoading } = useQuery({
+  const [changesDialog, setChangesDialog] = useState(false);
+  const {
+    data: campaign,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "campaign", id],
     queryFn: () => getAdminCampaign(id),
     enabled: isClient,
@@ -50,28 +59,43 @@ function AdminCampaignDetail() {
       status,
       reason,
     }: {
-      status: "VERIFIED" | "UNVERIFIED";
+      status: "VERIFIED" | "UNVERIFIED" | "PENDING";
       reason?: string;
     }) =>
       updateAdminCampaignStatus(id, {
         status,
         reason,
-        reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+        reviewAction:
+          status === "VERIFIED"
+            ? "APPROVED"
+            : status === "PENDING"
+              ? "CHANGES_REQUESTED"
+              : "REJECTED",
       }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(
         variables.status === "VERIFIED"
-          ? "Campaign approved and published"
-          : "Campaign moved to unverified",
+          ? "Campaign approval recorded"
+          : variables.status === "PENDING"
+            ? "Campaign changes requested"
+            : "Campaign moved to unverified",
       );
       setApproveDialog(false);
       setRejectDialog(false);
+      setChangesDialog(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
     },
   });
+
+  if (error && !(error instanceof ApiError && error.status === 404))
+    return (
+      <AdminPageWrapper title="Campaign review">
+        <AdminLoadError retry={() => void refetch()} />
+      </AdminPageWrapper>
+    );
 
   if (!campaign) {
     if (isLoading) {
@@ -112,7 +136,7 @@ function AdminCampaignDetail() {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-display text-2xl font-bold text-gray-900">{campaign.title}</h2>
               <StatusBadge status={campaign.verificationStatus} />
               <AdminBadge variant={campaign.urgency}>
@@ -132,9 +156,16 @@ function AdminCampaignDetail() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {campaign.verificationStatus === "pending" && (
               <>
+                <Button
+                  variant="outline"
+                  disabled={updateStatusMutation.isPending}
+                  onClick={() => setChangesDialog(true)}
+                >
+                  Request changes
+                </Button>
                 <Button
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => setApproveDialog(true)}
@@ -355,11 +386,13 @@ function AdminCampaignDetail() {
         </div>
       </div>
 
+      <AdminReviewPanel key={id} type="campaign" id={id} />
       <AdminConfirmDialog
+        pending={updateStatusMutation.isPending}
         open={approveDialog}
         onOpenChange={setApproveDialog}
         title="Approve Campaign"
-        description={`Are you sure you want to approve "${campaign.title}"? It will become visible to all donors.`}
+        description={`Approve "${campaign.title}"? It becomes public only when its linked organization is also approved.`}
         confirmLabel="Approve Campaign"
         onConfirm={() => {
           updateStatusMutation.mutate({ status: "VERIFIED" });
@@ -367,12 +400,22 @@ function AdminCampaignDetail() {
       />
 
       <AdminRejectDialog
+        pending={updateStatusMutation.isPending}
         open={rejectDialog}
         onOpenChange={setRejectDialog}
         title={`Reject "${campaign.title}"`}
         onReject={(reason) => {
           updateStatusMutation.mutate({ status: "UNVERIFIED", reason });
         }}
+      />
+      <AdminRejectDialog
+        open={changesDialog}
+        onOpenChange={setChangesDialog}
+        pending={updateStatusMutation.isPending}
+        title="Request campaign changes"
+        confirmLabel="Send request"
+        description="Explain what the creator should change. The campaign remains under review."
+        onReject={(reason) => updateStatusMutation.mutate({ status: "PENDING", reason })}
       />
     </AdminPageWrapper>
   );

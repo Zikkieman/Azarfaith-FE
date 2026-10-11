@@ -1,781 +1,486 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { Check, Church, Globe, Baby, GraduationCap, Users, X } from "lucide-react";
 import { toast } from "sonner";
-import { Baby, Check, Church, FileText, Globe, GraduationCap, ImagePlus, Link2, Loader2, Trash2, Users } from "lucide-react";
-
-import { Navbar } from "@/components/Navbar";
+import { PageSpinner } from "@/components/PageSpinner";
+import { LoadError } from "@/components/profile/SettingsParts";
 import {
-  createOrganization,
-  getCloudinaryStatus,
+  CreationLogo,
+  CreationNotice,
+  Field,
+  MediaPicker,
+} from "@/components/creation/CreationParts";
+import { useCreationSession } from "@/components/creation/useCreationSession";
+import {
   getOrganizationDraft,
   saveOrganizationDraft,
   submitOrganizationDraft,
   updateOrganizationDraft,
-  uploadMedia,
 } from "@/features/catalog/api";
-import { orgCategoryOptions } from "@/lib/catalog";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { orgCategoryOptions, type Org } from "@/lib/catalog";
+import {
+  countWords,
+  orgForm,
+  organizationErrors,
+  organizationPayload,
+  publicLink,
+} from "@/lib/creation";
 
 export const Route = createFileRoute("/register-org")({
+  validateSearch: (search: Record<string, unknown>): { draftId?: string } => ({
+    draftId: typeof search.draftId === "string" ? search.draftId : undefined,
+  }),
   component: RegisterOrg,
 });
-
-const orgIcons = {
+const icons = {
   CHURCH: Church,
   MISSION: Globe,
   ORPHANAGE: Baby,
   SCHOOL: GraduationCap,
   OTHER: Users,
-} as const;
-
-function isValidPublicUrl(value: string) {
-  try {
-    const parsed = new URL(value.trim());
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
+};
+const stepFields = [
+  ["name", "category", "otherCategoryLabel", "denomination", "foundedYear", "location"],
+  ["tagline", "bio"],
+  ["photoUrls", "registrationDocumentUrls"],
+];
 function RegisterOrg() {
-  const isAuthed = useRequireAuth();
-  const nav = useNavigate();
-  const draftId =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("draftId") ?? undefined
-      : undefined;
-  const queryClient = useQueryClient();
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
-  const documentInputRef = useRef<HTMLInputElement | null>(null);
-  const {
-    data: mediaStatus,
-    isLoading: mediaStatusLoading,
-    isError: mediaStatusError,
-  } = useQuery({
-    queryKey: ["media", "cloudinary-status"],
-    queryFn: getCloudinaryStatus,
-  });
-  const { data: draft } = useQuery({
-    queryKey: ["organization-draft", draftId],
+  const { draftId } = Route.useSearch();
+  const { ready, userId } = useCreationSession();
+  const draft = useQuery({
+    queryKey: ["organization-draft", userId, draftId],
     queryFn: () => getOrganizationDraft(draftId!),
-    enabled: isAuthed && Boolean(draftId),
+    enabled: ready && Boolean(draftId),
   });
-
-  const [step, setStep] = useState(0);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [form, setForm] = useState({
-    name: "",
-    category: "" as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER" | "",
-    otherCategoryLabel: "",
-    denomination: "",
-    foundedYear: "",
-    location: "",
-    tagline: "",
-    bio: "",
-    photoUrls: [] as string[],
-    externalLinks: [] as string[],
-    registrationDocumentUrls: [] as string[],
-  });
-  const [externalLinkInput, setExternalLinkInput] = useState("");
-
-  const addExternalLink = () => {
-    const next = externalLinkInput.trim();
-    if (!next) {
-      return;
-    }
-    if (!isValidPublicUrl(next)) {
-      toast.error("Paste a valid public link starting with http:// or https://.");
-      return;
-    }
-    if (form.externalLinks.includes(next)) {
-      toast.error("That public link has already been added.");
-      return;
-    }
-    if (form.externalLinks.length >= 10) {
-      toast.error("You can add up to 10 public links.");
-      return;
-    }
-
-    setForm((current) => ({
-      ...current,
-      externalLinks: [...current.externalLinks, next],
-    }));
-    setExternalLinkInput("");
-  };
-
-  const countWords = (value: string) =>
-    value.trim().split(/\s+/).filter(Boolean).length;
-
-  useEffect(() => {
-    if (!draft) return;
-    setForm({
-      name: draft.name,
-      category: draft.category.toUpperCase() as "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER",
-      otherCategoryLabel: draft.otherCategoryLabel || "",
-      denomination: draft.denomination,
-      foundedYear: draft.founded || "",
-      location: draft.location,
-      tagline: draft.tagline,
-      bio: draft.bio,
-      photoUrls: draft.photos,
-      externalLinks: draft.links,
-      registrationDocumentUrls: draft.registrationDocuments,
-    });
-  }, [draft]);
-
-  const uploadPhotosMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const uploads = await Promise.all(
-        files.map((file) =>
-          uploadMedia({
-            file,
-            folder: "organization-photo",
-            entityId: form.name.trim() || undefined,
-          }),
-        ),
-      );
-
-      return uploads.map((upload) => upload.url);
-    },
-    onSuccess: (urls) => {
-      setForm((current) => ({
-        ...current,
-        photoUrls: [...current.photoUrls, ...urls],
-      }));
-      toast.success(`${urls.length} photo${urls.length > 1 ? "s" : ""} uploaded.`);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const createOrgMutation = useMutation({
-    mutationFn: () =>
-      createOrganization({
-        name: form.name,
-        tagline: form.tagline,
-        category: form.category || "OTHER",
-        otherCategoryLabel:
-          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
-        denomination: form.denomination,
-        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
-        location: form.location,
-        bio: form.bio,
-        photoUrls: form.photoUrls,
-        externalLinks: form.externalLinks,
-        registrationDocumentUrls: form.registrationDocumentUrls,
-      }),
-    onSuccess: (organization) => {
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
-      toast.success("Organization created successfully.");
-      nav({ to: "/org/$id", params: { id: organization.id } });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const saveDraftMutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        name: form.name,
-        tagline: form.tagline,
-        category: form.category || undefined,
-        otherCategoryLabel:
-          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
-        denomination: form.denomination,
-        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
-        location: form.location,
-        bio: form.bio,
-        photoUrls: form.photoUrls,
-        externalLinks: form.externalLinks,
-        registrationDocumentUrls: form.registrationDocumentUrls,
-      };
-
-      return draftId
-        ? updateOrganizationDraft(draftId, payload)
-        : saveOrganizationDraft(payload);
-    },
-    onSuccess: async (organization) => {
-      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
-      toast.success("Organization draft saved.");
-
-      if (!draftId) {
-        await nav({
-          to: "/register-org",
-          search: { draftId: organization.id },
-          replace: true,
-        });
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const submitDraftMutation = useMutation({
-    mutationFn: async () => {
-      if (!draftId) {
-        throw new Error("No organization draft selected.");
-      }
-
-      await updateOrganizationDraft(draftId, {
-        name: form.name,
-        tagline: form.tagline,
-        category: form.category || undefined,
-        otherCategoryLabel:
-          form.category === "OTHER" ? form.otherCategoryLabel.trim() : undefined,
-        denomination: form.denomination,
-        foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
-        location: form.location,
-        bio: form.bio,
-        photoUrls: form.photoUrls,
-        externalLinks: form.externalLinks,
-        registrationDocumentUrls: form.registrationDocumentUrls,
-      });
-
-      return submitOrganizationDraft(draftId);
-    },
-    onSuccess: (organization) => {
-      queryClient.invalidateQueries({ queryKey: ["organizations"] });
-      queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
-      toast.success("Organization submitted for review.");
-      nav({ to: "/org/$id", params: { id: organization.id } });
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const steps = ["Details", "Mission", "Media", "Preview"];
-
-  const uploadDocumentsMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const uploads = await Promise.all(
-        files.map((file) =>
-          uploadMedia({
-            file,
-            folder: "organization-document",
-            entityId: form.name.trim() || undefined,
-          }),
-        ),
-      );
-
-      return uploads.map((upload) => upload.url);
-    },
-    onSuccess: (urls) => {
-      setForm((current) => ({
-        ...current,
-        registrationDocumentUrls: [...current.registrationDocumentUrls, ...urls],
-      }));
-      toast.success(`${urls.length} document${urls.length > 1 ? "s" : ""} uploaded.`);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const openPhotoPicker = () => {
-    if (uploadPhotosMutation.isPending || uploadDocumentsMutation.isPending) return;
-
-    if (!mediaStatus?.enabled) {
-      if (mediaStatusLoading) {
-        toast.error("Checking media upload connection. Try again in a moment.");
-        return;
-      }
-
-      if (mediaStatusError) {
-        toast.error("Could not confirm media upload setup. Refresh and try again.");
-        return;
-      }
-
-      const missing = mediaStatus?.missing?.join(", ");
-      toast.error(
-        missing
-          ? `Media upload is not configured yet: ${missing}`
-          : "Media upload is not configured yet.",
-      );
-      return;
-    }
-
-    photoInputRef.current?.click();
-  };
-
-  const openDocumentPicker = () => {
-    if (uploadPhotosMutation.isPending || uploadDocumentsMutation.isPending) return;
-
-    if (!mediaStatus?.enabled) {
-      if (mediaStatusLoading) {
-        toast.error("Checking media upload connection. Try again in a moment.");
-        return;
-      }
-
-      if (mediaStatusError) {
-        toast.error("Could not confirm media upload setup. Refresh and try again.");
-        return;
-      }
-
-      const missing = mediaStatus?.missing?.join(", ");
-      toast.error(
-        missing
-          ? `Media upload is not configured yet: ${missing}`
-          : "Media upload is not configured yet.",
-      );
-      return;
-    }
-
-    documentInputRef.current?.click();
-  };
-
-  const validate = () => {
-    const nextErrors: Record<string, string> = {};
-    if (step === 0) {
-      if (!form.name.trim()) nextErrors.name = "Organisation name is required";
-      if (form.name.trim().length > 120) nextErrors.name = "Organisation name cannot exceed 120 characters";
-      if (!form.category) nextErrors.category = "Select a category";
-      if (form.category === "OTHER" && form.otherCategoryLabel.trim().length < 2) {
-        nextErrors.otherCategoryLabel = "Specify the ministry type";
-      }
-      if (!form.denomination.trim()) nextErrors.denomination = "Denomination or tradition is required";
-      if (form.foundedYear && !/^\d{4}$/.test(form.foundedYear)) {
-        nextErrors.foundedYear = "Enter a valid 4-digit year";
-      }
-      if (!form.location.trim()) nextErrors.location = "Location is required";
-    }
-    if (step === 1) {
-      if (form.tagline.trim().length < 10) nextErrors.tagline = "Add a short tagline (at least 10 characters)";
-      if (form.tagline.trim().length > 200) nextErrors.tagline = "Tagline cannot exceed 200 characters";
-      if (countWords(form.bio) < 100) nextErrors.bio = "Tell us more about your org in at least 100 words";
-    }
-    if (step === 2) {
-      if (form.photoUrls.length < 3) nextErrors.photoUrls = "Upload at least 3 organization photos";
-      if (form.registrationDocumentUrls.length < 1) {
-        nextErrors.registrationDocumentUrls =
-          "Upload a CAC registration document or recommendation letter";
-      }
-    }
-    setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const next = () => {
-    if (!validate()) return;
-    setStep((value) => value + 1);
-  };
-
-  if (!isAuthed) {
+  useCreationSession(draft.error);
+  if (!ready || (draftId && draft.isPending))
+    return <PageSpinner label="Loading organization draft" />;
+  if (draftId && !draft.data)
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="mx-auto max-w-xl px-5 py-10">
-          <p className="text-sm text-muted-foreground">Redirecting to login...</p>
-        </div>
+      <div className="mx-auto max-w-xl p-8">
+        <LoadError
+          message="Could not load this organization draft. Nothing has been overwritten."
+          retry={() => void draft.refetch()}
+        />
       </div>
     );
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="mx-auto max-w-xl px-5 py-10">
-        <div className="mb-8 flex items-center gap-2">
-          {steps.map((label, index) => (
-            <div key={label} className="flex flex-1 items-center gap-2 last:flex-none">
-              <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${index <= step ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"}`}>
-                {index < step ? <Check className="h-3.5 w-3.5" /> : index + 1}
-              </div>
-              <span className={`hidden text-xs sm:block ${index === step ? "font-medium text-foreground" : "text-muted-foreground"}`}>{label}</span>
-              {index < steps.length - 1 && <div className={`h-px flex-1 ${index < step ? "bg-amber-400" : "bg-border"}`} />}
-            </div>
-          ))}
+    <OrganizationEditor
+      key={`${userId}:${draftId ?? "new"}`}
+      draft={draftId ? draft.data : undefined}
+      userId={userId!}
+    />
+  );
+}
+function OrganizationEditor({ draft, userId }: { draft?: Org; userId: string }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState(() => orgForm(draft));
+  const [savedId, setSavedId] = useState(draft?.id);
+  const [step, setStep] = useState(() => {
+    if (!draft) return 0;
+    const missing = organizationErrors(orgForm(draft));
+    const firstIncomplete = stepFields.findIndex((keys) => keys.some((key) => missing[key]));
+    return firstIncomplete === -1 ? 3 : firstIncomplete;
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkError, setLinkError] = useState("");
+  const mutation = useMutation({
+    mutationFn: async ({ submit, exit }: { submit: boolean; exit: boolean }) => {
+      const payload = organizationPayload(form);
+      const saved = savedId
+        ? await updateOrganizationDraft(savedId, payload)
+        : await saveOrganizationDraft(payload);
+      setSavedId(saved.id);
+      queryClient.setQueryData(["organization-draft", userId, saved.id], saved);
+      const result = submit ? await submitOrganizationDraft(saved.id) : saved;
+      return { result, submit, exit };
+    },
+    onSuccess: async ({ result, submit, exit }) => {
+      for (const key of ["organization-drafts", "profile", "organizations", "dashboard"])
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      toast.success(submit ? "Organization submitted for review." : "Organization draft saved.");
+      if (submit) await navigate({ to: "/org/$id", params: { id: result.id } });
+      else if (exit) await navigate({ to: "/manage" });
+      else if (!draft)
+        await navigate({ to: "/register-org", search: { draftId: result.id }, replace: true });
+    },
+  });
+  useCreationSession(mutation.error);
+  const busy = mutation.isPending || uploading;
+  const steps = ["Details", "Mission", "Media", "Review"];
+  const validateStep = () => {
+    if (step === 2 && link.trim()) {
+      setLinkError("Add this link or clear the field before continuing.");
+      return;
+    }
+    const all = organizationErrors(form);
+    const relevant = Object.fromEntries(
+      Object.entries(all).filter(([key]) => stepFields[step]?.includes(key)),
+    );
+    setErrors(relevant);
+    if (Object.keys(relevant).length) return;
+    setStep(step + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const submit = () => {
+    const all = organizationErrors(form);
+    setErrors(all);
+    if (Object.keys(all).length) {
+      setStep(stepFields.findIndex((keys) => keys.some((key) => all[key])));
+      return;
+    }
+    mutation.mutate({ submit: true, exit: false });
+  };
+  const field = (
+    key: "name" | "otherCategoryLabel" | "denomination" | "location" | "tagline",
+    label: string,
+    maxLength: number,
+  ) => (
+    <Field id={key} label={label} error={errors[key]}>
+      <input
+        id={key}
+        className="giving-input"
+        maxLength={maxLength}
+        value={form[key]}
+        aria-invalid={Boolean(errors[key])}
+        onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+      />
+    </Field>
+  );
+  const preview = (
+    <div className="overflow-hidden rounded-2xl border border-[#efedf3] bg-white shadow-sm">
+      {form.photoUrls[0] ? (
+        <img
+          src={form.photoUrls[0]}
+          alt="Organization cover preview"
+          className="h-44 w-full object-cover"
+        />
+      ) : (
+        <div className="grid h-44 place-items-center bg-[#eeeaf4] text-sm text-[#777283]">
+          Your cover photo appears here
         </div>
-
-        {draftId ? (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            You are editing a saved organization draft. Save as you go, then submit when everything is ready.
-          </div>
-        ) : null}
-
-        {step === 0 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Tell us about your org</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Basic information donors will see on your profile.</p>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Organisation name</label>
-              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
-              {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium">Category</label>
-              <div className="grid gap-2">
-                {orgCategoryOptions.map((option) => {
-                  const Icon = orgIcons[option.value];
-                  return (
-                    <button key={option.value} type="button" onClick={() => setForm((current) => ({ ...current, category: option.value }))} className={`flex items-center gap-3 rounded-xl border p-3.5 text-left transition ${form.category === option.value ? "border-amber-400 bg-amber-50" : "border-border hover:border-amber-200"}`}>
-                      <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${form.category === option.value ? "bg-amber-100" : "bg-muted"}`}>
-                        <Icon className={`h-4.5 w-4.5 ${form.category === option.value ? "text-amber-600" : "text-muted-foreground"}`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{option.label}</div>
-                      </div>
-                      {form.category === option.value && <Check className="ml-auto h-4 w-4 text-amber-600" />}
-                    </button>
-                  );
-                })}
-              </div>
-              {errors.category && <p className="mt-1 text-xs text-destructive">{errors.category}</p>}
-            </div>
-            {form.category === "OTHER" && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Specify ministry type</label>
-                <input
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="e.g. Prayer ministry, campus fellowship, outreach hub"
-                  value={form.otherCategoryLabel}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, otherCategoryLabel: event.target.value }))
-                  }
+      )}
+      <div className="space-y-3 p-6">
+        <span className="rounded-full bg-[#f0ecf8] px-3 py-1 text-xs">
+          {form.category === "OTHER"
+            ? form.otherCategoryLabel || "Other ministry"
+            : form.category.toLowerCase() || "Category"}
+        </span>
+        <h2 className="break-words text-xl font-semibold">{form.name || "Your organization"}</h2>
+        <p className="break-words text-sm text-[#777283]">
+          {form.tagline || "Your mission in one line"}
+        </p>
+        <p className="text-xs text-[#777283]">
+          {[form.location, form.denomination, form.foundedYear && `Founded ${form.foundedYear}`]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        <p className="line-clamp-5 whitespace-pre-wrap break-words border-t pt-3 text-sm leading-relaxed">
+          {form.bio}
+        </p>
+      </div>
+    </div>
+  );
+  return (
+    <div className="creation-layout dashboard-layout min-h-screen bg-[#f6f5f8] text-[#130e30]">
+      <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-8">
+        <CreationLogo />
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 text-sm"
+          disabled={busy}
+          onClick={() => mutation.mutate({ submit: false, exit: true })}
+        >
+          Save and exit <X size={16} />
+        </button>
+      </header>
+      <main className="mx-auto grid max-w-[1120px] overflow-hidden rounded-2xl bg-white shadow-[0_32px_80px_-32px_rgba(19,14,48,0.2)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+        <div className="min-w-0">
+          <div className="px-6 pt-7 sm:px-10">
+            <ol aria-label="Registration progress" className="mb-3 flex gap-2">
+              {steps.map((label, index) => (
+                <li
+                  key={label}
+                  aria-current={index === step ? "step" : undefined}
+                  title={label}
+                  className={`h-1.5 rounded-full ${index === step ? "w-9 bg-[#130e30]" : index < step ? "w-5 bg-[#777283]" : "w-5 bg-[#e5e1ee]"}`}
                 />
-                {errors.otherCategoryLabel && (
-                  <p className="mt-1 text-xs text-destructive">{errors.otherCategoryLabel}</p>
-                )}
-              </div>
+              ))}
+            </ol>
+            <p className="text-sm text-[#777283]">
+              Step {step + 1} of 4:{" "}
+              <span className="font-medium text-[#130e30]">{steps[step]}</span>
+            </p>
+          </div>
+          <fieldset disabled={busy} className="min-w-0 space-y-6 px-6 py-7 sm:px-10">
+            {draft && (
+              <CreationNotice>
+                Editing your saved draft. Changes stay here until you save or submit.
+              </CreationNotice>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Denomination / tradition</label>
-                <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.denomination} onChange={(event) => setForm((current) => ({ ...current, denomination: event.target.value }))} />
-                {errors.denomination && <p className="mt-1 text-xs text-destructive">{errors.denomination}</p>}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Year founded</label>
-                <input
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  value={form.foundedYear}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      foundedYear: event.target.value.replace(/\D/g, "").slice(0, 4),
-                    }))
-                  }
-                />
-                {errors.foundedYear && <p className="mt-1 text-xs text-destructive">{errors.foundedYear}</p>}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Location</label>
-              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} />
-              {errors.location && <p className="mt-1 text-xs text-destructive">{errors.location}</p>}
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Your mission</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Help donors understand who you are and what you do.</p>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Tagline</label>
-              <input className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.tagline} onChange={(event) => setForm((current) => ({ ...current, tagline: event.target.value }))} />
-              <div className="mt-1 flex items-center justify-between">
-                {errors.tagline ? <p className="text-xs text-destructive">{errors.tagline}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{form.tagline.length}/200</span>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">About your org</label>
-              <textarea rows={6} className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" value={form.bio} onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))} />
-              <div className="mt-1 flex items-center justify-between">
-                {errors.bio ? <p className="text-xs text-destructive">{errors.bio}</p> : <span />}
-                <span className="text-xs text-muted-foreground">{countWords(form.bio)} words</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Add photos, links &amp; proof</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Show donors the work, share relevant public links, and upload registration evidence for admin review.</p>
-            </div>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                if (files.length > 0) {
-                  uploadPhotosMutation.mutate(files);
-                }
-                event.target.value = "";
-              }}
-            />
-            <input
-              ref={documentInputRef}
-              type="file"
-              accept="image/*,.pdf,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                if (files.length > 0) {
-                  uploadDocumentsMutation.mutate(files);
-                }
-                event.target.value = "";
-              }}
-            />
-            <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center">
-              <ImagePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-              <p className="text-sm font-medium">Upload organization photos</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {mediaStatusLoading
-                  ? "Checking Cloudinary connection..."
-                  : mediaStatus?.enabled
-                    ? "Images will be stored in Cloudinary under AzarFaith organization folders."
-                    : mediaStatusError
-                      ? "Could not confirm Cloudinary status. You can retry the button after refresh."
-                      : `Uploads are unavailable until these credentials are set: ${(mediaStatus?.missing ?? []).join(", ") || "CLOUDINARY_*"}`}
-              </p>
-              <button
-                type="button"
-                onClick={openPhotoPicker}
-                disabled={uploadPhotosMutation.isPending}
-                className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {uploadPhotosMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                {uploadPhotosMutation.isPending ? "Uploading..." : "Choose photos"}
-              </button>
-              {errors.photoUrls && <p className="mt-3 text-xs text-destructive">{errors.photoUrls}</p>}
-            </div>
-            <div className="rounded-2xl border border-border p-5">
-              <div className="flex items-start justify-between gap-3">
+            {step === 0 && (
+              <>
                 <div>
-                  <p className="text-sm font-medium">Registration evidence</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Upload a CAC registration document or a recommendation letter from a recognized parent ministry.
+                  <h1 className="text-2xl font-semibold">Tell us about your organization</h1>
+                  <p className="mt-2 text-sm text-[#777283]">
+                    The basics people will see on your profile.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={openDocumentPicker}
-                  disabled={uploadDocumentsMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {uploadDocumentsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                  {uploadDocumentsMutation.isPending ? "Uploading..." : "Add document"}
-                </button>
-              </div>
-              {errors.registrationDocumentUrls && (
-                <p className="mt-3 text-xs text-destructive">{errors.registrationDocumentUrls}</p>
-              )}
-              {form.registrationDocumentUrls.length > 0 ? (
-                <div className="mt-4 space-y-2">
-                  {form.registrationDocumentUrls.map((url) => (
-                    <div key={url} className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs">
-                      <a href={url} target="_blank" rel="noreferrer" className="truncate text-amber-700 hover:underline">
-                        {url}
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            registrationDocumentUrls: current.registrationDocumentUrls.filter((item) => item !== url),
-                          }))
-                        }
-                        className="text-muted-foreground transition hover:text-foreground"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                {field("name", "Organization name", 120)}
+                <Field id="category" label="Category" error={errors.category}>
+                  <div className="grid gap-2">
+                    {orgCategoryOptions.map((option) => {
+                      const Icon = icons[option.value];
+                      return (
+                        <button
+                          type="button"
+                          aria-pressed={form.category === option.value}
+                          key={option.value}
+                          onClick={() => setForm({ ...form, category: option.value })}
+                          className={`flex items-center gap-3 rounded-xl border p-3 text-left text-sm ${form.category === option.value ? "border-[#130e30] bg-[#f4f0fa]" : "border-[#efedf3]"}`}
+                        >
+                          <Icon size={19} />
+                          {option.label}
+                          {form.category === option.value && (
+                            <Check size={16} className="ml-auto" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+                {form.category === "OTHER" &&
+                  field("otherCategoryLabel", "Specify ministry type", 120)}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {field("denomination", "Denomination / tradition", 120)}
+                  <Field id="foundedYear" label="Year founded" error={errors.foundedYear}>
+                    <input
+                      id="foundedYear"
+                      className="giving-input"
+                      inputMode="numeric"
+                      value={form.foundedYear}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          foundedYear: event.target.value.replace(/\D/g, "").slice(0, 4),
+                        })
+                      }
+                    />
+                  </Field>
                 </div>
-              ) : (
-                <p className="mt-4 text-xs text-muted-foreground">No registration or recommendation documents uploaded yet.</p>
-              )}
-            </div>
-            {(form.externalLinks.length > 0 || form.photoUrls.length > 0) && (
-              <div className="space-y-3">
-                {form.photoUrls.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Uploaded photos</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {form.photoUrls.map((url) => (
-                        <img key={url} src={url} alt="" className="aspect-square w-full rounded-2xl object-cover" />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {form.externalLinks.length > 0 && (
-                  <div className="space-y-1">
-                    {form.externalLinks.map((url) => <div key={url} className="truncate rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">{url}</div>)}
-                  </div>
-                )}
-              </div>
+                {field("location", "City and state", 160)}
+              </>
             )}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Relevant public links</label>
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="https://your-website-or-social-link"
-                  value={externalLinkInput}
-                  onChange={(event) => setExternalLinkInput(event.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={addExternalLink}
-                  className="rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
-                >
-                  Add link
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Add one real public URL at a time, then use Add link for another one or remove any you no longer want.
-              </p>
-              {form.externalLinks.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  {form.externalLinks.map((url, index) => (
-                    <div
-                      key={url}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-xs"
-                    >
-                      <span className="truncate text-muted-foreground">
-                        Link {index + 1}: {url}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            externalLinks: current.externalLinks.filter((item) => item !== url),
-                          }))
-                        }
-                        className="text-amber-700 transition hover:text-amber-800"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+            {step === 1 && (
+              <>
+                <div>
+                  <h1 className="text-2xl font-semibold">Your mission</h1>
+                  <p className="mt-2 text-sm text-[#777283]">
+                    Help people understand who you are and what you do.
+                  </p>
                 </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="font-display text-2xl">Review before publishing</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Your organization will be submitted for admin review after this step.</p>
-            </div>
-            <div className="space-y-3 rounded-2xl border border-border bg-card p-5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-display text-xl">{form.name}</span>
-                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs text-amber-700">
-                  {form.category === "OTHER"
-                    ? form.otherCategoryLabel || "other"
-                    : form.category || "other"}
-                </span>
-              </div>
-              <p className="italic text-muted-foreground">{form.tagline}</p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{form.denomination}</span>
-                <span>·</span>
-                <span>{form.location}</span>
-                {form.foundedYear && <><span>·</span><span>Est. {form.foundedYear}</span></>}
-              </div>
-              <p className="leading-relaxed">{form.bio}</p>
-              {form.photoUrls[0] && <img src={form.photoUrls[0]} alt="" className="h-52 w-full rounded-2xl object-cover" />}
-              {form.externalLinks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Public links</p>
-                  <div className="flex flex-wrap gap-2">
-                    {form.externalLinks.map((url) => (
-                      <span key={url} className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                        <Link2 className="h-3 w-3" />
-                        {url}
-                      </span>
+                {field("tagline", "Tagline", 200)}
+                <Field
+                  id="bio"
+                  label="About your organization"
+                  error={errors.bio}
+                  hint={`${countWords(form.bio)} / 200 words. Write at least 100 words.`}
+                >
+                  <textarea
+                    id="bio"
+                    rows={9}
+                    className="giving-input resize-y"
+                    aria-invalid={Boolean(errors.bio)}
+                    value={form.bio}
+                    onChange={(event) => setForm({ ...form, bio: event.target.value })}
+                  />
+                </Field>
+              </>
+            )}
+            {step === 2 && (
+              <>
+                <div>
+                  <h1 className="text-2xl font-semibold">Photos, links and proof</h1>
+                  <p className="mt-2 text-sm text-[#777283]">
+                    Show your work. Verification documents are only shared with the review team.
+                  </p>
+                </div>
+                <MediaPicker
+                  label="Organization photos"
+                  folder="organization-photo"
+                  urls={form.photoUrls}
+                  limit={8}
+                  onChange={(photoUrls) => setForm((current) => ({ ...current, photoUrls }))}
+                  onBusy={setUploading}
+                  error={errors.photoUrls}
+                />
+                <MediaPicker
+                  label="Registration evidence"
+                  folder="organization-document"
+                  urls={form.registrationDocumentUrls}
+                  limit={5}
+                  onChange={(registrationDocumentUrls) =>
+                    setForm((current) => ({ ...current, registrationDocumentUrls }))
+                  }
+                  onBusy={setUploading}
+                  error={errors.registrationDocumentUrls}
+                />
+                <p className="text-xs text-[#777283]">
+                  Upload a CAC registration document or a recommendation letter from a recognized
+                  parent ministry.
+                </p>
+                <Field id="publicLink" label="Relevant public links" error={linkError}>
+                  <div className="flex gap-2">
+                    <input
+                      id="publicLink"
+                      className="giving-input min-w-0"
+                      placeholder="https://your-website.com"
+                      value={link}
+                      onChange={(event) => setLink(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="giving-small-button shrink-0"
+                      onClick={() => {
+                        if (!publicLink(link)) {
+                          setLinkError(
+                            "Paste a valid website or social URL starting with https:// or http://.",
+                          );
+                          return;
+                        }
+                        if (
+                          form.externalLinks.length >= 10 ||
+                          form.externalLinks.includes(link.trim())
+                        ) {
+                          setLinkError("Add up to 10 different links.");
+                          return;
+                        }
+                        setForm({ ...form, externalLinks: [...form.externalLinks, link.trim()] });
+                        setLink("");
+                        setLinkError("");
+                      }}
+                    >
+                      Add link
+                    </button>
+                  </div>
+                </Field>
+                {form.externalLinks.map((url, index) => (
+                  <div
+                    key={url}
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-[#f8f7fa] p-3 text-xs"
+                  >
+                    <span className="break-all">{url}</span>
+                    <button
+                      type="button"
+                      aria-label={`Remove link ${index + 1}`}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          externalLinks: form.externalLinks.filter((item) => item !== url),
+                        })
+                      }
+                      className="shrink-0 underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <h1 className="text-2xl font-semibold">Ready for review?</h1>
+                {preview}
+                <div className="space-y-3 border-t pt-4">
+                  <h2 className="text-sm font-semibold">Full mission</h2>
+                  <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                    {form.bio}
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {form.photoUrls.map((url) => (
+                      <img
+                        key={url}
+                        src={url}
+                        alt="Organization gallery preview"
+                        className="aspect-square w-full rounded-lg object-cover"
+                      />
                     ))}
                   </div>
                 </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {form.registrationDocumentUrls.length} verification document{form.registrationDocumentUrls.length === 1 ? "" : "s"} attached for admin review.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              Once submitted, your organization page will show a <strong>pending review</strong> label until the AzarFaith team verifies it.
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 flex items-center justify-between">
-          {step > 0 ? (
-            <button onClick={() => setStep((value) => value - 1)} className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted">
+                <div className="space-y-2 text-sm">
+                  <p>{form.photoUrls.length} photos</p>
+                  <p>{form.registrationDocumentUrls.length} private verification documents</p>
+                  {form.externalLinks.map((url) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block break-all underline"
+                    >
+                      {url}
+                    </a>
+                  ))}
+                </div>
+                <CreationNotice>
+                  Your organization will be pending review after submission. Only approved
+                  organizations can be discovered and supported publicly.
+                </CreationNotice>
+              </>
+            )}
+          </fieldset>
+          {mutation.error && (
+            <p
+              role="alert"
+              className="mx-6 mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700 sm:mx-10"
+            >
+              {mutation.error.message} Your details are still here.
+            </p>
+          )}
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-white px-6 py-4 sm:px-10">
+            <button
+              type="button"
+              disabled={busy || step === 0}
+              onClick={() => setStep(step - 1)}
+              className="giving-small-button"
+            >
               Back
             </button>
-          ) : <span />}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => saveDraftMutation.mutate()}
-              disabled={
-                saveDraftMutation.isPending ||
-                submitDraftMutation.isPending ||
-                createOrgMutation.isPending ||
-                uploadPhotosMutation.isPending ||
-                uploadDocumentsMutation.isPending
-              }
-              className="rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
-            >
-              {saveDraftMutation.isPending ? "Saving draft..." : "Save draft"}
-            </button>
-            {step < steps.length - 1 ? (
-              <button onClick={next} className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600">
-                Continue
-              </button>
-            ) : (
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => {
-                  if (draftId) {
-                    submitDraftMutation.mutate();
-                    return;
-                  }
-
-                  createOrgMutation.mutate();
-                }}
-                disabled={
-                  createOrgMutation.isPending ||
-                  submitDraftMutation.isPending ||
-                  uploadPhotosMutation.isPending ||
-                  uploadDocumentsMutation.isPending
-                }
-                className="rounded-full bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                type="button"
+                disabled={busy}
+                className="giving-small-button"
+                onClick={() => mutation.mutate({ submit: false, exit: false })}
               >
-                {draftId
-                  ? submitDraftMutation.isPending
-                    ? "Submitting..."
-                    : "Submit for review"
-                  : createOrgMutation.isPending
-                    ? "Submitting..."
-                    : "Submit for review"}
+                {mutation.isPending ? "Saving..." : "Save draft"}
               </button>
-            )}
+              <button
+                type="button"
+                disabled={busy}
+                className="rounded-full bg-[#130e30] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                onClick={step === 3 ? submit : validateStep}
+              >
+                {step === 3 ? "Submit for review" : "Continue"}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+        <aside className="hidden bg-[radial-gradient(ellipse_at_top,#ddd6ed,#edeaf3_60%,#f6f5f8)] p-10 lg:block">
+          <div className="sticky top-12">
+            <p className="mb-4 text-sm font-medium">Your public profile</p>
+            {preview}
+            <p className="mt-4 text-xs leading-relaxed text-[#777283]">
+              Preview only. Nothing is public until your organization has been approved.
+            </p>
+          </div>
+        </aside>
+      </main>
+      <div className="h-10" />
     </div>
   );
 }

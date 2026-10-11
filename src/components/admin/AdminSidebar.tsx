@@ -1,106 +1,112 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  LayoutDashboard,
+  ArrowUpRight,
   Building2,
+  History,
+  Home,
   Megaphone,
+  Settings2,
   Users,
-  Settings,
-  ArrowLeft,
-  Shield,
   Wallet,
-  X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/app/hooks";
 import { getAdminDashboard } from "@/features/catalog/api";
-import { useSidebar } from "./AdminLayout";
+import { cn } from "@/lib/utils";
+import logoMark from "@/assets/signup/logo-mark.svg";
+import { LogoutButton } from "@/components/LogoutButton";
+import { useSidebar } from "./AdminNavigationContext";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, to: "/admin" as const },
-  { label: "Organizations", icon: Building2, to: "/admin/orgs" as const },
-  { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns" as const },
-  { label: "Users", icon: Users, to: "/admin/users" as const },
-  { label: "Payouts", icon: Wallet, to: "/admin/payouts" as const },
-  { label: "Settings", icon: Settings, to: "/admin/settings" as const },
+const groups = [
+  { label: "Workspace", items: [{ label: "Overview", icon: Home, to: "/admin" }] },
+  {
+    label: "Review & directory",
+    items: [
+      { label: "Organizations", icon: Building2, to: "/admin/orgs" },
+      { label: "Campaigns", icon: Megaphone, to: "/admin/campaigns" },
+      { label: "Users", icon: Users, to: "/admin/users" },
+    ],
+  },
+  {
+    label: "Platform",
+    items: [
+      { label: "Payouts", icon: Wallet, to: "/admin/payouts" },
+      { label: "Activity log", icon: History, to: "/admin/activity" },
+      { label: "Settings", icon: Settings2, to: "/admin/settings" },
+    ],
+  },
 ];
 
 export function AdminSidebar() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { setOpen } = useSidebar();
-  const isClient = typeof window !== "undefined";
-  const { data } = useQuery({
-    queryKey: ["admin", "dashboard", "sidebar"],
-    queryFn: getAdminDashboard,
-    enabled: isClient,
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname.replace(/\/$/, ""),
   });
-
-  const handleNavClick = () => setOpen(false);
-
+  const { setOpen } = useSidebar();
+  const user = useAppSelector((state) => state.auth.user);
+  const dashboard = useQuery({ queryKey: ["admin", "dashboard"], queryFn: getAdminDashboard });
   return (
-    <aside className="flex h-screen w-60 flex-col bg-gray-950 lg:fixed lg:inset-y-0 lg:left-0">
-      <div className="flex h-16 items-center justify-between border-b border-gray-800 px-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-            <Shield className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-display text-lg font-bold text-white">AzarFaith</span>
-          <span className="ml-1 rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
-            ADMIN
-          </span>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white lg:hidden"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <aside className="flex h-full min-h-0 flex-col border-r border-line-soft bg-panel">
+      <div className="flex items-center gap-2.5 px-5 py-5">
+        <img src={logoMark} alt="" className="h-8 w-8" />
+        <span className="text-[15px] font-semibold">AzarFaith</span>
+        <span className="rounded-md bg-ink/5 px-2 py-0.5 text-[11px] text-muted-ink">Admin</span>
       </div>
-
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => {
-          const isActive =
-            item.to === "/admin" ? pathname === "/admin" : pathname.startsWith(`${item.to}`);
-
-          const badge =
-            item.to === "/admin/orgs"
-              ? (data?.pendingOrganizations ?? 0)
-              : item.to === "/admin/campaigns"
-                ? (data?.pendingCampaigns ?? 0)
-                : 0;
-
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={handleNavClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-amber-500/10 text-amber-400"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white",
-              )}
-            >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{item.label}</span>
-              {badge > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-                  {badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      <nav aria-label="Admin navigation" className="flex-1 space-y-6 overflow-y-auto px-3 py-3">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-2 px-3 text-xs text-muted-ink">{group.label}</p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const active =
+                  item.to === "/admin"
+                    ? pathname === item.to
+                    : pathname === item.to || pathname.startsWith(`${item.to}/`);
+                const count =
+                  item.to === "/admin/orgs"
+                    ? dashboard.data?.pendingOrganizations
+                    : item.to === "/admin/campaigns"
+                      ? dashboard.data?.pendingCampaigns
+                      : undefined;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to as "/admin"}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                      active
+                        ? "bg-paper font-medium shadow-sm ring-1 ring-line-soft"
+                        : "text-ink-soft hover:bg-paper/70",
+                    )}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span className="flex-1">{item.label}</span>
+                    {!!count && (
+                      <span
+                        title="Awaiting review"
+                        className="rounded-md bg-brand/10 px-1.5 text-xs tabular-nums text-brand-ink"
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
-
-      <div className="border-t border-gray-800 p-3">
-        <Link
-          to="/"
-          onClick={handleNavClick}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Site</span>
+      <div className="space-y-3 border-t border-line-soft p-4">
+        <Link to="/" className="flex items-center gap-2 text-sm text-muted-ink">
+          <ArrowUpRight className="h-4 w-4" />
+          View website
         </Link>
+        <Link to="/admin/profile" className="block rounded-lg p-2 hover:bg-paper">
+          <p className="truncate text-sm font-medium">{user?.fullName}</p>
+          <p className="text-xs text-muted-ink">Your admin profile</p>
+        </Link>
+        <LogoutButton to="/admin/login" className="text-sm text-muted-ink" />
       </div>
     </aside>
   );

@@ -11,13 +11,10 @@ import {
   Megaphone,
   AlertTriangle,
 } from "lucide-react";
-import {
-  getAdminUser,
-  updateAdminUserRole,
-  updateAdminUserStatus,
-} from "@/features/catalog/api";
+import { getAdminUser, updateAdminUserRole, updateAdminUserStatus } from "@/features/catalog/api";
 import { formatMoney } from "@/lib/catalog";
 import { AdminPageWrapper } from "@/components/admin/AdminLayout";
+import { AdminReviewPanel } from "@/components/admin/AdminReviewPanel";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminBadge, StatusBadge } from "@/components/admin/AdminBadge";
@@ -32,6 +29,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PageSpinner } from "@/components/PageSpinner";
+import { AdminLoadError } from "@/components/admin/AdminLoadError";
+import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/users/$id")({
   component: AdminUserDetail,
@@ -44,19 +43,19 @@ function AdminUserDetail() {
   const [suspendDialog, setSuspendDialog] = useState(false);
   const [reactivateDialog, setReactivateDialog] = useState(false);
   const [roleDialog, setRoleDialog] = useState(false);
-  const { data: user, isLoading } = useQuery({
+  const {
+    data: user,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "user", id],
     queryFn: () => getAdminUser(id),
     enabled: isClient,
   });
   const statusMutation = useMutation({
-    mutationFn: ({
-      status,
-      reason,
-    }: {
-      status: "active" | "suspended";
-      reason?: string;
-    }) => updateAdminUserStatus(id, { status, reason }),
+    mutationFn: ({ status, reason }: { status: "active" | "suspended"; reason?: string }) =>
+      updateAdminUserStatus(id, { status, reason }),
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(["admin", "user", id], updatedUser);
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
@@ -81,6 +80,13 @@ function AdminUserDetail() {
       toast.error(error.message);
     },
   });
+
+  if (error && !(error instanceof ApiError && error.status === 404))
+    return (
+      <AdminPageWrapper title="User details">
+        <AdminLoadError retry={() => void refetch()} />
+      </AdminPageWrapper>
+    );
 
   if (!user) {
     if (isLoading) {
@@ -125,7 +131,7 @@ function AdminUserDetail() {
               className="h-16 w-16 rounded-full object-cover"
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-2xl font-bold text-gray-900">{user.name}</h2>
                 <AdminBadge
                   variant={
@@ -150,7 +156,7 @@ function AdminUserDetail() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {user.status === "active" && (
               <Button
                 variant="destructive"
@@ -202,7 +208,7 @@ function AdminUserDetail() {
 
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h3 className="mb-4 text-sm font-semibold text-gray-900">Verification Status</h3>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2">
                   <div
                     className={`flex h-8 w-8 items-center justify-center rounded-full ${user.phoneVerified ? "bg-emerald-50" : "bg-gray-100"}`}
@@ -214,7 +220,7 @@ function AdminUserDetail() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">Phone</p>
                     <p className="text-xs text-gray-500">
-                      {user.phoneVerified ? "Verified" : "Not verified"}
+                      {user.phoneVerified ? "Verified" : "No independent verification recorded"}
                     </p>
                   </div>
                 </div>
@@ -244,7 +250,7 @@ function AdminUserDetail() {
                   <div>
                     <p className="text-sm font-medium text-gray-900">BVN</p>
                     <p className="text-xs text-gray-500">
-                      {user.bvnVerified ? "Verified" : "Not verified"}
+                      {user.bvnVerified ? "Verified" : "Not collected"}
                     </p>
                   </div>
                 </div>
@@ -260,6 +266,58 @@ function AdminUserDetail() {
                 )}
               </div>
             )}
+            <section className="rounded-xl border border-line-soft p-5">
+              <h3 className="text-sm font-semibold">Recent successful donations</h3>
+              <p className="mt-1 text-xs text-muted-ink">
+                Latest 20 donations. Failed and pending payments are excluded.
+              </p>
+              {!user.donations.length ? (
+                <p className="mt-4 text-sm text-muted-ink">No successful donations yet.</p>
+              ) : (
+                <ul className="mt-4 divide-y divide-line-soft">
+                  {user.donations.map((donation) => (
+                    <li
+                      key={donation.id}
+                      className="flex flex-wrap justify-between gap-3 py-3 text-sm"
+                    >
+                      <Link
+                        to="/admin/campaigns/$id"
+                        params={{ id: donation.campaign.id }}
+                        className="min-w-0 flex-1 underline underline-offset-4"
+                      >
+                        {donation.campaign.title}
+                      </Link>
+                      <div className="text-right">
+                        <p>{formatMoney(donation.amount)}</p>
+                        <time className="text-xs text-muted-ink" dateTime={donation.date}>
+                          {new Date(donation.date).toLocaleDateString("en-NG")}
+                        </time>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="rounded-xl border border-line-soft p-5">
+              <h3 className="text-sm font-semibold">Created campaigns</h3>
+              {!user.campaigns.length ? (
+                <p className="mt-4 text-sm text-muted-ink">No campaigns created yet.</p>
+              ) : (
+                <ul className="mt-3 space-y-3">
+                  {user.campaigns.map((campaign) => (
+                    <li key={campaign.id}>
+                      <Link
+                        className="text-sm underline underline-offset-4"
+                        to="/admin/campaigns/$id"
+                        params={{ id: campaign.id }}
+                      >
+                        {campaign.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
 
           <div className="space-y-6">
@@ -335,7 +393,10 @@ function AdminUserDetail() {
         </div>
       </div>
 
+      <AdminReviewPanel key={id} type="user" id={id} />
       <AdminRejectDialog
+        pending={statusMutation.isPending}
+        confirmLabel="Suspend user"
         open={suspendDialog}
         onOpenChange={setSuspendDialog}
         title={`Suspend ${user.name}`}
@@ -346,6 +407,7 @@ function AdminUserDetail() {
       />
 
       <AdminConfirmDialog
+        pending={statusMutation.isPending}
         open={reactivateDialog}
         onOpenChange={setReactivateDialog}
         title={`Reactivate ${user.name}`}
@@ -357,6 +419,8 @@ function AdminUserDetail() {
       />
 
       <RoleChangeDialog
+        key={`${user.role}-${roleDialog}`}
+        pending={roleMutation.isPending}
         open={roleDialog}
         onOpenChange={setRoleDialog}
         currentRole={user.role}
@@ -373,11 +437,13 @@ function RoleChangeDialog({
   onOpenChange,
   currentRole,
   onRoleChange,
+  pending,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentRole: string;
   onRoleChange: (role: "donor" | "org_admin" | "platform_admin") => void;
+  pending: boolean;
 }) {
   const [selectedRole, setSelectedRole] = useState(currentRole);
 
@@ -404,16 +470,11 @@ function RoleChangeDialog({
   ];
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Change User Role</DialogTitle>
-          <DialogDescription>
-            Select the role you want to assign to this user.
-          </DialogDescription>
+          <DialogDescription>Select the role you want to assign to this user.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -452,10 +513,11 @@ function RoleChangeDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
+            disabled={pending || selectedRole === currentRole}
             onClick={() => onRoleChange(selectedRole as "donor" | "org_admin" | "platform_admin")}
           >
             Update Role

@@ -1,0 +1,195 @@
+import type { CreateCampaignPayload, CreateOrganizationPayload } from "@/features/catalog/api";
+import type { Campaign, Org } from "@/lib/catalog";
+
+export type OrgForm = Omit<CreateOrganizationPayload, "category" | "foundedYear"> & {
+  category: CreateOrganizationPayload["category"] | "";
+  foundedYear: string;
+  photoUrls: string[];
+  externalLinks: string[];
+  registrationDocumentUrls: string[];
+};
+export type CampaignForm = Omit<
+  CreateCampaignPayload,
+  "mode" | "type" | "faithCategory" | "goalAmount"
+> & {
+  mode: CreateCampaignPayload["mode"] | "";
+  type: CreateCampaignPayload["type"] | "";
+  faithCategory: CreateCampaignPayload["faithCategory"] | "";
+  goalAmount: string;
+  galleryImageUrls: string[];
+  needs: string[];
+  frequencies: NonNullable<CreateCampaignPayload["frequencies"]>;
+};
+export const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+export function focusError(key: string) {
+  const target = document.getElementById(`field-${key}`);
+  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  target
+    ?.querySelector<HTMLElement>("input,textarea,select,button")
+    ?.focus({ preventScroll: true });
+}
+export function publicLink(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return (
+      ["https:", "http:"].includes(url.protocol) &&
+      Boolean(url.hostname.includes(".")) &&
+      !url.username &&
+      !url.password
+    );
+  } catch {
+    return false;
+  }
+}
+export function validateMedia(
+  files: Array<Pick<File, "size" | "type">>,
+  existing: number,
+  limit: number,
+  documents = false,
+) {
+  if (existing + files.length > limit)
+    return `You can upload up to ${limit} ${documents ? "documents" : "photos"}.`;
+  for (const file of files) {
+    if (file.size > 5 * 1024 * 1024) return "Each file must be 5 MB or smaller.";
+    if (
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        ...(documents ? ["application/pdf"] : []),
+      ].includes(file.type)
+    )
+      return documents
+        ? "Choose a PDF, JPEG, PNG or WebP document."
+        : "Choose JPEG, PNG or WebP photos.";
+  }
+  return null;
+}
+export function orgForm(draft?: Org): OrgForm {
+  return {
+    name: draft?.name ?? "",
+    category: (draft?.category.toUpperCase() ?? "") as OrgForm["category"],
+    otherCategoryLabel: draft?.otherCategoryLabel ?? "",
+    denomination: draft?.denomination ?? "",
+    foundedYear: draft?.founded ?? "",
+    location: draft?.location ?? "",
+    tagline: draft?.tagline ?? "",
+    bio: draft?.bio ?? "",
+    photoUrls: draft?.photos ?? [],
+    externalLinks: draft?.links ?? [],
+    registrationDocumentUrls: draft?.registrationDocuments ?? [],
+  };
+}
+export function organizationPayload(form: OrgForm) {
+  return {
+    ...form,
+    name: form.name.trim(),
+    tagline: form.tagline.trim(),
+    bio: form.bio.trim(),
+    category: form.category || undefined,
+    otherCategoryLabel: form.category === "OTHER" ? form.otherCategoryLabel?.trim() : undefined,
+    foundedYear: form.foundedYear ? Number(form.foundedYear) : null,
+    denomination: form.denomination.trim(),
+    location: form.location.trim(),
+  };
+}
+export function organizationErrors(form: OrgForm) {
+  const errors: Record<string, string> = {};
+  if (form.name.trim().length < 2 || form.name.trim().length > 120)
+    errors.name = "Use 2 to 120 characters for the organization name.";
+  if (!form.category) errors.category = "Choose a category.";
+  if (form.category === "OTHER" && (form.otherCategoryLabel?.trim().length ?? 0) < 2)
+    errors.otherCategoryLabel = "Tell us what kind of ministry this is.";
+  if (form.denomination.trim().length < 2)
+    errors.denomination = "Add your denomination or tradition.";
+  if (form.location.trim().length < 2) errors.location = "Add your city and state.";
+  if (
+    form.foundedYear &&
+    (!/^\d{4}$/.test(form.foundedYear) ||
+      Number(form.foundedYear) < 1800 ||
+      Number(form.foundedYear) > new Date().getFullYear())
+  )
+    errors.foundedYear = "Enter a year from 1800 to the current year.";
+  if (form.tagline.trim().length < 10 || form.tagline.trim().length > 200)
+    errors.tagline = "Use a tagline of 10 to 200 characters.";
+  if (countWords(form.bio) < 100 || countWords(form.bio) > 200)
+    errors.bio = "Write 100 to 200 words about your organization.";
+  if (form.photoUrls.length < 3)
+    errors.photoUrls = "Upload at least 3 photos. Your first photo is the cover.";
+  if (!form.registrationDocumentUrls.length)
+    errors.registrationDocumentUrls = "Add a CAC document or a recommendation letter.";
+  return errors;
+}
+export function campaignForm(draft?: Campaign): CampaignForm {
+  const categories: Record<string, CreateCampaignPayload["faithCategory"]> = {
+    "Church Building": "CHURCH_BUILDING",
+    "Missions & Outreach": "MISSIONS_OUTREACH",
+    Orphanage: "ORPHANAGE",
+    Education: "EDUCATION",
+    "Food & Relief": "FOOD_RELIEF",
+    "Medical Mission": "MEDICAL_MISSION",
+    Emergency: "EMERGENCY",
+    "Community Development": "COMMUNITY_DEVELOPMENT",
+  };
+  return {
+    mode: draft ? (draft.mode === "ongoing" ? "ONGOING" : "ONE_TIME") : "",
+    type: (draft?.type.toUpperCase() ?? "") as CampaignForm["type"],
+    title: draft?.title ?? "",
+    story: draft?.story ?? "",
+    faithCategory: draft ? (categories[draft.faithCategory] ?? "") : "",
+    organizationId: draft?.orgId ?? "",
+    location: draft?.location ?? "",
+    goalAmount: draft?.goal ? draft.goal.toLocaleString("en-US") : "",
+    urgency: (draft?.urgency.toUpperCase() ?? "MEDIUM") as CampaignForm["urgency"],
+    coverImageUrl:
+      draft?.cover && !draft.cover.startsWith("https://placehold.co/") ? draft.cover : "",
+    galleryImageUrls: draft?.gallery ?? [],
+    needs: draft?.needs ?? [],
+    frequencies: (draft?.frequencies ?? []).map((frequency) =>
+      frequency.toUpperCase(),
+    ) as CampaignForm["frequencies"],
+  };
+}
+export function campaignPayload(form: CampaignForm) {
+  return {
+    ...form,
+    mode: form.mode || undefined,
+    type: form.type || undefined,
+    faithCategory: form.faithCategory || undefined,
+    title: form.title.trim(),
+    story: form.story.trim(),
+    location: form.location.trim(),
+    organizationId: form.organizationId || null,
+    goalAmount:
+      form.mode === "ONE_TIME" && ["MONEY", "EMERGENCY"].includes(form.type) && form.goalAmount
+        ? Number(form.goalAmount.replaceAll(",", ""))
+        : null,
+    coverImageUrl: form.coverImageUrl || null,
+    needs: ["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) ? form.needs : [],
+    frequencies: form.mode === "ONGOING" ? form.frequencies : [],
+  };
+}
+export function campaignErrors(form: CampaignForm) {
+  const errors: Record<string, string> = {};
+  if (!form.mode) errors.mode = "Choose one-time or ongoing support.";
+  if (!form.type) errors.type = "Choose the kind of help you need.";
+  if (form.title.trim().length < 8 || form.title.trim().length > 150)
+    errors.title = "Use a title of 8 to 150 characters.";
+  if (!form.faithCategory) errors.faithCategory = "Choose a cause category.";
+  if (form.location.trim().length < 2) errors.location = "Add your city and state.";
+  if (countWords(form.story) < 100 || countWords(form.story) > 200)
+    errors.story = "Tell your campaign story in 100 to 200 words.";
+  if (
+    form.mode === "ONE_TIME" &&
+    form.type === "MONEY" &&
+    Number(form.goalAmount.replaceAll(",", "")) < 5000
+  )
+    errors.goalAmount = "Set a goal of at least ₦5,000.";
+  if (form.mode === "ONGOING" && !form.frequencies.length)
+    errors.frequencies = "Choose at least one giving frequency.";
+  if (!form.coverImageUrl) errors.coverImageUrl = "Upload a cover photo.";
+  if (!form.galleryImageUrls.length) errors.galleryImageUrls = "Add at least one gallery photo.";
+  if (["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) && !form.needs.length)
+    errors.needs = "List at least one item, role or skill needed.";
+  return errors;
+}

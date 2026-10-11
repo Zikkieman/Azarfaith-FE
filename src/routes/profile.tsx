@@ -1,688 +1,756 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, ShieldCheck } from "lucide-react";
+import { Bell, CreditCard, ImagePlus, LockKeyhole, UserRound, Wallet } from "lucide-react";
 import { toast } from "sonner";
-
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
+import { DashboardShell } from "@/components/app/DashboardShell";
 import { PageSpinner } from "@/components/PageSpinner";
+import { LogoutButton } from "@/components/LogoutButton";
+import { UserAvatar } from "@/components/UserAvatar";
+import { PayoutSettings } from "@/components/profile/PayoutSettings";
+import { EmailChange } from "@/components/profile/EmailChange";
+import { LoadError, SaveActions, SettingsSection } from "@/components/profile/SettingsParts";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { changePassword, fetchSession } from "@/features/auth/authSlice";
 import {
-  getPayoutBanks,
-  getPersonalPayoutAccount,
-  getPersonalPayoutSummary,
+  deactivatePaymentMethod,
   getCloudinaryStatus,
   getNotificationPreferences,
+  getPaymentMethods,
   getProfile,
-  resolvePayoutAccount,
   updateNotificationPreferences,
   updateProfile,
-  upsertPersonalPayoutAccount,
   uploadMedia,
 } from "@/features/catalog/api";
-import { formatMoney } from "@/lib/catalog";
+import {
+  formatMoney,
+  type NotificationPreferences,
+  type Profile as UserProfile,
+  type SavedPaymentMethod,
+} from "@/lib/catalog";
+import { validateAvatar, validatePassword } from "@/lib/profile";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useClientReady } from "@/lib/useClientReady";
+import { ApiError, apiFetch } from "@/lib/api";
 
 export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
-  const isAuthed = useRequireAuth();
-  const queryClient = useQueryClient();
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile"],
+  const dispatch = useAppDispatch();
+  const authed = useRequireAuth();
+  const ready = useClientReady() && authed;
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const query = useQuery({
+    queryKey: ["profile", userId],
     queryFn: getProfile,
-    enabled: isAuthed,
+    enabled: ready && Boolean(userId),
   });
-  const {
-    data: mediaStatus,
-    isLoading: mediaStatusLoading,
-    isError: mediaStatusError,
-  } = useQuery({
-    queryKey: ["media", "cloudinary-status"],
-    queryFn: getCloudinaryStatus,
-    enabled: isAuthed,
-  });
-  const { data: notificationPreferences } = useQuery({
-    queryKey: ["notification-preferences"],
-    queryFn: getNotificationPreferences,
-    enabled: isAuthed,
-  });
-  const { data: payoutBanks } = useQuery({
-    queryKey: ["payout-banks"],
-    queryFn: getPayoutBanks,
-    enabled: isAuthed,
-  });
-  const { data: payoutAccount } = useQuery({
-    queryKey: ["payout-account", "personal"],
-    queryFn: getPersonalPayoutAccount,
-    enabled: isAuthed,
-  });
-  const { data: payoutSummary } = useQuery({
-    queryKey: ["payout-summary", "personal"],
-    queryFn: getPersonalPayoutSummary,
-    enabled: isAuthed,
-  });
-  const [editing, setEditing] = useState(false);
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [payoutBankCode, setPayoutBankCode] = useState("");
-  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
-  const [payoutAccountHolderName, setPayoutAccountHolderName] = useState("");
-  const [resolvedAccountName, setResolvedAccountName] = useState("");
-  const [resolveError, setResolveError] = useState("");
-
   useEffect(() => {
-    if (!profile) return;
-    setFullName(profile.fullName);
-    setPhone(profile.phone ?? "");
-    setAvatarUrl(profile.avatarUrl ?? "");
-  }, [profile]);
-
-  useEffect(() => {
-    if (!payoutAccount) return;
-    setPayoutBankCode(payoutAccount.bankCode);
-    setPayoutAccountHolderName(payoutAccount.accountHolderName);
-    setResolvedAccountName(payoutAccount.accountName);
-  }, [payoutAccount]);
-
-  useEffect(() => {
-    if (!payoutBankCode || payoutAccountNumber.length !== 10) {
-      setResolveError("");
-      return;
+    if (ready && query.error instanceof ApiError && [401, 403].includes(query.error.status)) {
+      void dispatch(fetchSession());
     }
-
-    const timeoutId = window.setTimeout(() => {
-      resolvePayoutMutation.mutate();
-    }, 500);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [payoutBankCode, payoutAccountNumber]);
-
-  const uploadAvatarMutation = useMutation({
-    mutationFn: async (file: File) =>
-      uploadMedia({
-        file,
-        folder: "user-avatar",
-        entityId: profile?.id,
-      }),
-    onSuccess: (upload) => {
-      setAvatarUrl(upload.url);
-      toast.success("Avatar uploaded.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const updateProfileMutation = useMutation({
-    mutationFn: () =>
-      updateProfile({
-        fullName,
-        phone,
-        avatarUrl,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      setEditing(false);
-      toast.success("Profile updated.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const updateNotificationPreferencesMutation = useMutation({
-    mutationFn: updateNotificationPreferences,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notification-preferences"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success("Notification preferences updated.");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const resolvePayoutMutation = useMutation({
-    mutationFn: () =>
-      resolvePayoutAccount({
-        bankCode: payoutBankCode,
-        accountNumber: payoutAccountNumber,
-      }),
-    onSuccess: (response) => {
-      setResolvedAccountName(response.accountName);
-      setResolveError("");
-    },
-    onError: (error: Error) => {
-      setResolveError(
-        error.message ||
-          "Paystack could not confirm this account right now. You can still save it manually as pending.",
-      );
-    },
-  });
-
-  const savePayoutMutation = useMutation({
-    mutationFn: () =>
-      upsertPersonalPayoutAccount({
-        accountHolderName: payoutAccountHolderName.trim(),
-        bankCode: payoutBankCode,
-        accountNumber: payoutAccountNumber,
-        accountName: resolvedAccountName.trim() || payoutAccountHolderName.trim(),
-      }),
-    onSuccess: (response) => {
-      setResolvedAccountName(response.accountName);
-      queryClient.invalidateQueries({ queryKey: ["payout-account", "personal"] });
-      queryClient.invalidateQueries({ queryKey: ["payout-summary", "personal"] });
-      toast.success(
-        response.status === "verified"
-          ? "Personal payout account saved and verified."
-          : "Payout account saved. It is pending verification before payouts can be released.",
-      );
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  if (!isAuthed) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
-          <PageSpinner label="Redirecting to login..." />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <Navbar />
-        <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 text-muted-foreground md:px-8">
-          {isLoading ? <PageSpinner label="Loading profile..." /> : "Log in to view your profile."}
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  const ensureMediaReady = () => {
-    if (mediaStatus?.enabled) return true;
-    if (mediaStatusLoading) {
-      toast.error("Checking media upload connection. Try again in a moment.");
-      return false;
-    }
-    if (mediaStatusError) {
-      toast.error("Could not confirm media upload setup. Refresh and try again.");
-      return false;
-    }
-    toast.error("Media upload is not configured yet.");
-    return false;
-  };
-
+  }, [dispatch, ready, query.error]);
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <main className="mx-auto flex-1 w-full max-w-5xl px-5 py-12 md:px-8">
-        <div className="flex items-center gap-4">
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-          ) : (
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 font-display text-2xl text-amber-700">
-              {profile.fullName.slice(0, 1).toUpperCase()}
+    <DashboardShell>
+      {!ready || query.isPending ? (
+        <PageSpinner label="Loading profile" />
+      ) : !query.data ? (
+        <LoadError message="Could not load your profile." retry={() => void query.refetch()} />
+      ) : (
+        <>
+          {query.isError && (
+            <div className="mb-5">
+              <LoadError
+                message="Could not refresh your profile. Your unsaved changes are still here."
+                retry={() => void query.refetch()}
+              />
             </div>
           )}
-          <div>
-            <h1 className="font-display text-2xl tracking-tight">{profile.fullName}</h1>
-            <p className="text-sm text-muted-foreground">
-              {profile.email}
-              {profile.phone ? ` · ${profile.phone}` : ""}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Profile settings
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Update the account details donors and campaign pages rely on.
-              </p>
-            </div>
-            <button
-              onClick={() => setEditing((current) => !current)}
-              className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted"
-            >
-              {editing ? "Close" : "Edit profile"}
-            </button>
-          </div>
-
-          {editing ? (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) uploadAvatarMutation.mutate(file);
-                  event.target.value = "";
-                }}
-              />
-              <div className="md:col-span-2 rounded-2xl border border-border p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-4">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-                    ) : (
-                      <div className="grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 font-display text-2xl text-amber-700">
-                        {fullName.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">Profile avatar</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Upload a square image to personalize your donor profile.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!ensureMediaReady()) return;
-                      avatarInputRef.current?.click();
-                    }}
-                    disabled={uploadAvatarMutation.isPending}
-                    className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
-                  >
-                    {uploadAvatarMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                    {uploadAvatarMutation.isPending ? "Uploading..." : "Change avatar"}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Full name</label>
-                <input
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Phone number</label>
-                <input
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end">
-                <button
-                  onClick={() => updateProfileMutation.mutate()}
-                  disabled={updateProfileMutation.isPending}
-                  className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-                >
-                  {updateProfileMutation.isPending ? "Saving..." : "Save changes"}
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="font-display text-2xl">{formatMoney(profile.totalGiven)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Total given</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="font-display text-2xl">{profile.activeRecurringGiftCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Active recurring gifts</p>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-border bg-card p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-                Personal payout account
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Set the bank account AzarFaith should use when an admin releases money from your personal campaigns.
-              </p>
-            </div>
-            {payoutAccount ? (
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                {payoutAccount.bankName} · {payoutAccount.accountNumberMasked}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Bank</label>
-              <select
-                value={payoutBankCode}
-                onChange={(event) => setPayoutBankCode(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                <option value="">Select a bank</option>
-                {(payoutBanks ?? []).map((bank) => (
-                  <option key={bank.code} value={bank.code}>
-                    {bank.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Account number</label>
-              <input
-                value={payoutAccountNumber}
-                onChange={(event) =>
-                  setPayoutAccountNumber(event.target.value.replace(/\D/g, "").slice(0, 10))
-                }
-                placeholder="10-digit account number"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Account holder name</label>
-              <input
-                value={payoutAccountHolderName}
-                onChange={(event) => setPayoutAccountHolderName(event.target.value)}
-                placeholder="Legal account holder name"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Beneficiary name</label>
-              <input
-                value={resolvedAccountName}
-                onChange={(event) => setResolvedAccountName(event.target.value)}
-                placeholder="Beneficiary account name"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                AzarFaith will try to confirm this automatically. If Paystack is unavailable, you can still save it manually and it will stay pending.
-              </p>
-            </div>
-          </div>
-
-          {resolvePayoutMutation.isPending ? (
-            <p className="mt-3 text-xs text-muted-foreground">Checking account details with Paystack...</p>
-          ) : null}
-          {resolveError ? (
-            <p className="mt-3 text-xs text-amber-700">{resolveError}</p>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                if (!payoutBankCode || payoutAccountNumber.length !== 10) {
-                  toast.error("Select a bank and enter a valid 10-digit account number.");
-                  return;
-                }
-                resolvePayoutMutation.mutate();
-              }}
-              disabled={resolvePayoutMutation.isPending}
-              className="rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-muted disabled:opacity-60"
-            >
-              {resolvePayoutMutation.isPending ? "Checking..." : "Retry account check"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  !payoutBankCode ||
-                  payoutAccountNumber.length !== 10 ||
-                  !payoutAccountHolderName.trim() ||
-                  !resolvedAccountName.trim()
-                ) {
-                  toast.error("Complete the payout account form before saving.");
-                  return;
-                }
-                savePayoutMutation.mutate();
-              }}
-              disabled={savePayoutMutation.isPending}
-              className="rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-            >
-              {savePayoutMutation.isPending ? "Saving..." : "Save payout account"}
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="font-display text-2xl">
-                {formatMoney(payoutSummary?.totalCollected ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Collected on personal campaigns</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="font-display text-2xl">
-                {formatMoney(payoutSummary?.totalReleased ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Already released</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="font-display text-2xl">
-                {formatMoney(payoutSummary?.availableBalance ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Available for admin release</p>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <h3 className="text-sm font-medium text-muted-foreground">Recent payout releases</h3>
-            <div className="mt-3 space-y-3">
-              {(payoutSummary?.recentTransfers ?? []).length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-border px-4 py-4 text-sm text-muted-foreground">
-                  No payout has been released to your personal account yet.
-                </p>
-              ) : (
-                payoutSummary!.recentTransfers.map((transfer) => (
-                  <div
-                    key={transfer.id}
-                    className="flex flex-col gap-2 rounded-2xl border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{formatMoney(transfer.amount)}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(transfer.releasedAt).toLocaleString()} · {transfer.status.replaceAll("_", " ")}
-                      </p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{transfer.reference}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-border bg-card p-4">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">
-              Notification preferences
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Choose which in-app notifications AzarFaith should store and show in your account.
-            </p>
-          </div>
-          <div className="mt-4 space-y-3">
-            <PreferenceToggle
-              label="Donations received"
-              description="For creators when someone supports your campaign."
-              checked={notificationPreferences?.donationsReceived ?? true}
-              onChange={(checked) =>
-                updateNotificationPreferencesMutation.mutate({ donationsReceived: checked })
-              }
-              disabled={updateNotificationPreferencesMutation.isPending}
-            />
-            <PreferenceToggle
-              label="Campaign updates"
-              description="When a campaign you supported posts a new update."
-              checked={notificationPreferences?.campaignUpdates ?? true}
-              onChange={(checked) =>
-                updateNotificationPreferencesMutation.mutate({ campaignUpdates: checked })
-              }
-              disabled={updateNotificationPreferencesMutation.isPending}
-            />
-            <PreferenceToggle
-              label="Comments"
-              description="When someone comments on a campaign you created."
-              checked={notificationPreferences?.comments ?? true}
-              onChange={(checked) =>
-                updateNotificationPreferencesMutation.mutate({ comments: checked })
-              }
-              disabled={updateNotificationPreferencesMutation.isPending}
-            />
-            <PreferenceToggle
-              label="System messages"
-              description="Review outcomes, recurring failures, and other platform alerts."
-              checked={notificationPreferences?.systemMessages ?? true}
-              onChange={(checked) =>
-                updateNotificationPreferencesMutation.mutate({ systemMessages: checked })
-              }
-              disabled={updateNotificationPreferencesMutation.isPending}
-            />
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent donations</h2>
-          <div className="space-y-3">
-            {profile.donationHistory.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
-                Your successful donations will appear here.
-              </p>
-            ) : (
-              profile.donationHistory.map((donation) => (
-                <div key={donation.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium">{formatMoney(donation.amount)}</p>
-                    <p className="text-xs text-muted-foreground">{donation.date} · {donation.status.replaceAll("_", " ")}</p>
-                  </div>
-                  <Link to="/my-giving" className="text-xs font-medium text-amber-600 transition hover:text-amber-700">
-                    View giving
-                  </Link>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-card p-4 md:col-span-2">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-sm font-medium text-muted-foreground">Creator workspace</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Open one place to manage the organizations and campaigns you own.
-                </p>
-              </div>
-              <Link
-                to="/manage"
-                className="inline-flex items-center justify-center rounded-full bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
-              >
-                Open workspace
-              </Link>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-sm font-medium text-muted-foreground">Your organizations</h2>
-            <div className="mt-3 space-y-3">
-              {profile.ownedOrganizations.length === 0 ? (
-                <p className="text-sm text-muted-foreground">You have not created an organization yet.</p>
-              ) : (
-                profile.ownedOrganizations.map((organization) => (
-                  <Link
-                    key={organization.id}
-                    to="/org/$id"
-                    params={{ id: organization.id }}
-                    className="block rounded-xl border border-border px-4 py-3 transition hover:border-amber-300"
-                  >
-                    <p className="text-sm font-medium">{organization.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {organization.verificationStatus.replaceAll("_", " ")}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-sm font-medium text-muted-foreground">Your campaigns</h2>
-            <div className="mt-3 space-y-3">
-              {profile.ownedCampaigns.length === 0 ? (
-                <p className="text-sm text-muted-foreground">You have not created a campaign yet.</p>
-              ) : (
-                profile.ownedCampaigns.map((campaign) => (
-                  <Link
-                    key={campaign.id}
-                    to="/campaign/$id"
-                    params={{ id: campaign.id }}
-                    className="block rounded-xl border border-border px-4 py-3 transition hover:border-amber-300"
-                  >
-                    <p className="text-sm font-medium">{campaign.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {campaign.verificationStatus.replaceAll("_", " ")}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Verifications</h2>
-          <div className="flex flex-wrap gap-2">
-            {profile.verifications.map((item) => (
-              <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
-                <ShieldCheck className="h-3.5 w-3.5" /> {item}
-              </span>
-            ))}
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
+          <ProfileSettings key={query.data.id} profile={query.data} />
+        </>
+      )}
+    </DashboardShell>
   );
 }
 
-function PreferenceToggle({
-  label,
-  description,
-  checked,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled: boolean;
-}) {
+function ProfileSettings({ profile }: { profile: UserProfile }) {
+  const nav = [
+    ["details", "Profile", UserRound],
+    ["notifications", "Notifications", Bell],
+    ["payments", "Payment methods", CreditCard],
+    ["payouts", "Payout account", Wallet],
+    ["security", "Security", LockKeyhole],
+  ] as const;
   return (
-    <label className="flex items-start justify-between gap-4 rounded-2xl border border-border px-4 py-3">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+    <>
+      <div className="mb-9 flex flex-wrap items-center justify-between gap-5 border-b border-[#efedf3] pb-8">
+        <div className="flex min-w-0 items-center gap-4">
+          <UserAvatar src={profile.avatarUrl} name={profile.fullName} className="text-2xl" />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">{profile.fullName}</h1>
+            <p className="mt-1 break-all text-sm text-[#777283]">{profile.email}</p>
+            {profile.createdAt && (
+              <p className="mt-1 text-xs text-[#777283]">
+                Joined{" "}
+                {new Date(profile.createdAt).toLocaleDateString("en-NG", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+          </div>
+        </div>
+        <LogoutButton className="giving-small-button" />
       </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        disabled={disabled}
-        className="mt-1 h-4 w-4 rounded border-border text-amber-500 focus:ring-amber-400"
-      />
-    </label>
+      <div className="grid gap-8 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-12">
+        <aside>
+          <nav
+            aria-label="Profile settings"
+            className="flex flex-wrap gap-2 lg:sticky lg:top-24 lg:flex-col"
+          >
+            {nav.map(([id, label, Icon]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-[#777283] transition hover:bg-[#f7f6fa] hover:text-[#130e30]"
+              >
+                <Icon size={17} />
+                {label}
+              </a>
+            ))}
+          </nav>
+          <p className="mt-6 hidden text-xs leading-relaxed text-[#777283] lg:block">
+            Your details, preferences and secure account settings, all in one place.
+          </p>
+        </aside>
+        <div className="min-w-0 space-y-6">
+          <ProfileEditor profile={profile} />
+          <Preferences userId={profile.id} />
+          <PaymentMethods userId={profile.id} />
+          <PayoutSettings userId={profile.id} />
+          <Security />
+          <SettingsSection
+            id="activity"
+            title="Your activity"
+            description="Track your giving and manage the causes you own."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link to="/my-giving" className="rounded-xl bg-[#f7f6fa] p-4">
+                <p className="text-xs text-[#777283]">Lifetime giving</p>
+                <p className="mt-2 text-xl font-semibold">{formatMoney(profile.totalGiven)}</p>
+                <p className="mt-2 text-xs">
+                  {profile.activeRecurringGiftCount} active recurring gifts · View giving →
+                </p>
+              </Link>
+              <Link to="/manage" className="rounded-xl bg-[#f7f6fa] p-4">
+                <p className="font-semibold">Creator workspace</p>
+                <p className="mt-2 text-sm text-[#777283]">
+                  {profile.ownedOrganizations.length} organizations ·{" "}
+                  {profile.ownedCampaigns.length} campaigns
+                </p>
+                <p className="mt-3 text-xs">Manage your causes →</p>
+              </Link>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {profile.ownedOrganizations.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold">Your organizations</h3>
+                  {profile.ownedOrganizations.map((org) => (
+                    <Link
+                      key={org.id}
+                      to="/org/$id"
+                      params={{ id: org.id }}
+                      className="mt-3 block text-sm underline underline-offset-4"
+                    >
+                      {org.name}{" "}
+                      <span className="text-xs text-[#777283]">
+                        ({org.verificationStatus.replaceAll("_", " ")})
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {profile.ownedCampaigns.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold">Your campaigns</h3>
+                  {profile.ownedCampaigns.map((campaign) => (
+                    <Link
+                      key={campaign.id}
+                      to="/campaign/$id"
+                      params={{ id: campaign.id }}
+                      className="mt-3 block text-sm underline underline-offset-4"
+                    >
+                      {campaign.title}{" "}
+                      <span className="text-xs text-[#777283]">
+                        ({campaign.verificationStatus.replaceAll("_", " ")})
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </SettingsSection>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ProfileEditor({ profile }: { profile: UserProfile }) {
+  const [draft, setDraft] = useState<{
+    fullName: string;
+    phone: string;
+    avatarUrl: string;
+    city: string;
+  } | null>(null);
+  const values = draft ?? {
+    fullName: profile.fullName,
+    phone: profile.phone ?? "",
+    avatarUrl: profile.avatarUrl ?? "",
+    city: profile.city ?? "",
+  };
+  const input = useRef<HTMLInputElement>(null);
+  const client = useQueryClient();
+  const dispatch = useAppDispatch();
+  const media = useQuery({
+    queryKey: ["media", "cloudinary-status", profile.id],
+    queryFn: getCloudinaryStatus,
+  });
+  const upload = useMutation({
+    mutationFn: (file: File) => uploadMedia({ file, folder: "user-avatar", entityId: profile.id }),
+    onSuccess: (result) => {
+      setDraft((current) => ({ ...(current ?? values), avatarUrl: result.url }));
+      toast.success("Photo uploaded. Save changes to update your profile.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const save = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (result) => {
+      client.setQueryData(["profile", profile.id], result);
+      setDraft(null);
+      void dispatch(fetchSession());
+      toast.success("Profile updated.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const dirty = Boolean(
+    draft &&
+    (values.fullName !== profile.fullName ||
+      values.phone !== (profile.phone ?? "") ||
+      values.city !== (profile.city ?? "") ||
+      values.avatarUrl !== (profile.avatarUrl ?? "")),
+  );
+  return (
+    <SettingsSection
+      id="details"
+      title="Profile"
+      description="Your name appears on donations unless you choose to give anonymously."
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (values.fullName.trim().length < 2) {
+            toast.error("Enter at least 2 characters for your name.");
+            return;
+          }
+          save.mutate({
+            fullName: values.fullName.trim(),
+            phone: values.phone.trim() || null,
+            avatarUrl: values.avatarUrl,
+            city: values.city.trim(),
+          });
+        }}
+      >
+        <fieldset disabled={save.isPending || upload.isPending}>
+          <div className="mb-6 flex flex-wrap items-center gap-4">
+            <UserAvatar
+              src={values.avatarUrl}
+              name={values.fullName}
+              label="Profile photo preview"
+            />
+            <div>
+              <button
+                type="button"
+                className="giving-small-button"
+                disabled={!media.data?.enabled}
+                onClick={() => input.current?.click()}
+              >
+                <ImagePlus size={16} />
+                {upload.isPending ? "Uploading..." : "Change photo"}
+              </button>
+              <p className="mt-2 text-xs text-[#777283]">JPEG, PNG or WebP. Up to 5 MB.</p>
+            </div>
+            <input
+              ref={input}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) return;
+                const error = validateAvatar(file);
+                if (error) toast.error(error);
+                else upload.mutate(file);
+              }}
+            />
+          </div>
+          {media.isError && (
+            <div className="mb-5">
+              <LoadError
+                message="Could not check photo upload availability."
+                retry={() => void media.refetch()}
+              />
+            </div>
+          )}
+          {media.data && !media.data.enabled && (
+            <p className="mb-5 text-sm text-[#777283]">Photo uploads are currently unavailable.</p>
+          )}
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label className="giving-label">
+              Full name
+              <input
+                className="giving-input"
+                required
+                minLength={2}
+                maxLength={120}
+                autoComplete="name"
+                value={values.fullName}
+                onChange={(event) => setDraft({ ...values, fullName: event.target.value })}
+              />
+            </label>
+            <label className="giving-label">
+              Phone number <span className="font-normal text-[#777283]">(optional)</span>
+              <input
+                className="giving-input"
+                type="tel"
+                autoComplete="tel"
+                placeholder="+234..."
+                value={values.phone}
+                onChange={(event) => setDraft({ ...values, phone: event.target.value })}
+              />
+            </label>
+            <label className="giving-label sm:col-span-2">
+              Email address
+              <input className="giving-input" type="email" readOnly value={profile.email} />
+              <span className="mt-2 block text-xs font-normal text-[#777283]">
+                Changing your sign-in email requires verification of both inboxes.
+                {profile.verifications.includes("Email verified") ? " Email verified." : ""}
+              </span>
+            </label>
+            <label className="giving-label sm:col-span-2">
+              City (optional)
+              <input
+                className="giving-input"
+                autoComplete="address-level2"
+                maxLength={100}
+                value={values.city}
+                onChange={(event) => setDraft({ ...values, city: event.target.value })}
+              />
+            </label>
+          </div>
+        </fieldset>
+        {save.isError && (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {save.error.message}
+          </p>
+        )}
+        <SaveActions
+          pending={save.isPending || upload.isPending}
+          dirty={dirty}
+          discard={() => {
+            setDraft(null);
+            save.reset();
+          }}
+        />
+      </form>
+      <EmailChange currentEmail={profile.email} />
+    </SettingsSection>
+  );
+}
+
+function Preferences({ userId }: { userId: string }) {
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: ["notification-preferences", userId],
+    queryFn: getNotificationPreferences,
+  });
+  const [draft, setDraft] = useState<NotificationPreferences | null>(null);
+  const save = useMutation({
+    mutationFn: updateNotificationPreferences,
+    onSuccess: (result) => {
+      client.setQueryData(["notification-preferences", userId], result);
+      setDraft(null);
+      toast.success("Notification preferences saved.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const values = draft ?? query.data;
+  const options = [
+    ["donationsReceived", "Donations received", "When someone supports a campaign you created."],
+    ["campaignUpdates", "Campaign updates", "News from campaigns you support."],
+    ["comments", "Comments", "Comments and replies on your campaigns."],
+    ["systemMessages", "System messages", "Reviews, recurring gifts and platform alerts."],
+  ] as const;
+  return (
+    <SettingsSection
+      id="notifications"
+      title="Notifications"
+      description="Choose which in-app notifications you receive. These preferences do not change transactional emails such as receipts and security messages."
+    >
+      {query.isPending ? (
+        <p role="status">Getting preferences...</p>
+      ) : query.isError || !values ? (
+        <LoadError
+          message="Could not load notification preferences."
+          retry={() => void query.refetch()}
+        />
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            save.mutate(values);
+          }}
+        >
+          <fieldset disabled={save.isPending} className="divide-y divide-[#efedf3]">
+            {options.map(([key, label, description]) => (
+              <label
+                key={key}
+                className="flex cursor-pointer items-center justify-between gap-4 py-4"
+              >
+                <span>
+                  <span className="block text-sm font-medium">{label}</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-[#777283]">
+                    {description}
+                  </span>
+                </span>
+                <Switch
+                  aria-label={label}
+                  checked={values[key]}
+                  onCheckedChange={(checked) => setDraft({ ...values, [key]: checked })}
+                  className="data-[state=checked]:bg-black"
+                />
+              </label>
+            ))}
+          </fieldset>
+          {save.isError && (
+            <p role="alert" className="mt-3 text-sm text-red-700">
+              {save.error.message}
+            </p>
+          )}
+          <SaveActions
+            pending={save.isPending}
+            dirty={Boolean(draft && options.some(([key]) => draft[key] !== query.data?.[key]))}
+            discard={() => {
+              setDraft(null);
+              save.reset();
+            }}
+          />
+        </form>
+      )}
+    </SettingsSection>
+  );
+}
+
+function PaymentMethods({ userId }: { userId: string }) {
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: ["payment-methods", userId], queryFn: getPaymentMethods });
+  const [selected, setSelected] = useState<SavedPaymentMethod | null>(null);
+  const preferred = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ message: string }>(`/me/payment-methods/${encodeURIComponent(id)}/preferred`, {
+        method: "PATCH",
+      }),
+    onSuccess: (response) => {
+      void client.invalidateQueries({ queryKey: ["payment-methods"] });
+      toast.success(response.message);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => deactivatePaymentMethod(id),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["payment-methods"] });
+      setSelected(null);
+      toast.success("Payment method removed.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+  return (
+    <SettingsSection
+      id="payments"
+      title="Payment methods"
+      description="Cards saved securely by Paystack for automatic recurring gifts. AzarFaith never stores your full card number."
+    >
+      {query.isPending ? (
+        <p role="status">Getting payment methods...</p>
+      ) : query.isError ? (
+        <LoadError message="Could not load payment methods." retry={() => void query.refetch()} />
+      ) : !query.data?.length ? (
+        <p className="text-sm text-[#777283]">
+          No saved cards yet. A reusable card is saved after an automatic recurring checkout with
+          your consent.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {query.data.map((card) => (
+            <li
+              key={card.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#efedf3] p-4"
+            >
+              <div>
+                <p className="text-sm font-semibold">
+                  {card.label}
+                  {card.isPreferred && (
+                    <span className="ml-2 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                      Preferred
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-xs text-[#777283]">
+                  {card.linkedRecurringGiftCount
+                    ? `Used by ${card.linkedRecurringGiftCount} recurring gifts. Change or cancel those gifts before removing this card.`
+                    : "Not linked to an active or paused recurring gift."}
+                </p>
+              </div>
+              {card.active && card.reusable && card.channel === "card" && !card.isPreferred && (
+                <button
+                  type="button"
+                  className="giving-small-button"
+                  disabled={preferred.isPending || remove.isPending}
+                  onClick={() => preferred.mutate(card.id)}
+                >
+                  Make preferred
+                </button>
+              )}
+              <button
+                type="button"
+                className="giving-small-button"
+                disabled={
+                  card.linkedRecurringGiftCount > 0 ||
+                  remove.isPending ||
+                  preferred.isPending ||
+                  !card.active
+                }
+                onClick={() => setSelected(card)}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link
+        to="/my-giving"
+        className="mt-5 inline-block text-sm font-semibold underline underline-offset-4"
+      >
+        Manage recurring gifts
+      </Link>
+      <p className="mt-3 text-xs text-muted-ink">
+        A preferred card is suggested when choosing a card. It does not change the card already
+        linked to a recurring gift or authorize a new charge.
+      </p>
+      {preferred.isError && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          {preferred.error.message}
+        </p>
+      )}
+      <Dialog
+        open={Boolean(selected)}
+        onOpenChange={(open) => {
+          if (!open && !remove.isPending) {
+            setSelected(null);
+            remove.reset();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Remove saved card?</DialogTitle>
+          <DialogDescription>
+            {selected?.label} will no longer be available for future automatic gifts.
+          </DialogDescription>
+          {remove.isError && (
+            <p role="alert" className="text-sm text-red-700">
+              {remove.error.message}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              className="giving-small-button"
+              disabled={remove.isPending}
+              onClick={() => setSelected(null)}
+            >
+              Keep card
+            </button>
+            <button
+              className="giving-small-button"
+              disabled={remove.isPending}
+              onClick={() => selected && remove.mutate(selected.id)}
+            >
+              {remove.isPending ? "Removing..." : "Remove card"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </SettingsSection>
+  );
+}
+
+function Security() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const [current, setCurrent] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [devicesDialog, setDevicesDialog] = useState(false);
+  const devices = useMutation({
+    mutationFn: () => apiFetch("/auth/signout-other-devices", { method: "POST" }),
+    onSuccess: () => {
+      setDevicesDialog(false);
+      toast.success("Other sessions revoked. This browser remains signed in.");
+    },
+  });
+  const change = useMutation({
+    mutationFn: () =>
+      dispatch(changePassword({ currentPassword: current, newPassword: password })).unwrap(),
+    onSuccess: async () => {
+      await client.cancelQueries();
+      client.clear();
+      toast.success("Password changed. Sign in again with your new password.");
+      await navigate({ to: "/login" });
+    },
+    onError: (failure: Error) => setError(failure.message),
+  });
+  return (
+    <SettingsSection
+      id="security"
+      title="Security"
+      description="Changing your password signs you out on all devices. Sign in again with your new password."
+    >
+      <p className="mb-5 text-xs leading-relaxed text-[#777283]">
+        If you normally use Google and have not set a password, use{" "}
+        <Link to="/forgot-password" className="underline">
+          password reset
+        </Link>{" "}
+        first.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const failure = validatePassword(current, password, confirmation);
+          setError(failure ?? "");
+          if (!failure) change.mutate();
+        }}
+      >
+        <fieldset disabled={change.isPending} className="grid gap-5 sm:grid-cols-2">
+          <label className="giving-label sm:col-span-2">
+            Current password
+            <input
+              className="giving-input"
+              required
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+            />
+          </label>
+          <label className="giving-label">
+            New password
+            <input
+              className="giving-input"
+              required
+              minLength={8}
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          <label className="giving-label">
+            Confirm new password
+            <input
+              className="giving-input"
+              required
+              type="password"
+              autoComplete="new-password"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+            />
+          </label>
+        </fieldset>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        <SaveActions
+          label="Change password"
+          pending={change.isPending}
+          dirty={Boolean(current || password || confirmation)}
+          discard={() => {
+            setCurrent("");
+            setPassword("");
+            setConfirmation("");
+            setError("");
+          }}
+        />
+      </form>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-panel p-4">
+        <p className="text-sm text-muted-ink">
+          Keep this browser signed in and revoke existing sessions on your other devices.
+        </p>
+        <button
+          type="button"
+          className="giving-small-button"
+          disabled={change.isPending || devices.isPending}
+          onClick={() => {
+            devices.reset();
+            setDevicesDialog(true);
+          }}
+        >
+          Sign out other devices
+        </button>
+      </div>
+      <Dialog
+        open={devicesDialog}
+        onOpenChange={(value) => {
+          if (!devices.isPending) setDevicesDialog(value);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Sign out other devices?</DialogTitle>
+          <DialogDescription>
+            Other browsers will need to log in again. This browser receives a new secure session
+            cookie. No device count is inferred.
+          </DialogDescription>
+          {devices.isError && (
+            <p role="alert" className="text-sm text-red-700">
+              {devices.error.message}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              className="giving-small-button"
+              disabled={devices.isPending}
+              onClick={() => setDevicesDialog(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="giving-small-button bg-black text-white"
+              disabled={devices.isPending}
+              onClick={() => devices.mutate()}
+            >
+              {devices.isPending ? "Signing out..." : "Confirm"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </SettingsSection>
   );
 }

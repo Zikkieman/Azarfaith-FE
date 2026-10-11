@@ -18,6 +18,7 @@ export function AdminPagination({ currentPage, totalPages, onPageChange }: Admin
   return (
     <div className="flex items-center justify-center gap-1">
       <button
+        aria-label="Previous"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -37,6 +38,8 @@ export function AdminPagination({ currentPage, totalPages, onPageChange }: Admin
               </span>
             )}
             <button
+              aria-label={`Page ${page}`}
+              aria-current={page === currentPage ? "page" : undefined}
               onClick={() => onPageChange(page)}
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors",
@@ -52,6 +55,7 @@ export function AdminPagination({ currentPage, totalPages, onPageChange }: Admin
       })}
 
       <button
+        aria-label="Next"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"

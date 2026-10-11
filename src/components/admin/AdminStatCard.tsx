@@ -41,7 +41,6 @@ export function AdminStatCard({ label, value, icon, trend, className }: AdminSta
           >
             {trend.value}
           </span>
-          <span className="text-xs text-gray-400">vs last month</span>
         </div>
       )}
     </div>

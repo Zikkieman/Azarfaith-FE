@@ -1,6 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Provider } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Outlet,
   Link,
@@ -8,6 +8,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
@@ -15,6 +16,7 @@ import appCss from "../styles.css?url";
 import { store } from "@/app/store";
 import { Toaster } from "@/components/ui/sonner";
 import { fetchSession } from "@/features/auth/authSlice";
+import { PageSpinner } from "@/components/PageSpinner";
 
 function NotFoundComponent() {
   return (
@@ -38,7 +40,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
 
@@ -164,6 +166,17 @@ function RootComponent() {
 function AppRoot() {
   const dispatch = useAppDispatch();
   const hydrated = useAppSelector((state) => state.auth.hydrated);
+  const userId = useAppSelector((state) => state.auth.user?.id ?? null);
+  const queryClient = useQueryClient();
+  const [cacheUserId, setCacheUserId] = useState(userId);
+
+  useEffect(() => {
+    if (cacheUserId === userId) return;
+    // Unmount account-scoped pages before clearing; new queries must start afterwards.
+    void queryClient.cancelQueries();
+    queryClient.clear();
+    setCacheUserId(userId);
+  }, [userId, cacheUserId, queryClient]);
 
   useEffect(() => {
     if (hydrated) return;
@@ -172,7 +185,7 @@ function AppRoot() {
 
   return (
     <>
-      <Outlet />
+      {cacheUserId === userId ? <Outlet /> : <PageSpinner label="Restoring your session..." />}
       <Toaster position="top-center" richColors closeButton />
     </>
   );
