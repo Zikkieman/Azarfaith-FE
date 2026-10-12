@@ -84,6 +84,9 @@ test("public links allow real websites and social URLs, never script or credenti
     "https://riverlight.example",
     "https://instagram.com/riverlight",
     "http://riverlight.example/about",
+    "www.ezekieloladele.dev",
+    "ezekieloladele.dev/about",
+    "instagram.com/riverlight",
   ])
     assert.equal(creation.publicLink(url), true);
   for (const url of [
@@ -91,8 +94,49 @@ test("public links allow real websites and social URLs, never script or credenti
     "javascript:alert(1)",
     "ftp://example.com",
     "https://user:password@example.com",
+    "https:///example.com",
+    "https:example.com",
+    "//example.com",
+    "user@example.com",
+    "https://exa_mple.com",
+    "https://example.com\\@evil.com",
+    "https://example.123",
   ])
     assert.equal(creation.publicLink(url), false);
+});
+test("public links normalize domains before saving and detect equivalent duplicates", () => {
+  assert.equal(
+    creation.normalizePublicLink(" www.ezekieloladele.dev "),
+    "https://www.ezekieloladele.dev/",
+  );
+  assert.equal(
+    creation.normalizePublicLink("example.com/about?ref=org#team"),
+    "https://example.com/about?ref=org#team",
+  );
+  assert.equal(
+    creation.normalizePublicLink("HTTP://example.com/about"),
+    "http://example.com/about",
+  );
+  const form = { ...org, externalLinks: ["www.ezekieloladele.dev"] };
+  assert.deepEqual(creation.organizationPayload(form).externalLinks, [
+    "https://www.ezekieloladele.dev/",
+  ]);
+  assert.equal(creation.organizationErrors(form).externalLinks, undefined);
+  assert.ok(
+    creation.organizationErrors({
+      ...org,
+      externalLinks: ["www.ezekieloladele.dev", "https://www.ezekieloladele.dev/"],
+    }).externalLinks,
+  );
+  assert.ok(
+    creation.organizationErrors({ ...org, externalLinks: ["javascript:alert(1)"] }).externalLinks,
+  );
+  assert.ok(
+    creation.organizationErrors({
+      ...org,
+      externalLinks: Array.from({ length: 11 }, (_, i) => `example.com/${i}`),
+    }).externalLinks,
+  );
 });
 test("uploads enforce supported MIME types, 5 MB per file and total count before network calls", () => {
   assert.equal(creation.validateMedia([{ size: 5 * 1024 * 1024, type: "image/png" }], 7, 8), null);

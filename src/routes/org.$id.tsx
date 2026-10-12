@@ -34,6 +34,7 @@ import {
 } from "@/features/catalog/api";
 import { PayoutSettings } from "@/components/profile/PayoutSettings";
 import { formatMoney, orgCategoryOptions } from "@/lib/catalog";
+import { normalizePublicLink } from "@/lib/creation";
 
 export const Route = createFileRoute("/org/$id")({
   component: OrgProfile,
@@ -81,6 +82,7 @@ function OrgProfile() {
     registrationDocumentUrls: [] as string[],
   });
   const [externalLinkInput, setExternalLinkInput] = useState("");
+  const [externalLinkError, setExternalLinkError] = useState("");
   const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
 
   useEffect(() => {
@@ -89,11 +91,7 @@ function OrgProfile() {
       name: org.name,
       tagline: org.tagline,
       category: org.category.toUpperCase() as
-        | "CHURCH"
-        | "MISSION"
-        | "ORPHANAGE"
-        | "SCHOOL"
-        | "OTHER",
+        "CHURCH" | "MISSION" | "ORPHANAGE" | "SCHOOL" | "OTHER",
       otherCategoryLabel: org.otherCategoryLabel || "",
       denomination: org.denomination,
       foundedYear: org.founded || "",
@@ -165,7 +163,7 @@ function OrgProfile() {
         location: form.location,
         bio: form.bio,
         photoUrls: form.photoUrls,
-        externalLinks: form.externalLinks,
+        externalLinks: form.externalLinks.map((link) => normalizePublicLink(link) ?? link),
         registrationDocumentUrls: form.registrationDocumentUrls,
       }),
     onSuccess: () => {
@@ -632,27 +630,55 @@ function OrgProfile() {
                   <p className="text-sm font-medium">Public links</p>
                   <div className="flex gap-2">
                     <input
+                      aria-label="Public link"
+                      aria-invalid={Boolean(externalLinkError)}
+                      aria-describedby="public-link-help"
                       value={externalLinkInput}
-                      onChange={(event) => setExternalLinkInput(event.target.value)}
-                      placeholder="https://website-or-social-link"
+                      onChange={(event) => {
+                        setExternalLinkInput(event.target.value);
+                        setExternalLinkError("");
+                      }}
+                      placeholder="www.your-website.com"
+                      inputMode="url"
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                     <button
                       type="button"
                       onClick={() => {
-                        const next = externalLinkInput.trim();
-                        if (!next) return;
+                        const next = normalizePublicLink(externalLinkInput);
+                        if (!next) {
+                          setExternalLinkError(
+                            "Enter a valid website or social link, such as www.example.com.",
+                          );
+                          return;
+                        }
+                        if (
+                          form.externalLinks.length >= 10 ||
+                          form.externalLinks.some((item) => normalizePublicLink(item) === next)
+                        ) {
+                          setExternalLinkError("Add up to 10 different links.");
+                          return;
+                        }
                         setForm((current) => ({
                           ...current,
                           externalLinks: [...current.externalLinks, next],
                         }));
                         setExternalLinkInput("");
+                        setExternalLinkError("");
                       }}
                       className="rounded-full bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
                     >
                       Add
                     </button>
                   </div>
+                  <p
+                    id="public-link-help"
+                    className={`text-xs ${externalLinkError ? "text-red-600" : "text-muted-foreground"}`}
+                  >
+                    {externalLinkError || "We add https:// if you leave it out."}
+                  </p>
                   {form.externalLinks.length > 0 ? (
                     <div className="space-y-2">
                       {form.externalLinks.map((url) => (

@@ -28,18 +28,29 @@ export function focusError(key: string) {
     ?.querySelector<HTMLElement>("input,textarea,select,button")
     ?.focus({ preventScroll: true });
 }
-export function publicLink(value: string) {
+export function normalizePublicLink(value: string): string | null {
+  const raw = value.trim();
+  if (!raw || /[\s\\]/.test(raw) || raw.startsWith("//")) return null;
+  const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(raw);
+  if (hasScheme && !/^https?:\/\/[^/?#]/i.test(raw)) return null;
   try {
-    const url = new URL(value.trim());
-    return (
-      ["https:", "http:"].includes(url.protocol) &&
-      Boolean(url.hostname.includes(".")) &&
-      !url.username &&
-      !url.password
-    );
+    const url = new URL(hasScheme ? raw : `https://${raw}`);
+    if (
+      !["https:", "http:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.hostname.length > 253 ||
+      url.hostname.split(".").some((label) => label.length > 63) ||
+      !/^(?:[a-z\d](?:[a-z\d-]*[a-z\d])?\.)+[a-z](?:[a-z\d-]*[a-z\d])?$/i.test(url.hostname)
+    )
+      return null;
+    return url.href;
   } catch {
-    return false;
+    return null;
   }
+}
+export function publicLink(value: string) {
+  return normalizePublicLink(value) !== null;
 }
 export function validateMedia(
   files: Array<Pick<File, "size" | "type">>,
@@ -91,6 +102,7 @@ export function organizationPayload(form: OrgForm) {
     foundedYear: form.foundedYear ? Number(form.foundedYear) : null,
     denomination: form.denomination.trim(),
     location: form.location.trim(),
+    externalLinks: form.externalLinks.map((link) => normalizePublicLink(link) ?? link.trim()),
   };
 }
 export function organizationErrors(form: OrgForm) {
@@ -118,6 +130,11 @@ export function organizationErrors(form: OrgForm) {
     errors.photoUrls = "Upload at least 3 photos. Your first photo is the cover.";
   if (!form.registrationDocumentUrls.length)
     errors.registrationDocumentUrls = "Add a CAC document or a recommendation letter.";
+  const links = form.externalLinks.map(normalizePublicLink);
+  if (links.some((link) => !link))
+    errors.externalLinks = "Enter a valid website or social link, such as www.example.com.";
+  else if (links.length > 10 || new Set(links).size !== links.length)
+    errors.externalLinks = "Add up to 10 different links.";
   return errors;
 }
 export function campaignForm(draft?: Campaign): CampaignForm {

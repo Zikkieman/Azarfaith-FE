@@ -24,7 +24,7 @@ import {
   orgForm,
   organizationErrors,
   organizationPayload,
-  publicLink,
+  normalizePublicLink,
 } from "@/lib/creation";
 
 export const Route = createFileRoute("/register-org")({
@@ -43,7 +43,7 @@ const icons = {
 const stepFields = [
   ["name", "category", "otherCategoryLabel", "denomination", "foundedYear", "location"],
   ["tagline", "bio"],
-  ["photoUrls", "registrationDocumentUrls"],
+  ["photoUrls", "registrationDocumentUrls", "externalLinks"],
 ];
 function RegisterOrg() {
   const { draftId } = Route.useSearch();
@@ -333,33 +333,46 @@ function OrganizationEditor({ draft, userId }: { draft?: Org; userId: string }) 
                   Upload a CAC registration document or a recommendation letter from a recognized
                   parent ministry.
                 </p>
-                <Field id="publicLink" label="Relevant public links" error={linkError}>
+                <Field
+                  id="publicLink"
+                  label="Relevant public links"
+                  error={linkError || errors.externalLinks}
+                >
                   <div className="flex gap-2">
                     <input
                       id="publicLink"
                       className="giving-input min-w-0"
-                      placeholder="https://your-website.com"
+                      placeholder="www.your-website.com"
+                      inputMode="url"
+                      autoCapitalize="none"
+                      autoCorrect="off"
                       value={link}
-                      onChange={(event) => setLink(event.target.value)}
+                      onChange={(event) => {
+                        setLink(event.target.value);
+                        setLinkError("");
+                      }}
                     />
                     <button
                       type="button"
                       className="giving-small-button shrink-0"
                       onClick={() => {
-                        if (!publicLink(link)) {
+                        const normalized = normalizePublicLink(link);
+                        if (!normalized) {
                           setLinkError(
-                            "Paste a valid website or social URL starting with https:// or http://.",
+                            "Enter a valid website or social link, such as www.example.com.",
                           );
                           return;
                         }
                         if (
                           form.externalLinks.length >= 10 ||
-                          form.externalLinks.includes(link.trim())
+                          form.externalLinks.some(
+                            (item) => normalizePublicLink(item) === normalized,
+                          )
                         ) {
                           setLinkError("Add up to 10 different links.");
                           return;
                         }
-                        setForm({ ...form, externalLinks: [...form.externalLinks, link.trim()] });
+                        setForm({ ...form, externalLinks: [...form.externalLinks, normalized] });
                         setLink("");
                         setLinkError("");
                       }}
@@ -368,6 +381,9 @@ function OrganizationEditor({ draft, userId }: { draft?: Org; userId: string }) 
                     </button>
                   </div>
                 </Field>
+                <p className="text-xs text-[#777283]">
+                  Website and social links are welcome. We add https:// if you leave it out.
+                </p>
                 {form.externalLinks.map((url, index) => (
                   <div
                     key={url}
