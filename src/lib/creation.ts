@@ -1,5 +1,5 @@
 import type { CreateCampaignPayload, CreateOrganizationPayload } from "@/features/catalog/api";
-import type { Campaign, Org } from "@/lib/catalog";
+import type { Campaign, Org, PayoutAccount } from "@/lib/catalog";
 
 export type OrgForm = Omit<CreateOrganizationPayload, "category" | "foundedYear"> & {
   category: CreateOrganizationPayload["category"] | "";
@@ -21,6 +21,24 @@ export type CampaignForm = Omit<
   frequencies: NonNullable<CreateCampaignPayload["frequencies"]>;
 };
 export const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+export function campaignPayoutError({
+  account,
+  loading,
+  failed,
+}: {
+  account?: Pick<PayoutAccount, "active" | "status"> | null;
+  loading: boolean;
+  failed: boolean;
+}): string | undefined {
+  if (loading) return "Please wait while we load your saved payout account.";
+  if (failed) return "Could not check your saved payout account. Retry before submitting.";
+  if (!account) return "Add a payout account once in your profile to submit campaigns.";
+  if (!account.active || account.status === "inactive")
+    return "Your saved payout account is inactive. Review your payout settings; do not register it again.";
+  if (account.status !== "verified")
+    return "Your account is already saved but needs verification before submission. You do not need to enter it again.";
+  return undefined;
+}
 export function focusError(key: string) {
   const target = document.getElementById(`field-${key}`);
   target?.scrollIntoView({ behavior: "smooth", block: "center" });

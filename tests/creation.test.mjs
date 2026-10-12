@@ -53,6 +53,71 @@ const campaign = {
   galleryImageUrls: ["https://fixture.example/gallery.png"],
 };
 
+test("campaigns reuse verified saved accounts and distinguish missing, pending, inactive and unavailable destinations", () => {
+  const ready = { active: true, status: "verified" };
+  assert.equal(
+    creation.campaignPayoutError({ account: ready, loading: false, failed: false }),
+    undefined,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: null, loading: false, failed: false }),
+    /Add.*once/,
+  );
+  assert.match(
+    creation.campaignPayoutError({
+      account: { ...ready, status: "pending" },
+      loading: false,
+      failed: false,
+    }),
+    /already saved.*verification/,
+  );
+  assert.match(
+    creation.campaignPayoutError({
+      account: { ...ready, active: false },
+      loading: false,
+      failed: false,
+    }),
+    /inactive/,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: ready, loading: true, failed: false }),
+    /wait/,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: ready, loading: false, failed: true }),
+    /Retry/,
+  );
+});
+
+test("saved payout destination reads use authenticated existing endpoints, not account registration", async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, ...init });
+    return new Response(JSON.stringify({ id: "saved-bank", active: true, status: "verified" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  await api.getPersonalPayoutAccount();
+  await api.getOrganizationPayoutAccount("org");
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      "https://fixture.example/me/payout-account",
+      "https://fixture.example/organizations/org/payout-account",
+    ],
+  );
+  assert.ok(
+    calls.every(
+      (call) =>
+        call.credentials === "include" && (!call.method || call.method === "GET") && !call.body,
+    ),
+  );
+});
+
 test("organization bio and campaign story require 100-200 words, including both boundaries", () => {
   for (const count of [100, 200]) {
     assert.equal(creation.organizationErrors({ ...org, bio: words(count) }).bio, undefined);

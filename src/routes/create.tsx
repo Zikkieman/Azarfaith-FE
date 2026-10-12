@@ -12,10 +12,13 @@ import {
   MediaPicker,
 } from "@/components/creation/CreationParts";
 import { useCreationSession } from "@/components/creation/useCreationSession";
+import { CampaignPayoutAccount } from "@/components/creation/CampaignPayoutAccount";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   getCampaignDraft,
   getProfile,
+  getPersonalPayoutAccount,
+  getOrganizationPayoutAccount,
   saveCampaignDraft,
   submitCampaignDraft,
   updateCampaignDraft,
@@ -33,6 +36,7 @@ import {
   campaignErrors,
   campaignForm,
   campaignPayload,
+  campaignPayoutError,
   countWords,
   focusError,
   type CampaignForm,
@@ -125,6 +129,27 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
   const [dirty, setDirty] = useState(false);
   const profile = useQuery({ queryKey: ["profile", userId], queryFn: getProfile });
   useCreationSession(profile.error);
+  const eligibleOrganization =
+    !form.organizationId ||
+    Boolean(
+      profile.data?.ownedOrganizations.some(
+        (org) => org.id === form.organizationId && org.reviewAction !== "rejected",
+      ),
+    );
+  const payout = useQuery({
+    queryKey: ["campaign-payout-account", userId, form.organizationId || "personal"],
+    queryFn: () =>
+      form.organizationId
+        ? getOrganizationPayoutAccount(form.organizationId)
+        : getPersonalPayoutAccount(),
+    enabled: eligibleOrganization,
+  });
+  useCreationSession(payout.error);
+  const payoutError = campaignPayoutError({
+    account: payout.data,
+    loading: payout.isPending,
+    failed: payout.isError,
+  });
   const change = (patch: Partial<CampaignForm>) => {
     setForm((current) => ({ ...current, ...patch }));
     setDirty(true);
@@ -139,8 +164,10 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
   )
     allErrors.organizationId =
       "Select one of your eligible organizations, or create a standalone campaign.";
+  if (payoutError) allErrors.payoutAccount = payoutError;
   const errors = showErrors ? allErrors : {};
   const checks: Array<readonly [string, string]> = [...checklist];
+  checks.push(["payoutAccount", "Reuse a verified payout account"]);
   if (form.mode === "ONE_TIME" && form.type === "MONEY")
     checks.push(["goalAmount", "Set your goal"]);
   if (form.mode === "ONGOING") checks.push(["frequencies", "Choose giving frequencies"]);
@@ -667,16 +694,15 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
                   </select>
                 </Field>
               )}
-              <div className="mt-5">
-                <CreationNotice>
-                  You need a saved payout account to submit. Your profile account can be used for
-                  standalone and organization-linked campaigns.{" "}
-                  <Link to="/profile" hash="payouts" className="font-medium underline">
-                    Payout settings
-                  </Link>
-                </CreationNotice>
-              </div>
             </section>
+            <CampaignPayoutAccount
+              account={payout.data}
+              loading={payout.isPending}
+              failed={payout.isError}
+              message={payoutError}
+              retry={() => void payout.refetch()}
+              organizationId={form.organizationId || undefined}
+            />
             <CreationNotice>
               Campaigns are reviewed before going live. A campaign linked to an organization is only
               available to donors when that organization is also approved.
