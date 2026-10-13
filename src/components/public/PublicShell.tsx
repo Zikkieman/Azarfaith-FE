@@ -1,16 +1,19 @@
 import type { ReactNode } from "react";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { useClientReady } from "@/lib/useClientReady";
+import { LandingDataProvider } from "@/components/landing/data";
+import { Footer } from "@/components/landing/Footer";
+import { SiteNav } from "@/components/landing/SiteNav";
 
 export function PublicShell({ children }: { children: ReactNode }) {
-  const ready = useClientReady();
   return (
-    <div className="public-layout min-h-screen">
-      {ready && <Navbar workspace />}
-      <main className="mx-auto max-w-[1280px] px-5 py-8 md:px-10 md:py-12">{children}</main>
-      {ready && <Footer />}
-    </div>
+    <LandingDataProvider>
+      <div className="designer-app min-h-screen bg-paper font-gsf text-heading">
+        <SiteNav />
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-12 md:px-12 md:py-16">
+          {children}
+        </main>
+        <Footer />
+      </div>
+    </LandingDataProvider>
   );
 }
 

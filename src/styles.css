@@ -164,15 +164,6 @@
     outline: 2px solid #c56826;
     outline-offset: 4px;
   }
-  .workspace-nav > div:first-child > a span {
-    color: white;
-  }
-  .workspace-nav > div:last-child.lg\:hidden > a:not(.bg-amber-500) {
-    color: #ddd9e6;
-  }
-  .workspace-nav > div:last-child.lg\:hidden {
-    border-color: #333;
-  }
   * {
     border-color: var(--color-border);
   }
@@ -239,14 +230,14 @@
     overflow-wrap: anywhere;
   }
   .public-layout {
-    --color-background: #fff;
-    --color-card: #fff;
+    --color-background: #fbfaf7;
+    --color-card: #fbfaf7;
     --color-foreground: #130e30;
-    --color-muted-foreground: #6f6c7b;
-    --color-border: #efedf3;
-    background: #fff;
+    --color-muted-foreground: #69677a;
+    --color-border: #e4e1dc;
+    background: #fbfaf7;
     color: #130e30;
-    font-family: "Google Sans Flex", "Plus Jakarta Sans", sans-serif;
+    font-family: var(--font-gsf);
   }
   .public-layout h1,
   .public-layout h2,
@@ -254,9 +245,9 @@
     font-family: inherit;
   }
   .public-panel {
-    border: 1px solid #efedf3;
-    border-radius: 16px;
-    background: #fff;
+    border: 1px solid #e4e1dc;
+    border-radius: 20px;
+    background: #fbfaf7;
   }
   .public-button,
   .public-button-secondary,
@@ -268,19 +259,22 @@
     gap: 8px;
     border-radius: 999px;
     padding: 11px 18px;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 22px;
+    border: 2px solid #130e30;
+    font-family: var(--font-gsf);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 20px;
     text-align: center;
   }
   .public-button {
-    background: #ff8a39;
-    color: #130e30;
+    background: #130e30;
+    color: #fff;
   }
   .public-button:hover {
-    background: #f87922;
+    opacity: 0.9;
   }
   .public-button-secondary {
+    border-color: transparent;
     color: #130e30;
   }
   .public-button-secondary:hover {
@@ -288,22 +282,22 @@
     text-underline-offset: 4px;
   }
   .public-button-outline {
-    border: 1px solid #e4e1e9;
-    background: #fff;
+    border-color: #e4e1dc;
+    background: #fbfaf7;
     color: #130e30;
   }
   .public-input {
     width: 100%;
     min-width: 0;
-    border: 1px solid #e4e1e9;
-    border-radius: 12px;
-    background: #fff;
+    border: 1px solid #d7d2ca;
+    border-radius: 14px;
+    background: #fbfaf7;
     padding: 12px 14px;
     color: #130e30;
     font-size: 14px;
   }
   .public-layout :focus-visible {
-    outline: 2px solid #c56826;
+    outline: 2px solid #fe5102;
     outline-offset: 3px;
   }
   .auth-layout,
