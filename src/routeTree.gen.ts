@@ -9,107 +9,42 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as StoryRouteImport } from './routes/story'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RegisterOrgRouteImport } from './routes/register-org'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as MyGivingRouteImport } from './routes/my-giving'
-import { Route as MapRouteImport } from './routes/map'
-import { Route as ManageRouteImport } from './routes/manage'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as DiscoverRouteImport } from './routes/discover'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as CreateRouteImport } from './routes/create'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as PageRouteImport } from './routes/$page'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PageRouteImport } from './routes/$page'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CreateRouteImport } from './routes/create'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ManageRouteImport } from './routes/manage'
+import { Route as MapRouteImport } from './routes/map'
+import { Route as MyGivingRouteImport } from './routes/my-giving'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RegisterOrgRouteImport } from './routes/register-org'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as StoryRouteImport } from './routes/story'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as OrgIdRouteImport } from './routes/org.$id'
-import { Route as DonateIdRouteImport } from './routes/donate.$id'
-import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
-import { Route as AdminProfileRouteImport } from './routes/admin/profile'
-import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
-import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
-import { Route as AdminLoginRouteImport } from './routes/admin.login'
-import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
 import { Route as AdminActivityRouteImport } from './routes/admin/activity'
-import { Route as ManageOrgIdRouteImport } from './routes/manage.org.$id'
-import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
-import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
+import { Route as AdminCampaignsRouteImport } from './routes/admin/campaigns'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
+import { Route as AdminProfileRouteImport } from './routes/admin/profile'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as CampaignIdRouteImport } from './routes/campaign.$id'
+import { Route as DonateIdRouteImport } from './routes/donate.$id'
+import { Route as OrgIdRouteImport } from './routes/org.$id'
 import { Route as AdminCampaignsIdRouteImport } from './routes/admin/campaigns.$id'
+import { Route as AdminOrgsIdRouteImport } from './routes/admin/orgs.$id'
+import { Route as AdminUsersIdRouteImport } from './routes/admin/users.$id'
+import { Route as ManageOrgIdRouteImport } from './routes/manage.org.$id'
 
-const StoryRoute = StoryRouteImport.update({
-  id: '/story',
-  path: '/story',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterOrgRoute = RegisterOrgRouteImport.update({
-  id: '/register-org',
-  path: '/register-org',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MyGivingRoute = MyGivingRouteImport.update({
-  id: '/my-giving',
-  path: '/my-giving',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MapRoute = MapRouteImport.update({
-  id: '/map',
-  path: '/map',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManageRoute = ManageRouteImport.update({
-  id: '/manage',
-  path: '/manage',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiscoverRoute = DiscoverRouteImport.update({
-  id: '/discover',
-  path: '/discover',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreateRoute = CreateRouteImport.update({
-  id: '/create',
-  path: '/create',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PageRoute = PageRouteImport.update({
@@ -117,9 +52,74 @@ const PageRoute = PageRouteImport.update({
   path: '/$page',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreateRoute = CreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiscoverRoute = DiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManageRoute = ManageRouteImport.update({
+  id: '/manage',
+  path: '/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyGivingRoute = MyGivingRouteImport.update({
+  id: '/my-giving',
+  path: '/my-giving',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterOrgRoute = RegisterOrgRouteImport.update({
+  id: '/register-org',
+  path: '/register-org',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoryRoute = StoryRouteImport.update({
+  id: '/story',
+  path: '/story',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -127,49 +127,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const OrgIdRoute = OrgIdRouteImport.update({
-  id: '/org/$id',
-  path: '/org/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DonateIdRoute = DonateIdRouteImport.update({
-  id: '/donate/$id',
-  path: '/donate/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CampaignIdRoute = CampaignIdRouteImport.update({
-  id: '/campaign/$id',
-  path: '/campaign/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminProfileRoute = AdminProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
-  id: '/payouts',
-  path: '/payouts',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOrgsRoute = AdminOrgsRouteImport.update({
-  id: '/orgs',
-  path: '/orgs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const AdminActivityRoute = AdminActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
@@ -177,30 +137,70 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminActivityRoute = AdminActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
-const ManageOrgIdRoute = ManageOrgIdRouteImport.update({
+const AdminOrgsRoute = AdminOrgsRouteImport.update({
+  id: '/orgs',
+  path: '/orgs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProfileRoute = AdminProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const CampaignIdRoute = CampaignIdRouteImport.update({
+  id: '/campaign/$id',
+  path: '/campaign/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DonateIdRoute = DonateIdRouteImport.update({
+  id: '/donate/$id',
+  path: '/donate/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrgIdRoute = OrgIdRouteImport.update({
   id: '/org/$id',
   path: '/org/$id',
-  getParentRoute: () => ManageRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
+const AdminCampaignsIdRoute = AdminCampaignsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => AdminUsersRoute,
+  getParentRoute: () => AdminCampaignsRoute,
 } as any)
 const AdminOrgsIdRoute = AdminOrgsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AdminOrgsRoute,
 } as any)
-const AdminCampaignsIdRoute = AdminCampaignsIdRouteImport.update({
+const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => AdminCampaignsRoute,
+  getParentRoute: () => AdminUsersRoute,
+} as any)
+const ManageOrgIdRoute = ManageOrgIdRouteImport.update({
+  id: '/org/$id',
+  path: '/org/$id',
+  getParentRoute: () => ManageRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -433,102 +433,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/story': {
-      id: '/story'
-      path: '/story'
-      fullPath: '/story'
-      preLoaderRoute: typeof StoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register-org': {
-      id: '/register-org'
-      path: '/register-org'
-      fullPath: '/register-org'
-      preLoaderRoute: typeof RegisterOrgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/my-giving': {
-      id: '/my-giving'
-      path: '/my-giving'
-      fullPath: '/my-giving'
-      preLoaderRoute: typeof MyGivingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/map': {
-      id: '/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof MapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manage': {
-      id: '/manage'
-      path: '/manage'
-      fullPath: '/manage'
-      preLoaderRoute: typeof ManageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/discover': {
-      id: '/discover'
-      path: '/discover'
-      fullPath: '/discover'
-      preLoaderRoute: typeof DiscoverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/create': {
-      id: '/create'
-      path: '/create'
-      fullPath: '/create'
-      preLoaderRoute: typeof CreateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$page': {
@@ -538,11 +447,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PageRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/create': {
+      id: '/create'
+      path: '/create'
+      fullPath: '/create'
+      preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/discover': {
+      id: '/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manage': {
+      id: '/manage'
+      path: '/manage'
+      fullPath: '/manage'
+      preLoaderRoute: typeof ManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-giving': {
+      id: '/my-giving'
+      path: '/my-giving'
+      fullPath: '/my-giving'
+      preLoaderRoute: typeof MyGivingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register-org': {
+      id: '/register-org'
+      path: '/register-org'
+      fullPath: '/register-org'
+      preLoaderRoute: typeof RegisterOrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/story': {
+      id: '/story'
+      path: '/story'
+      fullPath: '/story'
+      preLoaderRoute: typeof StoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -552,67 +552,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/org/$id': {
-      id: '/org/$id'
-      path: '/org/$id'
-      fullPath: '/org/$id'
-      preLoaderRoute: typeof OrgIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/donate/$id': {
-      id: '/donate/$id'
-      path: '/donate/$id'
-      fullPath: '/donate/$id'
-      preLoaderRoute: typeof DonateIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/campaign/$id': {
-      id: '/campaign/$id'
-      path: '/campaign/$id'
-      fullPath: '/campaign/$id'
-      preLoaderRoute: typeof CampaignIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/profile': {
-      id: '/admin/profile'
-      path: '/profile'
-      fullPath: '/admin/profile'
-      preLoaderRoute: typeof AdminProfileRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/payouts': {
-      id: '/admin/payouts'
-      path: '/payouts'
-      fullPath: '/admin/payouts'
-      preLoaderRoute: typeof AdminPayoutsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/orgs': {
-      id: '/admin/orgs'
-      path: '/orgs'
-      fullPath: '/admin/orgs'
-      preLoaderRoute: typeof AdminOrgsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
+    '/admin/activity': {
+      id: '/admin/activity'
+      path: '/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AdminActivityRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/campaigns': {
@@ -622,26 +566,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCampaignsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/activity': {
-      id: '/admin/activity'
-      path: '/activity'
-      fullPath: '/admin/activity'
-      preLoaderRoute: typeof AdminActivityRouteImport
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/manage/org/$id': {
-      id: '/manage/org/$id'
-      path: '/org/$id'
-      fullPath: '/manage/org/$id'
-      preLoaderRoute: typeof ManageOrgIdRouteImport
-      parentRoute: typeof ManageRoute
+    '/admin/orgs': {
+      id: '/admin/orgs'
+      path: '/orgs'
+      fullPath: '/admin/orgs'
+      preLoaderRoute: typeof AdminOrgsRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/admin/users/$id': {
-      id: '/admin/users/$id'
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/profile': {
+      id: '/admin/profile'
+      path: '/profile'
+      fullPath: '/admin/profile'
+      preLoaderRoute: typeof AdminProfileRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/campaign/$id': {
+      id: '/campaign/$id'
+      path: '/campaign/$id'
+      fullPath: '/campaign/$id'
+      preLoaderRoute: typeof CampaignIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/donate/$id': {
+      id: '/donate/$id'
+      path: '/donate/$id'
+      fullPath: '/donate/$id'
+      preLoaderRoute: typeof DonateIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/org/$id': {
+      id: '/org/$id'
+      path: '/org/$id'
+      fullPath: '/org/$id'
+      preLoaderRoute: typeof OrgIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/campaigns/$id': {
+      id: '/admin/campaigns/$id'
       path: '/$id'
-      fullPath: '/admin/users/$id'
-      preLoaderRoute: typeof AdminUsersIdRouteImport
-      parentRoute: typeof AdminUsersRoute
+      fullPath: '/admin/campaigns/$id'
+      preLoaderRoute: typeof AdminCampaignsIdRouteImport
+      parentRoute: typeof AdminCampaignsRoute
     }
     '/admin/orgs/$id': {
       id: '/admin/orgs/$id'
@@ -650,12 +643,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrgsIdRouteImport
       parentRoute: typeof AdminOrgsRoute
     }
-    '/admin/campaigns/$id': {
-      id: '/admin/campaigns/$id'
+    '/admin/users/$id': {
+      id: '/admin/users/$id'
       path: '/$id'
-      fullPath: '/admin/campaigns/$id'
-      preLoaderRoute: typeof AdminCampaignsIdRouteImport
-      parentRoute: typeof AdminCampaignsRoute
+      fullPath: '/admin/users/$id'
+      preLoaderRoute: typeof AdminUsersIdRouteImport
+      parentRoute: typeof AdminUsersRoute
+    }
+    '/manage/org/$id': {
+      id: '/manage/org/$id'
+      path: '/org/$id'
+      fullPath: '/manage/org/$id'
+      preLoaderRoute: typeof ManageOrgIdRouteImport
+      parentRoute: typeof ManageRoute
     }
   }
 }

@@ -18,10 +18,10 @@ import {
 import { toast } from "sonner";
 
 import { useAppSelector } from "@/app/hooks";
-import { Navbar } from "@/components/Navbar";
-import { PageSpinner } from "@/components/PageSpinner";
+import { AppShell, Container } from "@/components/app/AppShell";
+import { ProfileSkeleton } from "@/components/app/Skeletons";
 import { OrganizationPublicView } from "@/components/public/OrganizationPublicView";
-import { PublicShell, CatalogError } from "@/components/public/PublicShell";
+import { CatalogError } from "@/components/public/PublicShell";
 import { useClientReady } from "@/lib/useClientReady";
 import { ApiError } from "@/lib/api";
 import { isPublished } from "@/lib/discovery";
@@ -188,28 +188,17 @@ function OrgProfile() {
   if (error instanceof ApiError && error.status === 404) throw notFound();
   if (ready && hydrated && error)
     return (
-      <PublicShell>
-        <CatalogError
-          retry={() => {
-            void refetch();
-          }}
-        />
-      </PublicShell>
+      <AppShell>
+        <Container className="py-10">
+          <CatalogError
+            retry={() => {
+              void refetch();
+            }}
+          />
+        </Container>
+      </AppShell>
     );
-  if (!ready || !hydrated)
-    return (
-      <PublicShell>
-        <PageSpinner label="Loading organization..." fullScreen={false} />
-      </PublicShell>
-    );
-  if (!org) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <PageSpinner label="Loading organization..." />
-      </div>
-    );
-  }
+  if (!ready || !hydrated || !org) return <ProfileSkeleton label="Loading organization" />;
 
   const ongoing = org.campaigns.filter((campaign) => campaign.mode === "ongoing");
   const oneTime = org.campaigns.filter((campaign) => campaign.mode === "one-time");
@@ -305,6 +294,7 @@ function OrgProfile() {
   if (!ownerTools || !isOwner)
     return (
       <OrganizationPublicView
+        key={org.id}
         organization={org}
         authenticated={Boolean(user)}
         isOwner={isOwner}
@@ -313,8 +303,7 @@ function OrgProfile() {
     );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <AppShell>
       <div className="mx-auto max-w-6xl px-5 pt-5">
         <button className="public-button-outline" onClick={() => setOwnerTools(false)}>
           Back to organization preview
@@ -1009,7 +998,7 @@ function OrgProfile() {
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
 

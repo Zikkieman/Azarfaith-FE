@@ -1,16 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Bell, CreditCard, ImagePlus, LockKeyhole, UserRound, Wallet } from "lucide-react";
+import { BadgeCheck, ImagePlus, CreditCard, Plus, LogOut, CircleDashed } from "lucide-react";
 import { toast } from "sonner";
-import { DashboardShell } from "@/components/app/DashboardShell";
-import { PageSpinner } from "@/components/PageSpinner";
+import { AppShell, Container, Tag, inputClass, labelClass } from "@/components/app/AppShell";
+import { ProfileSkeleton } from "@/components/app/Skeletons";
+import { btn } from "@/components/app/btn";
 import { LogoutButton } from "@/components/LogoutButton";
 import { UserAvatar } from "@/components/UserAvatar";
 import { PayoutSettings } from "@/components/profile/PayoutSettings";
 import { EmailChange } from "@/components/profile/EmailChange";
-import { LoadError, SaveActions, SettingsSection } from "@/components/profile/SettingsParts";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  DesignSettingsSection as Section,
+  DesignSaveFooter,
+} from "@/components/profile/DesignSettingsParts";
+import { LoadError } from "@/components/profile/SettingsParts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/app/DesignDialog";
 import { Switch } from "@/components/ui/switch";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { changePassword, fetchSession } from "@/features/auth/authSlice";
@@ -34,9 +44,8 @@ import { validateAvatar, validatePassword } from "@/lib/profile";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { useClientReady } from "@/lib/useClientReady";
 import { ApiError, apiFetch } from "@/lib/api";
-
+import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/profile")({ component: Profile });
-
 function Profile() {
   const dispatch = useAppDispatch();
   const authed = useRequireAuth();
@@ -52,101 +61,107 @@ function Profile() {
       void dispatch(fetchSession());
     }
   }, [dispatch, ready, query.error]);
+
+  if (!ready || query.isPending) return <ProfileSkeleton label="Loading your profile" />;
   return (
-    <DashboardShell>
-      {!ready || query.isPending ? (
-        <PageSpinner label="Loading profile" />
-      ) : !query.data ? (
-        <LoadError message="Could not load your profile." retry={() => void query.refetch()} />
-      ) : (
-        <>
-          {query.isError && (
-            <div className="mb-5">
+    <AppShell>
+      <Container className="py-8 md:py-12">
+        {!query.data ? (
+          <LoadError message="Could not load your profile." retry={() => void query.refetch()} />
+        ) : (
+          <>
+            {query.isError && (
               <LoadError
                 message="Could not refresh your profile. Your unsaved changes are still here."
                 retry={() => void query.refetch()}
               />
-            </div>
-          )}
-          <ProfileSettings key={query.data.id} profile={query.data} />
-        </>
-      )}
-    </DashboardShell>
+            )}
+            <ProfileSettings key={query.data.id} profile={query.data} />
+          </>
+        )}
+      </Container>
+    </AppShell>
   );
 }
-
 function ProfileSettings({ profile }: { profile: UserProfile }) {
   const nav = [
-    ["details", "Profile", UserRound],
-    ["notifications", "Notifications", Bell],
-    ["payments", "Payment methods", CreditCard],
-    ["payouts", "Payout account", Wallet],
-    ["security", "Security", LockKeyhole],
-  ] as const;
+    { id: "profile", label: "Profile" },
+    { id: "notifications", label: "Notifications" },
+    { id: "payment", label: "Payment methods" },
+    { id: "security", label: "Security" },
+    { id: "close", label: "Close account" },
+    { id: "payouts", label: "Payout account" },
+  ];
   return (
     <>
-      <div className="mb-9 flex flex-wrap items-center justify-between gap-5 border-b border-[#efedf3] pb-8">
-        <div className="flex min-w-0 items-center gap-4">
-          <UserAvatar src={profile.avatarUrl} name={profile.fullName} className="text-2xl" />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">{profile.fullName}</h1>
-            <p className="mt-1 break-all text-sm text-[#777283]">{profile.email}</p>
-            {profile.createdAt && (
-              <p className="mt-1 text-xs text-[#777283]">
-                Joined{" "}
-                {new Date(profile.createdAt).toLocaleDateString("en-NG", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
-            )}
+      <div className="flex flex-col gap-6 border-b border-line-soft pb-8 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <UserAvatar
+            src={profile.avatarUrl}
+            name={profile.fullName}
+            className="h-16 w-16 bg-panel text-ink-soft"
+          />
+          <div>
+            <h1 className="font-display text-[clamp(26px,2.6vw,34px)] leading-tight tracking-[-0.02em] text-ink">
+              {profile.fullName}
+            </h1>
+            <p className="text-sm text-muted-ink">
+              {profile.city ? profile.city + ", " : ""}giving since{" "}
+              {profile.createdAt
+                ? new Date(profile.createdAt).toLocaleDateString("en-NG", {
+                    month: "long",
+                    year: "numeric",
+                  })
+                : "joining AzarFaith"}
+            </p>
           </div>
         </div>
-        <LogoutButton className="giving-small-button" />
+        <LogoutButton
+          className={cn(btn("secondary", "sm"), "self-start sm:self-auto")}
+          icon={<LogOut className="h-4 w-4" strokeWidth={1.75} />}
+        />
       </div>
-      <div className="grid gap-8 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-12">
-        <aside>
-          <nav
-            aria-label="Profile settings"
-            className="flex flex-wrap gap-2 lg:sticky lg:top-24 lg:flex-col"
-          >
-            {nav.map(([id, label, Icon]) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-[#777283] transition hover:bg-[#f7f6fa] hover:text-[#130e30]"
-              >
-                <Icon size={17} />
-                {label}
-              </a>
+      <div className="grid gap-8 pt-8 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <nav className="hidden lg:block" aria-label="Settings">
+          <ul className="sticky top-24 flex flex-col gap-0.5">
+            {nav.map((n) => (
+              <li key={n.id}>
+                <a
+                  href={"#" + n.id}
+                  className={cn(
+                    "block rounded-[8px] px-2.5 py-1.5 text-sm transition-colors hover:bg-panel hover:text-ink",
+                    n.id === "close" ? "text-danger" : "text-ink-soft",
+                  )}
+                >
+                  {n.label}
+                </a>
+              </li>
             ))}
-          </nav>
-          <p className="mt-6 hidden text-xs leading-relaxed text-[#777283] lg:block">
-            Your details, preferences and secure account settings, all in one place.
-          </p>
-        </aside>
-        <div className="min-w-0 space-y-6">
+          </ul>
+        </nav>
+        <div className="flex max-w-[720px] min-w-0 flex-col gap-6">
           <ProfileEditor profile={profile} />
           <Preferences userId={profile.id} />
           <PaymentMethods userId={profile.id} />
-          <PayoutSettings userId={profile.id} />
           <Security />
-          <SettingsSection
+          <CloseAccount active={profile.activeRecurringGiftCount} />
+          <PayoutSettings userId={profile.id} appearance="profile" />
+          <Section
             id="activity"
             title="Your activity"
             description="Track your giving and manage the causes you own."
           >
             <div className="grid gap-3 sm:grid-cols-2">
-              <Link to="/my-giving" className="rounded-xl bg-[#f7f6fa] p-4">
-                <p className="text-xs text-[#777283]">Lifetime giving</p>
+              <Link to="/my-giving" className="rounded-field bg-panel p-4">
+                <p className="text-xs text-muted-ink">Lifetime giving</p>
                 <p className="mt-2 text-xl font-semibold">{formatMoney(profile.totalGiven)}</p>
                 <p className="mt-2 text-xs">
                   {profile.activeRecurringGiftCount} active recurring gifts · View giving →
                 </p>
               </Link>
-              <Link to="/manage" className="rounded-xl bg-[#f7f6fa] p-4">
+              <Link to="/manage" className="rounded-field bg-panel p-4">
                 <p className="font-semibold">Creator workspace</p>
-                <p className="mt-2 text-sm text-[#777283]">
+                <p className="mt-2 text-sm text-muted-ink">
                   {profile.ownedOrganizations.length} organizations ·{" "}
                   {profile.ownedCampaigns.length} campaigns
                 </p>
@@ -165,7 +180,7 @@ function ProfileSettings({ profile }: { profile: UserProfile }) {
                       className="mt-3 block text-sm underline underline-offset-4"
                     >
                       {org.name}{" "}
-                      <span className="text-xs text-[#777283]">
+                      <span className="text-xs text-muted-ink">
                         ({org.verificationStatus.replaceAll("_", " ")})
                       </span>
                     </Link>
@@ -183,7 +198,7 @@ function ProfileSettings({ profile }: { profile: UserProfile }) {
                       className="mt-3 block text-sm underline underline-offset-4"
                     >
                       {campaign.title}{" "}
-                      <span className="text-xs text-[#777283]">
+                      <span className="text-xs text-muted-ink">
                         ({campaign.verificationStatus.replaceAll("_", " ")})
                       </span>
                     </Link>
@@ -191,26 +206,29 @@ function ProfileSettings({ profile }: { profile: UserProfile }) {
                 </div>
               )}
             </div>
-          </SettingsSection>
+          </Section>
         </div>
       </div>
     </>
   );
 }
-
 function ProfileEditor({ profile }: { profile: UserProfile }) {
   const [draft, setDraft] = useState<{
-    fullName: string;
+    first: string;
+    last: string;
     phone: string;
     avatarUrl: string;
     city: string;
   } | null>(null);
   const values = draft ?? {
-    fullName: profile.fullName,
+    first: profile.fullName.trim().split(/\s+/)[0] ?? "",
+    last: profile.fullName.trim().split(/\s+/).slice(1).join(" "),
     phone: profile.phone ?? "",
     avatarUrl: profile.avatarUrl ?? "",
     city: profile.city ?? "",
   };
+  const fullName = [values.first.trim(), values.last.trim()].filter(Boolean).join(" ");
+  const [justSaved, setJustSaved] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const dispatch = useAppDispatch();
@@ -231,6 +249,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
     onSuccess: (result) => {
       client.setQueryData(["profile", profile.id], result);
       setDraft(null);
+      setJustSaved(true);
       void dispatch(fetchSession());
       toast.success("Profile updated.");
     },
@@ -238,140 +257,146 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
   });
   const dirty = Boolean(
     draft &&
-    (values.fullName !== profile.fullName ||
+    (fullName !== profile.fullName ||
       values.phone !== (profile.phone ?? "") ||
       values.city !== (profile.city ?? "") ||
       values.avatarUrl !== (profile.avatarUrl ?? "")),
   );
+
+  const field = (
+    key: "first" | "last" | "phone" | "city",
+    label: string,
+    type = "text",
+    wide = false,
+  ) => (
+    <label className={cn("flex flex-col gap-1.5", wide && "sm:col-span-2")}>
+      <span className={labelClass}>{label}</span>
+      <input
+        type={type}
+        value={values[key]}
+        maxLength={key === "city" ? 100 : 120}
+        onChange={(e) => {
+          setJustSaved(false);
+          setDraft({ ...values, [key]: e.target.value });
+        }}
+        className={inputClass}
+      />
+    </label>
+  );
   return (
-    <SettingsSection
-      id="details"
+    <Section
+      id="profile"
       title="Profile"
-      description="Your name appears on donations unless you choose to give anonymously."
+      description="Organizations see your name on gifts unless you give anonymously."
+      footer={
+        <DesignSaveFooter
+          form="profile-details"
+          pending={save.isPending || upload.isPending}
+          dirty={dirty}
+          saved={justSaved}
+          invalid={fullName.length < 2 || fullName.length > 120}
+          discard={() => {
+            setDraft(null);
+            save.reset();
+          }}
+        />
+      }
     >
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (values.fullName.trim().length < 2) {
-            toast.error("Enter at least 2 characters for your name.");
+        id="profile-details"
+        className="contents"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (save.isPending || upload.isPending) return;
+          if (fullName.length < 2 || fullName.length > 120) {
+            toast.error("Use 2 to 120 characters for your full name.");
             return;
           }
           save.mutate({
-            fullName: values.fullName.trim(),
+            fullName,
             phone: values.phone.trim() || null,
             avatarUrl: values.avatarUrl,
             city: values.city.trim(),
           });
         }}
       >
-        <fieldset disabled={save.isPending || upload.isPending}>
-          <div className="mb-6 flex flex-wrap items-center gap-4">
+        <fieldset disabled={save.isPending || upload.isPending} className="contents">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {field("first", "First name")}
+            {field("last", "Last name")}
+            <label className="flex flex-col gap-1.5">
+              <span className={labelClass}>Email</span>
+              <input type="email" readOnly value={profile.email} className={inputClass} />
+            </label>
+            {field("phone", "Phone", "tel")}
+            {field("city", "Town or city", "text", true)}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {profile.verifications.map((v) => (
+              <Tag key={v} tone="verified">
+                <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2} />
+                {v}
+              </Tag>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
             <UserAvatar
               src={values.avatarUrl}
-              name={values.fullName}
+              name={fullName}
               label="Profile photo preview"
+              className="bg-panel text-ink-soft"
             />
             <div>
               <button
                 type="button"
-                className="giving-small-button"
+                className={btn("secondary", "sm")}
                 disabled={!media.data?.enabled}
                 onClick={() => input.current?.click()}
               >
                 <ImagePlus size={16} />
                 {upload.isPending ? "Uploading..." : "Change photo"}
               </button>
-              <p className="mt-2 text-xs text-[#777283]">JPEG, PNG or WebP. Up to 5 MB.</p>
+              <p className="mt-2 text-[12px] text-subtle">JPEG, PNG or WebP. Up to 5 MB.</p>
             </div>
             <input
               ref={input}
               type="file"
+              aria-label="Profile photo"
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 event.target.value = "";
                 if (!file) return;
-                const error = validateAvatar(file);
-                if (error) toast.error(error);
+                const failure = validateAvatar(file);
+                if (failure) toast.error(failure);
                 else upload.mutate(file);
               }}
             />
           </div>
-          {media.isError && (
-            <div className="mb-5">
-              <LoadError
-                message="Could not check photo upload availability."
-                retry={() => void media.refetch()}
-              />
-            </div>
-          )}
-          {media.data && !media.data.enabled && (
-            <p className="mb-5 text-sm text-[#777283]">Photo uploads are currently unavailable.</p>
-          )}
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="giving-label">
-              Full name
-              <input
-                className="giving-input"
-                required
-                minLength={2}
-                maxLength={120}
-                autoComplete="name"
-                value={values.fullName}
-                onChange={(event) => setDraft({ ...values, fullName: event.target.value })}
-              />
-            </label>
-            <label className="giving-label">
-              Phone number <span className="font-normal text-[#777283]">(optional)</span>
-              <input
-                className="giving-input"
-                type="tel"
-                autoComplete="tel"
-                placeholder="+234..."
-                value={values.phone}
-                onChange={(event) => setDraft({ ...values, phone: event.target.value })}
-              />
-            </label>
-            <label className="giving-label sm:col-span-2">
-              Email address
-              <input className="giving-input" type="email" readOnly value={profile.email} />
-              <span className="mt-2 block text-xs font-normal text-[#777283]">
-                Changing your sign-in email requires verification of both inboxes.
-                {profile.verifications.includes("Email verified") ? " Email verified." : ""}
-              </span>
-            </label>
-            <label className="giving-label sm:col-span-2">
-              City (optional)
-              <input
-                className="giving-input"
-                autoComplete="address-level2"
-                maxLength={100}
-                value={values.city}
-                onChange={(event) => setDraft({ ...values, city: event.target.value })}
-              />
-            </label>
-          </div>
         </fieldset>
+        {media.isError && (
+          <LoadError
+            message="Could not check photo upload availability."
+            retry={() => void media.refetch()}
+          />
+        )}
+        {media.data && !media.data.enabled && (
+          <p className="text-sm text-muted-ink">Photo uploads are currently unavailable.</p>
+        )}
         {save.isError && (
-          <p role="alert" className="mt-3 text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {save.error.message}
           </p>
         )}
-        <SaveActions
-          pending={save.isPending || upload.isPending}
-          dirty={dirty}
-          discard={() => {
-            setDraft(null);
-            save.reset();
-          }}
-        />
       </form>
-      <EmailChange currentEmail={profile.email} />
-    </SettingsSection>
+      <p className="text-[12px] text-subtle">
+        Changing your sign-in email requires verification of both inboxes.
+      </p>
+      <EmailChange currentEmail={profile.email} appearance="app" />
+    </Section>
   );
 }
-
 function Preferences({ userId }: { userId: string }) {
   const client = useQueryClient();
   const query = useQuery({
@@ -379,11 +404,13 @@ function Preferences({ userId }: { userId: string }) {
     queryFn: getNotificationPreferences,
   });
   const [draft, setDraft] = useState<NotificationPreferences | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const save = useMutation({
     mutationFn: updateNotificationPreferences,
     onSuccess: (result) => {
       client.setQueryData(["notification-preferences", userId], result);
       setDraft(null);
+      setJustSaved(true);
       toast.success("Notification preferences saved.");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -395,11 +422,57 @@ function Preferences({ userId }: { userId: string }) {
     ["comments", "Comments", "Comments and replies on your campaigns."],
     ["systemMessages", "System messages", "Reviews, recurring gifts and platform alerts."],
   ] as const;
+
+  const sourcePrefs = [
+    {
+      id: "systemMessages",
+      title: "Gift reminders",
+      body: "Recurring gift and platform alerts in the app. Transactional email reminders are still sent.",
+    },
+    {
+      id: "campaignUpdates",
+      title: "Campaign updates",
+      body: "When something you support posts news, photos or receipts.",
+    },
+    {
+      id: "receipts",
+      title: "Receipts by email",
+      body: "A receipt for every confirmed gift.",
+      fixed: true,
+    },
+    {
+      id: "news",
+      title: "AzarFaith newsletter",
+      body: "Newsletter subscriptions are not available yet.",
+      fixed: false,
+    },
+    {
+      id: "donationsReceived",
+      title: "Donations received",
+      body: "When someone supports a campaign you created.",
+    },
+    { id: "comments", title: "Comments", body: "Comments and replies on your campaigns." },
+  ];
+  const dirty = Boolean(draft && options.some(([key]) => draft[key] !== query.data?.[key]));
   return (
-    <SettingsSection
+    <Section
       id="notifications"
       title="Notifications"
-      description="Choose which in-app notifications you receive. These preferences do not change transactional emails such as receipts and security messages."
+      description="What we send you, and how often."
+      footer={
+        values && !query.isError ? (
+          <DesignSaveFooter
+            form="profile-notifications"
+            pending={save.isPending}
+            dirty={dirty}
+            saved={justSaved}
+            discard={() => {
+              setDraft(null);
+              save.reset();
+            }}
+          />
+        ) : undefined
+      }
     >
       {query.isPending ? (
         <p role="status">Getting preferences...</p>
@@ -410,51 +483,57 @@ function Preferences({ userId }: { userId: string }) {
         />
       ) : (
         <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate(values);
+          id="profile-notifications"
+          className="contents"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!save.isPending) save.mutate(values);
           }}
         >
-          <fieldset disabled={save.isPending} className="divide-y divide-[#efedf3]">
-            {options.map(([key, label, description]) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-center justify-between gap-4 py-4"
-              >
-                <span>
-                  <span className="block text-sm font-medium">{label}</span>
-                  <span className="mt-1 block text-xs leading-relaxed text-[#777283]">
-                    {description}
-                  </span>
-                </span>
-                <Switch
-                  aria-label={label}
-                  checked={values[key]}
-                  onCheckedChange={(checked) => setDraft({ ...values, [key]: checked })}
-                  className="data-[state=checked]:bg-black"
-                />
-              </label>
-            ))}
+          <fieldset disabled={save.isPending} className="contents">
+            <ul className="flex flex-col divide-y divide-line-soft">
+              {sourcePrefs.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between gap-6 py-3.5 first:pt-0 last:pb-0"
+                >
+                  <label htmlFor={"pref-" + p.id} className="cursor-pointer">
+                    <span className="block text-sm font-medium text-ink">{p.title}</span>
+                    <span className="block text-[13px] text-muted-ink">{p.body}</span>
+                  </label>
+                  <Switch
+                    id={"pref-" + p.id}
+                    aria-label={p.title}
+                    checked={
+                      p.fixed !== undefined
+                        ? p.fixed
+                        : values[p.id as keyof NotificationPreferences]
+                    }
+                    disabled={p.fixed !== undefined}
+                    onCheckedChange={(checked) => {
+                      setJustSaved(false);
+                      setDraft({ ...values, [p.id]: checked });
+                    }}
+                    className="data-[state=checked]:bg-ink data-[state=unchecked]:bg-line-input"
+                  />
+                </li>
+              ))}
+            </ul>
           </fieldset>
           {save.isError && (
-            <p role="alert" className="mt-3 text-sm text-red-700">
+            <p role="alert" className="text-sm text-danger">
               {save.error.message}
             </p>
           )}
-          <SaveActions
-            pending={save.isPending}
-            dirty={Boolean(draft && options.some(([key]) => draft[key] !== query.data?.[key]))}
-            discard={() => {
-              setDraft(null);
-              save.reset();
-            }}
-          />
         </form>
       )}
-    </SettingsSection>
+      <p className="text-[12px] text-subtle">
+        Receipts cannot be turned off. These controls change in-app preferences, not transactional
+        emails.
+      </p>
+    </Section>
   );
 }
-
 function PaymentMethods({ userId }: { userId: string }) {
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["payment-methods", userId], queryFn: getPaymentMethods });
@@ -479,82 +558,96 @@ function PaymentMethods({ userId }: { userId: string }) {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
   return (
-    <SettingsSection
-      id="payments"
+    <Section
+      id="payment"
       title="Payment methods"
-      description="Cards saved securely by Paystack for automatic recurring gifts. AzarFaith never stores your full card number."
+      description="Cards you've saved through Paystack. We never see the full number."
     >
+      <span id="payments" className="sr-only" />
       {query.isPending ? (
         <p role="status">Getting payment methods...</p>
       ) : query.isError ? (
         <LoadError message="Could not load payment methods." retry={() => void query.refetch()} />
       ) : !query.data?.length ? (
-        <p className="text-sm text-[#777283]">
+        <p className="text-sm text-muted-ink">
           No saved cards yet. A reusable card is saved after an automatic recurring checkout with
           your consent.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="flex flex-col divide-y divide-line-soft rounded-field border border-line-soft">
           {query.data.map((card) => (
-            <li
-              key={card.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#efedf3] p-4"
-            >
-              <div>
-                <p className="text-sm font-semibold">
-                  {card.label}
-                  {card.isPreferred && (
-                    <span className="ml-2 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
-                      Preferred
-                    </span>
-                  )}
-                </p>
-                <p className="mt-1 text-xs text-[#777283]">
-                  {card.linkedRecurringGiftCount
-                    ? `Used by ${card.linkedRecurringGiftCount} recurring gifts. Change or cancel those gifts before removing this card.`
+            <li key={card.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <span className="grid h-9 w-12 shrink-0 place-items-center rounded-[6px] border border-line-soft bg-panel">
+                <CreditCard className="h-4 w-4 text-ink-soft" strokeWidth={1.5} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-ink">
+                  {card.label || (card.brand || card.cardType || "Card") + " ending " + card.last4}
+                  {card.isPreferred && <Tag>Default</Tag>}
+                </span>
+                <span className="block text-[13px] text-muted-ink">
+                  {card.expMonth && card.expYear
+                    ? "Expires " + card.expMonth + "/" + card.expYear
+                    : ""}
+                  {card.linkedRecurringGiftCount > 0
+                    ? " · Used by " + card.linkedRecurringGiftCount + " recurring gifts"
                     : "Not linked to an active or paused recurring gift."}
-                </p>
-              </div>
-              {card.active && card.reusable && card.channel === "card" && !card.isPreferred && (
+                </span>
+              </span>
+              <span className="flex w-full items-center gap-4 pl-[60px] sm:w-auto sm:pl-0">
+                {card.active && card.reusable && card.channel === "card" && !card.isPreferred && (
+                  <button
+                    type="button"
+                    className={btn("quiet", "sm")}
+                    disabled={preferred.isPending || remove.isPending}
+                    onClick={() => preferred.mutate(card.id)}
+                  >
+                    Make default
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="giving-small-button"
-                  disabled={preferred.isPending || remove.isPending}
-                  onClick={() => preferred.mutate(card.id)}
+                  className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
+                  disabled={
+                    card.linkedRecurringGiftCount > 0 ||
+                    remove.isPending ||
+                    preferred.isPending ||
+                    !card.active
+                  }
+                  onClick={() => setSelected(card)}
+                  title={
+                    card.linkedRecurringGiftCount > 0
+                      ? "Change or cancel the linked recurring gifts before removing this card."
+                      : undefined
+                  }
                 >
-                  Make preferred
+                  Remove
                 </button>
-              )}
-              <button
-                type="button"
-                className="giving-small-button"
-                disabled={
-                  card.linkedRecurringGiftCount > 0 ||
-                  remove.isPending ||
-                  preferred.isPending ||
-                  !card.active
-                }
-                onClick={() => setSelected(card)}
-              >
-                Remove
-              </button>
+              </span>
             </li>
           ))}
         </ul>
       )}
-      <Link
-        to="/my-giving"
-        className="mt-5 inline-block text-sm font-semibold underline underline-offset-4"
+      <button
+        type="button"
+        disabled
+        title="Standalone card setup is not available yet. Save a reusable card through a consented recurring checkout."
+        className={cn(btn("secondary", "sm"), "self-start")}
       >
+        <Plus className="h-4 w-4" strokeWidth={2} />
+        Add a card
+      </button>
+      <Link to="/my-giving" className="text-sm font-medium text-ink underline underline-offset-2">
         Manage recurring gifts
       </Link>
-      <p className="mt-3 text-xs text-muted-ink">
-        A preferred card is suggested when choosing a card. It does not change the card already
-        linked to a recurring gift or authorize a new charge.
+      <p className="text-[12px] text-subtle">
+        A default card is suggested for future choices. It does not change existing recurring
+        authorizations or create a charge.
       </p>
       {preferred.isError && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <p role="alert" className="text-sm text-danger">
           {preferred.error.message}
         </p>
       )}
@@ -573,20 +666,22 @@ function PaymentMethods({ userId }: { userId: string }) {
             {selected?.label} will no longer be available for future automatic gifts.
           </DialogDescription>
           {remove.isError && (
-            <p role="alert" className="text-sm text-red-700">
+            <p role="alert" className="text-sm text-danger">
               {remove.error.message}
             </p>
           )}
           <div className="flex justify-end gap-3">
             <button
-              className="giving-small-button"
+              type="button"
+              className={btn("secondary", "sm")}
               disabled={remove.isPending}
               onClick={() => setSelected(null)}
             >
               Keep card
             </button>
             <button
-              className="giving-small-button"
+              type="button"
+              className={btn("primary", "sm")}
               disabled={remove.isPending}
               onClick={() => selected && remove.mutate(selected.id)}
             >
@@ -595,10 +690,9 @@ function PaymentMethods({ userId }: { userId: string }) {
           </div>
         </DialogContent>
       </Dialog>
-    </SettingsSection>
+    </Section>
   );
 }
-
 function Security() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -626,87 +720,89 @@ function Security() {
     },
     onError: (failure: Error) => setError(failure.message),
   });
+
   return (
-    <SettingsSection
+    <Section
       id="security"
       title="Security"
-      description="Changing your password signs you out on all devices. Sign in again with your new password."
+      description="Your password and where you're signed in."
+      footer={
+        <DesignSaveFooter
+          form="profile-security"
+          label="Change password"
+          pending={change.isPending}
+          dirty={Boolean(current && password && confirmation)}
+        />
+      }
     >
-      <p className="mb-5 text-xs leading-relaxed text-[#777283]">
-        If you normally use Google and have not set a password, use{" "}
-        <Link to="/forgot-password" className="underline">
-          password reset
-        </Link>{" "}
-        first.
-      </p>
       <form
+        id="profile-security"
+        className="contents"
         onSubmit={(event) => {
           event.preventDefault();
+          if (change.isPending) return;
           const failure = validatePassword(current, password, confirmation);
           setError(failure ?? "");
           if (!failure) change.mutate();
         }}
       >
-        <fieldset disabled={change.isPending} className="grid gap-5 sm:grid-cols-2">
-          <label className="giving-label sm:col-span-2">
-            Current password
+        <fieldset disabled={change.isPending} className="grid gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>Current password</span>
             <input
-              className="giving-input"
-              required
               type="password"
+              required
               autoComplete="current-password"
               value={current}
-              onChange={(event) => setCurrent(event.target.value)}
+              onChange={(e) => setCurrent(e.target.value)}
+              className={inputClass}
             />
           </label>
-          <label className="giving-label">
-            New password
+          <label className="flex flex-col gap-1.5">
+            <span className={labelClass}>New password</span>
             <input
-              className="giving-input"
+              type="password"
               required
               minLength={8}
-              type="password"
               autoComplete="new-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
             />
           </label>
-          <label className="giving-label">
-            Confirm new password
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={labelClass}>Confirm new password</span>
             <input
-              className="giving-input"
-              required
               type="password"
+              required
               autoComplete="new-password"
               value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
+              onChange={(e) => setConfirmation(e.target.value)}
+              className={inputClass}
             />
           </label>
         </fieldset>
         {error && (
-          <p role="alert" className="mt-3 text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {error}
           </p>
         )}
-        <SaveActions
-          label="Change password"
-          pending={change.isPending}
-          dirty={Boolean(current || password || confirmation)}
-          discard={() => {
-            setCurrent("");
-            setPassword("");
-            setConfirmation("");
-            setError("");
-          }}
-        />
       </form>
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-panel p-4">
-        <p className="text-sm text-muted-ink">
-          Keep this browser signed in and revoke existing sessions on your other devices.
+      <p className="text-[12px] text-subtle">
+        Changing your password signs you out on all devices. If you use Google and have not set a
+        password, use{" "}
+        <Link to="/forgot-password" className="underline">
+          password reset
+        </Link>{" "}
+        first.
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-field bg-panel px-4 py-3">
+        <p className="text-sm text-ink-soft">
+          Keep this browser signed in and revoke existing sessions on other devices.
         </p>
         <button
           type="button"
-          className="giving-small-button"
+          className={btn("secondary", "sm")}
           disabled={change.isPending || devices.isPending}
           onClick={() => {
             devices.reset();
@@ -729,20 +825,22 @@ function Security() {
             cookie. No device count is inferred.
           </DialogDescription>
           {devices.isError && (
-            <p role="alert" className="text-sm text-red-700">
+            <p role="alert" className="text-sm text-danger">
               {devices.error.message}
             </p>
           )}
           <div className="flex justify-end gap-3">
             <button
-              className="giving-small-button"
+              type="button"
+              className={btn("secondary", "sm")}
               disabled={devices.isPending}
               onClick={() => setDevicesDialog(false)}
             >
               Cancel
             </button>
             <button
-              className="giving-small-button bg-black text-white"
+              type="button"
+              className={btn("primary", "sm")}
               disabled={devices.isPending}
               onClick={() => devices.mutate()}
             >
@@ -751,6 +849,42 @@ function Security() {
           </div>
         </DialogContent>
       </Dialog>
-    </SettingsSection>
+    </Section>
+  );
+}
+
+function CloseAccount({ active }: { active: number }) {
+  return (
+    <Section
+      id="close"
+      title="Close account"
+      description="Account closure is not available yet. Contact support for help with your account."
+      danger
+    >
+      {active > 0 && (
+        <div className="flex gap-3 rounded-field bg-panel p-4">
+          <CircleDashed className="mt-0.5 h-4 w-4 shrink-0 text-muted-ink" strokeWidth={2} />
+          <p className="text-sm text-ink-soft">
+            You have{" "}
+            <span className="font-medium text-ink">
+              {active} regular gift{active > 1 ? "s" : ""}
+            </span>{" "}
+            still running. Manage them in{" "}
+            <Link to="/my-giving" className="font-medium text-ink underline underline-offset-2">
+              My giving
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+      <button
+        type="button"
+        disabled
+        title="A secure closure and financial-record retention workflow has not been implemented."
+        className={cn(btn("secondary", "sm"), "self-start text-danger hover:border-danger")}
+      >
+        Close my account
+      </button>
+    </Section>
   );
 }

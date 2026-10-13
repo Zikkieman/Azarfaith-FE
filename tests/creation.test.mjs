@@ -283,3 +283,18 @@ test("draft API uses real authenticated persistence/submit endpoints with cookie
   assert.ok(calls.every((call) => call.credentials === "include"));
   assert.deepEqual(calls[4].body, { organizationId: null, goalAmount: null, galleryImageUrls: [] });
 });
+
+test("publication goals reject malformed, fractional, below-minimum and overflowing amounts", () => {
+  for (const goalAmount of ["", "NaN", "5000.50", "-5000", "4,999", "2147483648"]) {
+    assert.ok(creation.campaignErrors({ ...campaign, goalAmount }).goalAmount, goalAmount);
+  }
+  for (const goalAmount of ["5,000", "2,147,483,647"])
+    assert.equal(creation.campaignErrors({ ...campaign, goalAmount }).goalAmount, undefined);
+  assert.equal(
+    creation.campaignErrors({ ...campaign, type: "EMERGENCY", goalAmount: "" }).goalAmount,
+    undefined,
+  );
+  assert.ok(
+    creation.campaignErrors({ ...campaign, type: "EMERGENCY", goalAmount: "NaN" }).goalAmount,
+  );
+});

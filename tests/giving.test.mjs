@@ -36,6 +36,72 @@ const payment = {
   paidAt: "2026-10-01T00:00:00Z",
 };
 const filters = { search: "", kind: "", status: "", from: "", to: "" };
+test("paused subscriptions remain manageable even though the backend disables their active charging flag", () => {
+  const gifts = [
+    { id: "active", active: true, status: "on_track" },
+    { id: "paused", active: false, status: "paused" },
+    { id: "cancelled", active: false, status: "cancelled" },
+    { id: "completed", active: false, status: "completed" },
+  ];
+  assert.deepEqual(
+    giving.currentGifts(gifts).map((gift) => gift.id),
+    ["active", "paused"],
+  );
+});
+test("source-style yearly metrics and next gift use real successful payments and actionable schedules", () => {
+  const now = new Date("2026-10-12T12:00:00Z");
+  const gifts = [
+    { id: "next", active: true, status: "on_track", nextDate: "2026-11-01T12:00:00Z" },
+    { id: "paused", active: false, status: "paused", nextDate: "2026-10-13T12:00:00Z" },
+    {
+      id: "pending",
+      active: true,
+      status: "on_track",
+      hasPendingPayment: true,
+      nextDate: "2026-10-13T12:00:00Z",
+    },
+    { id: "missed", active: true, status: "missed", nextDate: "2026-10-14T12:00:00Z" },
+    { id: "past", active: true, status: "on_track", nextDate: "2026-10-01T12:00:00Z" },
+  ];
+  const result = giving.givingOverview(
+    [
+      payment,
+      { ...payment, id: "last-year", paidAt: "2025-10-01T00:00:00Z" },
+      { ...payment, id: "failed", status: "failed" },
+    ],
+    gifts,
+    now,
+  );
+  assert.equal(result.year, 2026);
+  assert.equal(result.yearGiven, 10000);
+  assert.equal(result.yearReceipts, 1);
+  assert.equal(result.lifetime, 20000);
+  assert.equal(result.pausedCount, 1);
+  assert.equal(result.upcoming.id, "past");
+  assert.equal(result.dueNow, true);
+  assert.equal(
+    giving.givingOverview(
+      [payment],
+      gifts.filter((gift) => gift.id !== "past"),
+      now,
+    ).upcoming.id,
+    "next",
+  );
+});
+test("combined receipt download retains real details, escapes markup and rejects unconfirmed payments", () => {
+  const detail = { ...payment, receipt: { donorName: "<script>bad</script>" } };
+  const html = giving.receiptsHtml([
+    detail,
+    { ...detail, id: "second", campaignTitle: "Second cause" },
+  ]);
+  assert.equal((html.match(/<html /g) ?? []).length, 1);
+  assert.equal((html.match(/break-after:page/g) ?? []).length, 2);
+  assert.ok(html.includes("Second cause"));
+  assert.ok(!html.includes("<script>"));
+  assert.ok(html.includes("Content-Security-Policy"));
+  assert.throws(() => giving.receiptsHtml([]));
+  assert.throws(() => giving.receiptsHtml([{ ...detail, status: "pending" }]));
+});
 test("summaries include successful active recurring payments, exclude fees/tips/failures and use paid month", () => {
   const rows = [
     payment,

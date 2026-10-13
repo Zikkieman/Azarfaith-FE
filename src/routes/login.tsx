@@ -1,10 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { AuthField } from "@/components/auth/AuthField";
-import { AuthButton, AuthDivider, AuthError, AuthHeading } from "@/components/auth/AuthContent";
+import { AuthCard, AuthDivider, AuthHeading } from "@/components/auth/AuthCard";
+import { AuthError } from "@/components/auth/AuthContent";
+import { SocialButton } from "@/components/auth/SocialButton";
+import { UnavailableFacebook } from "@/components/auth/UnavailableFacebook";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import {
   clearAuthError,
@@ -17,53 +20,64 @@ import { checkoutReturn } from "@/lib/auth-return";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { returnTo?: string } => ({
-    returnTo: checkoutReturn(search.returnTo),
+    returnTo: checkoutReturn(search.returnTo ?? search.redirect),
   }),
+  head: () => ({ meta: [{ title: "Sign in — AzarFaith" }] }),
   component: Login,
 });
-
 function Login() {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
+  const navigate = useNavigate(),
+    dispatch = useAppDispatch();
   const { returnTo } = Route.useSearch();
-  const finish = () =>
-    returnTo ? window.location.assign(returnTo) : navigate({ to: "/dashboard" });
-  const { loading, error } = useAppSelector((state) => state.auth);
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  const { loading, error, user, hydrated } = useAppSelector((state) => state.auth);
+  const [identifier, setIdentifier] = useState(""),
+    [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
-
+  const redirected = useRef(false);
   useEffect(() => {
     dispatch(clearAuthError());
   }, [dispatch]);
-
+  useEffect(() => {
+    if (hydrated && user && !redirected.current) {
+      redirected.current = true;
+      if (returnTo) void navigate({ href: returnTo, replace: true });
+      else
+        void navigate({
+          to: user.role === "platform_admin" ? "/admin" : "/dashboard",
+          replace: true,
+        });
+    }
+  }, [hydrated, user, navigate, returnTo]);
   return (
     <AuthLayout
-      prompt="New here?"
+      prompt="New to AzarFaith?"
       linkLabel="Create an account"
       linkTo="/signup"
       returnTo={returnTo}
     >
-      <AuthHeading title="Welcome back">
-        Sign in to follow the causes you support and manage your giving.
-      </AuthHeading>
-      <div className="space-y-6">
-        <GoogleSignInButton
-          disabled={loading}
-          onCredential={async (idToken) => {
-            dispatch(clearAuthError());
-            try {
-              await dispatch(googleAuth({ idToken })).unwrap();
-              finish();
-            } catch (err) {
-              toast.error(getErrorMessage(err, "Google sign-in failed"));
-            }
-          }}
-        />
-        <AuthDivider />
+      <AuthCard>
+        <AuthHeading title="Welcome back">
+          Sign in to give, manage your regular gifts and follow the causes you care about.
+        </AuthHeading>
+        <div className="flex flex-col gap-3">
+          <GoogleSignInButton
+            appearance="designer"
+            disabled={loading}
+            onCredential={async (idToken) => {
+              dispatch(clearAuthError());
+              try {
+                await dispatch(googleAuth({ idToken })).unwrap();
+              } catch (err) {
+                toast.error(getErrorMessage(err, "Google sign-in failed"));
+              }
+            }}
+          />
+          <UnavailableFacebook />
+        </div>
+        <AuthDivider>or sign in with email</AuthDivider>
         <form
+          className="flex flex-col gap-4"
           noValidate
-          className="space-y-5"
           onSubmit={async (event) => {
             event.preventDefault();
             if (loading) return;
@@ -76,11 +90,10 @@ function Login() {
             dispatch(clearAuthError());
             try {
               await dispatch(login({ identifier: identifier.trim(), password })).unwrap();
-              finish();
             } catch (err) {
-              const message = getErrorMessage(err, "Login failed");
-              const email = identifier.trim().toLowerCase();
-              if (message.includes("not verified") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+              const message = getErrorMessage(err, "Login failed"),
+                email = identifier.trim().toLowerCase();
+              if (/not verified/i.test(message) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 dispatch(setPendingVerificationEmail(email));
                 navigate({ to: "/signup", search: { mode: "otp", returnTo } });
                 return;
@@ -90,38 +103,46 @@ function Login() {
           }}
         >
           <AuthField
+            id="email"
             label="Email or phone"
             autoComplete="username"
+            placeholder="you@email.com"
             value={identifier}
             error={fieldErrors.identifier}
+            disabled={loading}
             onChange={(event) => {
               setIdentifier(event.target.value);
               setFieldErrors((current) => ({ ...current, identifier: undefined }));
             }}
           />
-          <AuthField
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            error={fieldErrors.password}
-            action={
-              <Link
-                to="/forgot-password"
-                className="text-xs font-medium text-[#130e30] underline underline-offset-4"
-              >
-                Forgot password?
-              </Link>
-            }
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setFieldErrors((current) => ({ ...current, password: undefined }));
-            }}
-          />
+          <div className="flex flex-col gap-2">
+            <AuthField
+              id="password"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your password"
+              value={password}
+              error={fieldErrors.password}
+              disabled={loading}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setFieldErrors((current) => ({ ...current, password: undefined }));
+              }}
+            />
+            <Link
+              to="/forgot-password"
+              className="self-end text-[13px] font-medium text-ink-soft underline decoration-1 underline-offset-4 hover:text-ink"
+            >
+              Forgot your password?
+            </Link>
+          </div>
           <AuthError message={error} />
-          <AuthButton disabled={loading}>{loading ? "Signing in..." : "Sign in"}</AuthButton>
+          <SocialButton variant="solid" type="submit" disabled={loading} className="mt-2">
+            {loading ? "Signing in…" : "Sign in"}
+          </SocialButton>
         </form>
-      </div>
+      </AuthCard>
     </AuthLayout>
   );
 }

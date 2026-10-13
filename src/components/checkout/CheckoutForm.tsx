@@ -1,8 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, Building2, CreditCard, Heart, LockKeyhole } from "lucide-react";
-import { createDonation, getPaymentMethods } from "@/features/catalog/api";
+import { useRef, useState, type FormEvent } from "react";
+import {
+  ChevronLeft,
+  Building2,
+  CreditCard,
+  Lock,
+  Repeat2,
+  BellRing,
+  Mail,
+  BadgeCheck,
+} from "lucide-react";
+import { createDonation, getPaymentMethods, getOrganization } from "@/features/catalog/api";
 import { apiFetch, ApiError } from "@/lib/api";
 import { formatAmountInput, formatMoney, type Campaign } from "@/lib/catalog";
 import {
@@ -15,37 +24,21 @@ import {
   type CheckoutContext,
 } from "@/lib/checkout";
 import { isPublished } from "@/lib/discovery";
+import { presets, frequencyLabel, everyLabel, hintFor, type Frequency } from "@/lib/design-giving";
+import { AuthLogo } from "@/components/auth/AuthLogo";
+import { inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { Switch } from "@/components/ui/switch";
+import { Step, Option, Summary } from "./CheckoutParts";
+import { cn } from "@/lib/utils";
 
-const amountPresets = [2000, 5000, 10000, 25000, 50000];
 const tipPresets = [0, 500, 1000, 2500];
-const frequencyNames: Record<string, string> = {
-  once: "One-time",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
+const frequencyHint: Record<Frequency, string> = {
+  once: "A single gift today",
+  weekly: "Every week, cancel any time",
+  monthly: "Every month, cancel any time",
+  quarterly: "Every three months, cancel any time",
 };
-
-function Section({
-  number,
-  title,
-  children,
-}: {
-  number: number;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="border-b border-[#eeeaf2] py-7">
-      <h2 className="mb-5 flex items-center gap-3 text-base font-semibold">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#f2f0f5] text-xs">
-          {number}
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
 
 export function CheckoutForm({
   campaign,
@@ -56,12 +49,29 @@ export function CheckoutForm({
   campaign: Campaign;
   context: CheckoutContext;
   search: { freq: string; amount: string; recurringGiftId: string };
-  user: { fullName: string; email: string } | null;
+  user: { id?: string; fullName: string; email: string } | null;
 }) {
+  const organization = useQuery({
+    queryKey: ["organization", campaign.orgId, user?.id ?? user?.email ?? "guest"],
+    queryFn: () => getOrganization(campaign.orgId!),
+    enabled: Boolean(campaign.orgId),
+    retry: false,
+  });
+  const org = organization.data;
   const gift = context.recurringGift;
   const [frequency, setFrequency] = useState(gift?.frequency.toLowerCase() ?? search.freq);
   const [amount, setAmount] = useState(
-    formatAmountInput(String(gift?.amount ?? initialGiftAmount(search.amount))),
+    formatAmountInput(String(gift?.amount ?? initialGiftAmount(search.amount || "10000"))),
+  );
+  const [customAmount, setCustomAmount] = useState(() =>
+    gift
+      ? formatCheckoutInput(String(gift.amount))
+      : search.amount && !presets.includes(Number(search.amount))
+        ? formatCheckoutInput(search.amount)
+        : "",
+  );
+  const [presetAmount, setPresetAmount] = useState(() =>
+    presets.includes(Number(search.amount)) ? Number(search.amount) : presets[1],
   );
   const [tip, setTip] = useState(0);
   const [customTip, setCustomTip] = useState("");
@@ -77,7 +87,7 @@ export function CheckoutForm({
   const [consentedTotal, setConsentedTotal] = useState<number | null>(null);
   const attempt = useRef<string | null>(null);
   const cards = useQuery({
-    queryKey: ["payment-methods"],
+    queryKey: ["payment-methods", user?.id ?? user?.email ?? "guest"],
     queryFn: getPaymentMethods,
     enabled: Boolean(user),
   });
@@ -187,406 +197,487 @@ export function CheckoutForm({
 
   if (!isPublished(campaign))
     return (
-      <main className="mx-auto max-w-xl px-5 py-14 text-center">
-        <h1 className="text-2xl font-semibold">This campaign isn't accepting donations</h1>
-        <p className="mt-3 text-sm text-[#686479]">
+      <main className="mx-auto max-w-xl px-6 py-14 text-center">
+        <AuthLogo />
+        <h1 className="mt-6 font-display text-[26px] text-ink">
+          This campaign isn't accepting donations
+        </h1>
+        <p className="mt-3 text-sm text-muted-ink">
           It needs to be approved before giving is available.
         </p>
-        <Link to="/campaign/$id" params={{ id: campaign.id }} className="public-button mt-6">
+        <Link
+          to="/campaign/$id"
+          params={{ id: campaign.id }}
+          className={cn(btn("secondary"), "mt-6")}
+        >
           Back to campaign
         </Link>
       </main>
     );
 
+  const freqs: Frequency[] =
+    campaign.mode === "ongoing"
+      ? [...context.frequencies.map((f) => f.toLowerCase() as Frequency), "once"]
+      : ["once"];
+  const recurringCount = freqs.length > 1;
+  const eligibleCards =
+    cards.data?.filter(
+      (card) => card.active && !card.deactivatedAt && card.reusable && card.channel === "card",
+    ) ?? [];
+  const changeAmount = (value: string) => {
+    setAmount(value);
+    setConsent(false);
+    setSavedCardConsent(false);
+  };
+  const clearSavedCard = () => {
+    setSavedCard("");
+    setSavedCardConsent(false);
+    setConsentedTotal(null);
+  };
+  const cta = (
+    <button
+      type="submit"
+      form="donation-checkout"
+      disabled={busy}
+      className={cn(btn("primary", "lg"), "w-full")}
+    >
+      <Lock className="h-4 w-4" strokeWidth={2} />{" "}
+      {context.givingPaused
+        ? "Giving paused"
+        : busy
+          ? "Opening Paystack..."
+          : `Give ${formatMoney(totals.total)}${automatic ? " " + (everyLabel[frequency as Exclude<Frequency, "once">] ?? "") : ""}`}
+    </button>
+  );
+
   return (
-    <>
-      {context.givingPaused && (
-        <div
-          role="status"
-          className="mx-auto my-5 max-w-5xl rounded-xl border border-amber-300 bg-amber-50 p-5 text-center text-sm"
-        >
-          Giving is temporarily paused by the AzarFaith team. Please try again later. Existing
-          payment confirmations are still being processed.
-        </div>
-      )}
-      <main className="checkout-grid mx-auto max-w-[1280px] px-5 pb-32 md:px-10 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-16 lg:pb-12 xl:gap-24">
-        <div className="min-w-0 pb-6">
-          <Link
-            to="/campaign/$id"
-            params={{ id: campaign.id }}
-            className="inline-flex items-center gap-2 text-sm text-[#686479]"
-          >
-            <ArrowLeft size={15} />
-            Back to campaign
+    <div className="min-h-screen bg-paper font-gsf text-heading lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
+      <div className="pb-32 lg:pb-16">
+        <header className="flex items-center justify-between gap-4 px-6 py-5 sm:px-10">
+          <Link to="/" aria-label="AzarFaith home">
+            <AuthLogo />
           </Link>
-          <h1 className="mt-6 text-3xl font-semibold tracking-tight">Make a difference today</h1>
-          <p className="mt-3 text-sm leading-6 text-[#686479]">
-            Support {campaign.raiser.name || "this cause"}. Every gift helps the work continue.
-          </p>
-          <form id="donation-checkout" onSubmit={submit} noValidate>
+          <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-ink">
+            <Lock className="h-3.5 w-3.5" strokeWidth={2} /> Secure checkout
+          </span>
+        </header>
+        <main className="mx-auto flex w-full max-w-[600px] flex-col gap-10 px-6 pt-4 sm:px-10">
+          <div className="flex flex-col gap-3">
+            <Link
+              to="/campaign/$id"
+              params={{ id: campaign.id }}
+              className="inline-flex w-fit items-center gap-1 text-sm text-muted-ink transition-colors hover:text-ink"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.75} /> Back to campaign
+            </Link>
+            <h1 className="font-display text-[clamp(26px,2.6vw,34px)] leading-[1.15] tracking-[-0.02em] text-ink">
+              Your gift to {org?.name ?? campaign.raiser.name}
+            </h1>
+            <p className="text-[15px] text-ink-soft">{campaign.title}</p>
+          </div>
+          {context.givingPaused && (
+            <p role="status" className="rounded-field bg-panel p-4 text-sm text-ink-soft">
+              Giving is temporarily paused by the AzarFaith team. Please try again later. Existing
+              payment confirmations are still being processed.
+            </p>
+          )}
+          <form id="donation-checkout" onSubmit={submit} noValidate className="contents">
             <fieldset
               disabled={busy || (payment.isError && Boolean(attempt.current))}
-              className="min-w-0"
+              className="contents"
             >
-              <Section number={1} title="How often would you like to give?">
-                <div
-                  id="checkout-frequency"
-                  tabIndex={-1}
-                  role="group"
-                  aria-label="Giving frequency"
-                  className="flex flex-wrap gap-2"
-                >
-                  {["once", ...context.frequencies.map((value) => value.toLowerCase())].map(
-                    (value) => (
-                      <button
-                        key={value}
-                        type="button"
+              {recurringCount && (
+                <Step n={1} title="How often">
+                  <div
+                    id="checkout-frequency"
+                    tabIndex={-1}
+                    role="radiogroup"
+                    aria-label="Giving frequency"
+                    className="grid gap-2 sm:grid-cols-2"
+                  >
+                    {freqs.map((f) => (
+                      <Option
+                        key={f}
+                        selected={frequency === f}
                         disabled={Boolean(gift)}
-                        aria-pressed={frequency === value}
-                        className="checkout-choice"
                         onClick={() => {
-                          setFrequency(value);
+                          setFrequency(f);
                           setConsent(false);
+                          clearSavedCard();
                         }}
                       >
-                        {frequencyNames[value]}
-                      </button>
-                    ),
+                        <span className="flex items-center gap-2 text-[15px] font-medium text-ink">
+                          {frequencyLabel[f]}
+                        </span>
+                        <span className="text-[13px] text-muted-ink">{frequencyHint[f]}</span>
+                      </Option>
+                    ))}
+                  </div>
+                  {fieldError("frequency")}
+                  {recurring && !user && (
+                    <p className="text-sm text-muted-ink">
+                      <Link
+                        to="/login"
+                        search={{
+                          returnTo:
+                            "/donate/" +
+                            encodeURIComponent(campaign.id) +
+                            "?" +
+                            new URLSearchParams({ freq: frequency, amount }),
+                        }}
+                        className="underline"
+                      >
+                        Sign in for recurring giving
+                      </Link>
+                      , or choose One time to give without an account.
+                    </p>
                   )}
-                </div>
-                {gift && (
-                  <p className="mt-3 text-xs text-[#686479]">
-                    You are completing an existing{" "}
-                    {gift.mode === "PLEDGE" ? "pledge" : "recurring gift"}. Its amount and schedule
-                    are preserved.
-                  </p>
-                )}
-                {recurring && !user && (
-                  <p className="mt-4 rounded-xl bg-[#f7f6fa] p-4 text-sm leading-6">
-                    <Link
-                      to="/login"
-                      search={{
-                        returnTo: `/donate/${encodeURIComponent(campaign.id)}?${new URLSearchParams({ amount: String(displayedAmount), freq: frequency, ...(gift ? { recurringGiftId: gift.id } : {}) })}`,
-                      }}
-                      className="font-semibold underline"
-                    >
-                      Log in
-                    </Link>{" "}
-                    to manage recurring giving. You can donate as a guest by choosing One-time.
-                  </p>
-                )}
-                {fieldError("frequency")}
-              </Section>
-              <Section number={2} title="Choose your gift amount">
-                <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {amountPresets
-                    .filter((value) => value >= context.minDonation && value <= context.maxDonation)
-                    .map((value) => (
-                      <button
-                        type="button"
+                </Step>
+              )}
+              <Step n={recurringCount ? 2 : 1} title="Amount">
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Gift amount">
+                  {presets
+                    .filter((p) => p >= context.minDonation && p <= context.maxDonation)
+                    .map((p) => (
+                      <Option
+                        key={p}
+                        selected={!customAmount && finalAmount === p}
                         disabled={Boolean(gift)}
-                        key={value}
-                        aria-pressed={finalAmount === value}
-                        className="checkout-choice px-2"
                         onClick={() => {
-                          setAmount(formatAmountInput(String(value)));
-                          setConsent(false);
-                          setSavedCardConsent(false);
+                          setCustomAmount("");
+                          setPresetAmount(p);
+                          changeAmount(formatCheckoutInput(String(p)));
                         }}
                       >
-                        {formatMoney(value)}
-                      </button>
+                        <span className="font-display text-[19px] leading-tight text-ink">
+                          {formatMoney(p)}
+                        </span>
+                        {hintFor(campaign, p) && (
+                          <span className="text-[13px] text-muted-ink">{hintFor(campaign, p)}</span>
+                        )}
+                      </Option>
                     ))}
                 </div>
-                <label htmlFor="checkout-amount" className="mb-2 block text-sm font-medium">
-                  Your amount (NGN)
+                <label className="relative mt-2 block">
+                  <span className="sr-only">Another amount</span>
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                    ₦
+                  </span>
+                  <input
+                    id="checkout-amount"
+                    inputMode="numeric"
+                    readOnly={Boolean(gift)}
+                    value={customAmount}
+                    onChange={(e) => {
+                      const value = formatCheckoutInput(e.target.value);
+                      setCustomAmount(value);
+                      changeAmount(value || formatCheckoutInput(String(presetAmount)));
+                    }}
+                    placeholder="Another amount"
+                    className={cn(inputClass, "pl-8")}
+                    {...fieldProps("amount")}
+                  />
                 </label>
-                <input
-                  id="checkout-amount"
-                  inputMode="numeric"
-                  className="public-input"
-                  value={amount}
-                  readOnly={Boolean(gift)}
-                  onChange={(event) => {
-                    setAmount(formatCheckoutInput(event.target.value));
-                    setConsent(false);
-                    setSavedCardConsent(false);
-                  }}
-                  {...fieldProps("amount")}
-                />
                 {fieldError("amount")}
-                <p className="mt-3 text-xs leading-5 text-[#686479]">
-                  Minimum {formatMoney(context.minDonation)}. Enter whole Nigerian naira amounts.
-                </p>
-              </Section>
-              <Section number={3} title="Support AzarFaith (optional)">
-                <p className="mb-4 text-sm leading-6 text-[#686479]">
-                  Your tip goes to AzarFaith, not the campaign, and helps keep the platform running.
-                  {recurring && " This tip applies to this payment only."}
-                </p>
-                <div className="mb-4 grid grid-cols-4 gap-2">
-                  {tipPresets.map((value) => (
-                    <button
-                      type="button"
-                      key={value}
-                      aria-pressed={!customTip && tip === value}
-                      className="checkout-choice px-2"
-                      onClick={() => {
-                        setTip(value);
-                        setCustomTip("");
+                {gift && (
+                  <p className="text-[13px] text-muted-ink">
+                    This gift's amount and schedule are fixed by your existing recurring setup.
+                  </p>
+                )}
+              </Step>
+              <Step n={recurringCount ? 3 : 2} title="A tip for AzarFaith" optional>
+                <div className="flex flex-col gap-3 rounded-field bg-panel p-4">
+                  <p className="text-sm text-ink-soft">
+                    Tips pay for verifying organizations, so churches and missions never pay to
+                    join.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {tipPresets.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        aria-pressed={!customTip && tip === t}
+                        onClick={() => {
+                          setTip(t);
+                          setCustomTip("");
+                          setSavedCardConsent(false);
+                        }}
+                        className={cn(
+                          "h-9 rounded-[10px] border px-3.5 text-sm font-medium transition-colors",
+                          !customTip && tip === t
+                            ? "border-ink bg-ink text-ink-contrast"
+                            : "border-line-input bg-paper text-ink hover:border-ink",
+                        )}
+                      >
+                        {t ? formatMoney(t) : "No tip"}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Custom tip (optional)</span>
+                    <input
+                      id="checkout-tip"
+                      inputMode="numeric"
+                      value={customTip}
+                      onChange={(e) => {
+                        setCustomTip(formatCheckoutInput(e.target.value));
                         setSavedCardConsent(false);
                       }}
-                    >
-                      {value ? formatMoney(value) : "No tip"}
-                    </button>
-                  ))}
+                      placeholder="Another tip amount"
+                      className={inputClass}
+                      {...fieldProps("tip")}
+                    />
+                  </label>
+                  {fieldError("tip")}
                 </div>
-                <label htmlFor="checkout-tip" className="mb-2 block text-sm font-medium">
-                  Custom AzarFaith tip (NGN)
-                </label>
-                <input
-                  id="checkout-tip"
-                  inputMode="numeric"
-                  className="public-input"
-                  placeholder="Enter a custom tip"
-                  value={customTip}
-                  onChange={(event) => {
-                    setTip(0);
-                    setCustomTip(formatCheckoutInput(event.target.value));
-                    setSavedCardConsent(false);
-                  }}
-                  {...fieldProps("tip")}
-                />
-                {fieldError("tip")}
-              </Section>
-              <Section number={4} title="Your details">
-                <p className="mb-5 text-sm text-[#686479]">
-                  We use your real name and email for your donation receipt.
-                </p>
-                <div className="space-y-5">
-                  <div>
-                    <label htmlFor="checkout-name" className="mb-2 block text-sm font-medium">
-                      Full name
-                    </label>
-                    <input
-                      id="checkout-name"
-                      className="public-input"
-                      autoComplete="name"
-                      maxLength={120}
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      {...fieldProps("name")}
-                    />
-                    {fieldError("name")}
-                  </div>
-                  <div>
-                    <label htmlFor="checkout-email" className="mb-2 block text-sm font-medium">
-                      Email address
-                    </label>
-                    <input
-                      id="checkout-email"
-                      className="public-input"
-                      autoComplete="email"
-                      type="email"
-                      maxLength={160}
-                      readOnly={Boolean(user)}
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      {...fieldProps("email")}
-                    />
-                    {fieldError("email")}
-                    {user && (
-                      <p className="mt-2 text-xs text-[#686479]">
-                        Your receipt goes to your account email.
-                      </p>
-                    )}
-                  </div>
-                  <label className="flex items-start gap-3 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={anonymous}
-                      onChange={(event) => setAnonymous(event.target.checked)}
-                      className="mt-0.5"
-                    />
+              </Step>
+              <Step n={recurringCount ? 4 : 3} title="Your details">
+                <div className="flex flex-col gap-4">
+                  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-field border border-line-soft px-4 py-3">
                     <span>
-                      Give anonymously
-                      <span className="mt-1 block text-xs leading-5 text-[#686479]">
+                      <span className="block text-sm font-medium text-ink">Give anonymously</span>
+                      <span className="block text-[13px] text-muted-ink">
                         Your public name will be Anonymous Donor. Your receipt still uses your real
                         name.
                       </span>
                     </span>
+                    <Switch
+                      checked={anonymous}
+                      onCheckedChange={setAnonymous}
+                      className="data-[state=checked]:bg-ink data-[state=unchecked]:bg-line-input"
+                    />
                   </label>
-                  <div>
-                    <label htmlFor="checkout-note" className="mb-2 block text-sm font-medium">
-                      Leave a message (optional)
-                    </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>
+                      {anonymous ? "Name for your receipt" : "Name on the campaign"}
+                    </span>
+                    <input
+                      id="checkout-name"
+                      autoComplete="name"
+                      maxLength={120}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className={inputClass}
+                      {...fieldProps("name")}
+                    />
+                  </label>
+                  {fieldError("name")}
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Email address</span>
+                    <input
+                      id="checkout-email"
+                      type="email"
+                      autoComplete="email"
+                      maxLength={160}
+                      readOnly={Boolean(user)}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={inputClass}
+                      {...fieldProps("email")}
+                    />
+                  </label>
+                  {fieldError("email")}
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>
+                      Message <span className="font-normal text-muted-ink">(optional)</span>
+                    </span>
                     <textarea
                       id="checkout-note"
-                      className="public-input min-h-24 resize-y"
+                      rows={3}
                       maxLength={500}
                       value={note}
-                      onChange={(event) => setNote(event.target.value)}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Praying for you and the team"
+                      className={cn(inputClass, "resize-none")}
                       {...fieldProps("note")}
                     />
-                    {fieldError("note")}
-                  </div>
+                  </label>
+                  {fieldError("note")}
                 </div>
-              </Section>
-              {recurring && user && (
-                <Section number={5} title="How should recurring giving work?">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {(["AUTO", "PLEDGE"] as const).map((value) => (
-                      <button
-                        type="button"
-                        disabled={Boolean(gift)}
-                        key={value}
-                        className="checkout-choice text-left"
-                        aria-pressed={mode === value}
+              </Step>
+              <Step n={recurringCount ? 5 : 4} title="Payment">
+                <div className="flex flex-col gap-2" role="radiogroup" aria-label="Payment method">
+                  {!recurring &&
+                    user &&
+                    eligibleCards.map((card) => (
+                      <Option
+                        key={card.id}
+                        row
+                        selected={savedCard === card.id}
                         onClick={() => {
-                          setMode(value);
-                          setConsent(false);
-                          if (value === "AUTO") setMethod("CARD");
+                          setSavedCard(card.id);
+                          setSavedCardConsent(false);
+                          setMethod("CARD");
                         }}
                       >
-                        <span className="block font-semibold">
-                          {value === "AUTO" ? "Automatic card charge" : "Reminder-based pledge"}
+                        <CreditCard className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
+                        <span className="flex-1">
+                          <span className="block text-[15px] font-medium text-ink">
+                            {card.cardType || card.brand || "Card"} ending {card.last4}
+                          </span>
+                          <span className="block text-[13px] text-muted-ink">
+                            Saved card
+                            {card.expMonth && card.expYear
+                              ? ", expires " + card.expMonth + "/" + card.expYear
+                              : ""}
+                          </span>
                         </span>
-                        <span className="mt-2 block text-xs leading-5 text-[#686479]">
-                          {value === "AUTO"
-                            ? "Use a reusable card authorization to give on schedule."
-                            : "Receive reminders and choose when to pay. No automatic debit."}
-                        </span>
-                      </button>
+                      </Option>
                     ))}
-                  </div>
-                  {automatic && !gift && (
-                    <div className="mt-5">
-                      <label className="flex items-start gap-3 text-sm leading-6">
-                        <input
-                          id="checkout-consent"
-                          type="checkbox"
-                          checked={consent}
-                          onChange={(event) => setConsent(event.target.checked)}
-                          className="mt-1.5"
-                          {...fieldProps("consent")}
-                        />
-                        <span>
-                          I authorize automatic {frequency} card charges of{" "}
-                          {formatMoney(displayedAmount)} plus the applicable platform fee for this
-                          campaign. I can pause or cancel in My Giving.
-                        </span>
-                      </label>
-                      {fieldError("consent")}
-                    </div>
-                  )}
-                </Section>
-              )}
-              <Section number={recurring && user ? 6 : 5} title="Payment method">
-                <div className="grid grid-cols-2 gap-3">
-                  {(["CARD", "BANK"] as const).map((value) => (
+                  <Option
+                    row
+                    selected={method === "CARD" && !savedCard}
+                    onClick={() => {
+                      setMethod("CARD");
+                      clearSavedCard();
+                    }}
+                  >
+                    <CreditCard className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
+                    <span className="flex-1 text-[15px] font-medium text-ink">
+                      {eligibleCards.length && !recurring ? "A different card" : "Card"}
+                    </span>
+                  </Option>
+                  <Option
+                    row
+                    selected={method === "BANK"}
+                    disabled={automatic}
+                    onClick={() => {
+                      setMethod("BANK");
+                      clearSavedCard();
+                    }}
+                  >
+                    <Building2 className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
+                    <span className="flex-1">
+                      <span className="block text-[15px] font-medium text-ink">Bank transfer</span>
+                      <span className="block text-[13px] text-muted-ink">
+                        {automatic
+                          ? "Choose reminders to pay by bank"
+                          : recurring
+                            ? "We remind you each time it's due"
+                            : "Pay from your banking app"}
+                      </span>
+                    </span>
+                  </Option>
+                </div>
+                {!recurring && cards.isError && (
+                  <p role="alert" className="text-sm text-red-700">
+                    Saved cards could not load.{" "}
                     <button
-                      key={value}
                       type="button"
-                      disabled={automatic && value === "BANK"}
-                      className="checkout-choice flex items-center gap-2"
-                      aria-pressed={(automatic ? "CARD" : method) === value}
+                      onClick={() => void cards.refetch()}
+                      className="underline"
+                    >
+                      Retry
+                    </button>{" "}
+                    or use a new card.
+                  </p>
+                )}
+                {savedCard && !recurring ? (
+                  <label className="flex items-start gap-3 text-sm leading-6 text-ink-soft">
+                    <input
+                      id="saved-card-consent"
+                      type="checkbox"
+                      checked={validSavedCardConsent}
+                      onChange={(e) => {
+                        setSavedCardConsent(e.target.checked);
+                        setConsentedTotal(e.target.checked ? totals.total : null);
+                      }}
+                      className="mt-1.5"
+                    />
+                    <span>
+                      I authorize a one-time charge of {formatMoney(totals.total)} to this saved
+                      card, including the displayed fee and tip. No recurring gift is created.
+                    </span>
+                  </label>
+                ) : (
+                  <p className="rounded-field bg-panel px-4 py-3 text-[13px] text-ink-soft">
+                    Paystack opens a secure window for your payment details. AzarFaith never sees or
+                    stores your card details.
+                  </p>
+                )}
+                {submitted && savedCard && !validSavedCardConsent && (
+                  <p role="alert" className="text-sm text-red-700">
+                    Confirm the one-time saved-card charge to continue.
+                  </p>
+                )}
+                {recurring && user && (
+                  <div
+                    className="mt-2 grid gap-2 sm:grid-cols-2"
+                    role="radiogroup"
+                    aria-label="Recurring giving mode"
+                  >
+                    <Option
+                      selected={mode === "AUTO"}
+                      disabled={Boolean(gift)}
                       onClick={() => {
-                        setMethod(value);
-                        setSavedCard("");
-                        setSavedCardConsent(false);
+                        setMode("AUTO");
+                        setConsent(false);
+                        setMethod("CARD");
                       }}
                     >
-                      {value === "CARD" ? <CreditCard size={17} /> : <Building2 size={17} />}
-                      {value === "CARD" ? "Card" : "Bank transfer"}
-                    </button>
-                  ))}
-                </div>
-                {!recurring && user && (
-                  <div className="mt-5 space-y-3">
-                    {cards.isError ? (
-                      <p role="alert" className="text-xs text-red-700">
-                        Saved cards could not load.{" "}
-                        <button
-                          type="button"
-                          className="underline"
-                          onClick={() => void cards.refetch()}
-                        >
-                          Retry
-                        </button>{" "}
-                        or use a new card.
-                      </p>
-                    ) : cards.data?.length ? (
-                      <>
-                        <label className="giving-label">
-                          Saved card
-                          <select
-                            aria-label="Saved card"
-                            className="public-input"
-                            value={savedCard}
-                            onChange={(event) => {
-                              setSavedCard(event.target.value);
-                              setSavedCardConsent(false);
-                              setMethod("CARD");
-                            }}
-                          >
-                            <option value="">Use a new card on Paystack</option>
-                            {cards.data
-                              .filter(
-                                (card) =>
-                                  card.active &&
-                                  !card.deactivatedAt &&
-                                  card.reusable &&
-                                  card.channel === "card",
-                              )
-                              .map((card) => (
-                                <option value={card.id} key={card.id}>
-                                  {card.cardType || card.brand || "Card"} ending {card.last4}
-                                  {card.isPreferred ? " · Preferred" : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        {savedCard && (
-                          <label className="flex items-start gap-3 text-sm leading-6">
-                            <input
-                              id="saved-card-consent"
-                              type="checkbox"
-                              checked={validSavedCardConsent}
-                              onChange={(event) => {
-                                setSavedCardConsent(event.target.checked);
-                                setConsentedTotal(event.target.checked ? totals.total : null);
-                              }}
-                              className="mt-1.5"
-                            />
-                            <span>
-                              I authorize a one-time charge of {formatMoney(totals.total)} to this
-                              saved card, including the displayed fee and tip. No recurring gift is
-                              created.
-                            </span>
-                          </label>
-                        )}
-                        {submitted && savedCard && !validSavedCardConsent && (
-                          <p role="alert" className="text-xs text-red-700">
-                            Confirm the one-time saved-card charge to continue.
-                          </p>
-                        )}
-                      </>
-                    ) : null}
+                      <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <Repeat2 className="h-4 w-4" strokeWidth={1.75} /> Charge me automatically
+                      </span>
+                      <span className="text-[13px] text-muted-ink">Nothing to remember</span>
+                    </Option>
+                    <Option
+                      selected={mode === "PLEDGE"}
+                      disabled={Boolean(gift)}
+                      onClick={() => {
+                        setMode("PLEDGE");
+                        setConsent(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <BellRing className="h-4 w-4" strokeWidth={1.75} /> Remind me each time
+                      </span>
+                      <span className="text-[13px] text-muted-ink">You confirm every gift</span>
+                    </Option>
                   </div>
                 )}
-                <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-[#686479]">
-                  <LockKeyhole size={14} className="mt-0.5 shrink-0" />
-                  {savedCard && !recurring
-                    ? "Your saved authorization remains on the server. Payment is only confirmed after Paystack verification."
-                    : automatic
-                      ? "Automatic giving requires a reusable card. Your card details are entered securely on Paystack, not stored here."
-                      : "You will complete payment securely on Paystack. Available methods depend on the payment provider."}
-                </p>
-              </Section>
+                {automatic && user && !gift && (
+                  <label className="flex items-start gap-3 text-sm leading-6 text-ink-soft">
+                    <input
+                      id="checkout-consent"
+                      type="checkbox"
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                      className="mt-1.5"
+                      {...fieldProps("consent")}
+                    />
+                    <span>
+                      I authorize automatic {frequency} card charges of{" "}
+                      {formatMoney(displayedAmount)} plus the applicable platform fee for this
+                      campaign. I can pause or cancel in My Giving.
+                    </span>
+                  </label>
+                )}
+                {fieldError("consent")}
+              </Step>
             </fieldset>
+            <details className="rounded-field border border-line-soft p-4 lg:hidden">
+              <summary className="cursor-pointer text-sm font-medium text-ink">
+                Your giving summary
+              </summary>
+              <div className="pt-4">
+                <Summary
+                  cover={campaign.cover}
+                  title={campaign.title}
+                  org={org?.name ?? campaign.raiser.name}
+                  verified={Boolean(org && isPublished(org))}
+                  gift={displayedAmount}
+                  fee={totals.platformFee}
+                  tip={displayedTip}
+                  total={totals.total}
+                  freq={frequency as Frequency}
+                  feePercent={context.platformFeePercent}
+                  mode={mode}
+                />
+              </div>
+            </details>
             {payment.error && (
               <div
-                className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+                className="rounded-field border border-red-200 bg-red-50 p-4 text-sm text-red-700"
                 role="alert"
               >
                 {payment.error.message}{" "}
@@ -596,79 +687,56 @@ export function CheckoutForm({
               </div>
             )}
           </form>
-        </div>
-        <aside
-          className="checkout-summary min-w-0 self-start rounded-2xl border border-[#eeeaf2] bg-[#f7f6fa] p-5 sm:p-7 lg:sticky lg:top-6"
-          aria-label="Giving summary"
-        >
-          <h2 className="mb-6 text-lg font-semibold">Your giving summary</h2>
-          <div className="mb-6 flex items-center gap-3">
-            {campaign.cover && (
-              <img
-                src={campaign.cover}
-                alt=""
-                className="h-16 w-16 shrink-0 rounded-xl object-cover"
-              />
+        </main>
+      </div>
+      <aside
+        className="hidden border-l border-line-soft bg-panel lg:block"
+        aria-label="Giving summary"
+      >
+        <div className="sticky top-0 flex min-h-screen flex-col gap-6 px-8 py-10">
+          <Summary
+            cover={campaign.cover}
+            title={campaign.title}
+            org={org?.name ?? campaign.raiser.name}
+            verified={Boolean(org && isPublished(org))}
+            gift={displayedAmount}
+            fee={totals.platformFee}
+            tip={displayedTip}
+            total={totals.total}
+            freq={frequency as Frequency}
+            feePercent={context.platformFeePercent}
+            mode={mode}
+          />
+          {cta}
+          <ul className="flex flex-col gap-2 text-[13px] text-muted-ink">
+            <li className="flex items-center gap-2">
+              <BadgeCheck className="h-4 w-4 text-verified" strokeWidth={1.75} /> Campaigns are
+              reviewed before giving opens
+            </li>
+            <li className="flex items-center gap-2">
+              <Mail className="h-4 w-4" strokeWidth={1.75} /> Your receipt is emailed after payment
+              confirmation
+            </li>
+            {recurring && (
+              <li className="flex items-center gap-2">
+                <Repeat2 className="h-4 w-4" strokeWidth={1.75} /> Change or stop it any time in My
+                giving
+              </li>
             )}
-            <div className="min-w-0">
-              <p className="text-xs text-[#686479]">You're supporting</p>
-              <p className="mt-1 break-words text-sm font-semibold leading-5">{campaign.title}</p>
-            </div>
-          </div>
-          <dl className="space-y-4 border-y border-[#e4e1e9] py-5 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt>Donation</dt>
-              <dd>{formatMoney(displayedAmount)}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt>Platform fee ({context.platformFeePercent}%)</dt>
-              <dd>{formatMoney(totals.platformFee)}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt>AzarFaith tip</dt>
-              <dd>{formatMoney(displayedTip)}</dd>
-            </div>
-          </dl>
-          <div className="my-5 flex items-baseline justify-between gap-4 font-semibold">
-            <span>Total today</span>
-            <span className="min-w-0 break-all text-right text-2xl">
-              {formatMoney(totals.total)}
-            </span>
-          </div>
-          <p className="mb-6 text-xs leading-5 text-[#686479]">
-            {recurring
-              ? `${frequencyNames[frequency] ?? "Recurring"} giving. ${mode === "PLEDGE" ? "You will be reminded, not automatically charged." : "Future charges use your gift amount plus the applicable platform fee."}`
-              : "A one-time gift. No recurring charges."}
-          </p>
-          <button
-            type="submit"
-            form="donation-checkout"
-            disabled={busy}
-            className="public-button checkout-desktop-pay w-full"
-          >
-            {context.givingPaused
-              ? "Giving paused"
-              : busy
-                ? "Opening Paystack..."
-                : `Give ${formatMoney(totals.total)}`}
-          </button>
-          <p className="mt-4 flex items-center justify-center gap-2 text-xs text-[#686479]">
-            <Heart size={13} />
-            Secure payment powered by Paystack
-          </p>
-        </aside>
-        <div className="checkout-mobile-pay fixed inset-x-0 bottom-0 z-40 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-t border-[#e4e1e9] bg-white px-5 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] lg:hidden">
-          <div className="min-w-0">
-            <p className="text-xs text-[#686479]">Total today</p>
-            <p className="break-all text-lg font-semibold sm:text-xl">
-              {formatMoney(totals.total)}
-            </p>
-          </div>
-          <button type="submit" form="donation-checkout" disabled={busy} className="public-button">
-            {context.givingPaused ? "Giving paused" : busy ? "Opening..." : "Give now"}
-          </button>
+          </ul>
         </div>
-      </main>
-    </>
+      </aside>
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-4 border-t border-line-soft bg-paper px-6 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 lg:hidden">
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] text-muted-ink">Total today, fee included</p>
+          <p className="break-words font-display text-[20px] leading-tight text-ink">
+            {formatMoney(totals.total)}
+          </p>
+        </div>
+        <button type="submit" form="donation-checkout" disabled={busy} className={btn("primary")}>
+          {context.givingPaused ? "Giving paused" : busy ? "Opening..." : "Give"}
+        </button>
+      </div>
+    </div>
   );
 }

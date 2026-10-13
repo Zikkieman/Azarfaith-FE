@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,8 +9,10 @@ import { getErrorMessage } from "@/lib/errors";
 export function LogoutButton({
   className,
   to = "/login",
+  icon,
 }: {
   className?: string;
+  icon?: ReactNode;
   to?: "/login" | "/admin/login";
 }) {
   const dispatch = useAppDispatch();
@@ -37,6 +39,7 @@ export function LogoutButton({
         }
       }}
     >
+      {icon}
       {pending ? "Signing out..." : "Log out"}
     </button>
   );

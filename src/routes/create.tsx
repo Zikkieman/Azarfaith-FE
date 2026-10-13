@@ -1,19 +1,40 @@
+import { useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Check, Eye, FileText, Plus, Repeat2, Siren, Trash2, Warehouse } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertCircle,
+  Ambulance,
+  Check,
+  ChevronDown,
+  Circle,
+  Eye,
+  FileText,
+  HeartHandshake,
+  Home,
+  ImagePlus,
+  Plus,
+  Repeat2,
+  Siren,
+  Trash2,
+  Warehouse,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
+import placeholderCover from "@/assets/placeholder-cover.svg";
+import { AuthLogo } from "@/components/auth/AuthLogo";
+import { UserAvatar } from "@/components/UserAvatar";
 import { PageSpinner } from "@/components/PageSpinner";
 import { LoadError } from "@/components/profile/SettingsParts";
-import {
-  CreationLogo,
-  CreationNotice,
-  Field,
-  MediaPicker,
-} from "@/components/creation/CreationParts";
-import { useCreationSession } from "@/components/creation/useCreationSession";
+import { CampaignCard } from "@/components/app/CampaignCard";
+import { Segments } from "@/components/app/Segments";
+import { FieldError, Tag, inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { Sheet, SheetContent, SheetTitle } from "@/components/app/DesignSheet";
+import { CampaignUploads } from "@/components/creation/DesignMedia";
 import { CampaignPayoutAccount } from "@/components/creation/CampaignPayoutAccount";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useCreationSession } from "@/components/creation/useCreationSession";
+import { useAppSelector } from "@/app/hooks";
 import {
   getCampaignDraft,
   getProfile,
@@ -23,72 +44,141 @@ import {
   submitCampaignDraft,
   updateCampaignDraft,
 } from "@/features/catalog/api";
-import {
-  campaignTypeOptions,
-  faithCategoryOptions,
-  formatAmountInput,
-  formatMoney,
-  frequencyOptions,
-  urgencyOptions,
-  type Campaign,
-} from "@/lib/catalog";
+import { faithCategoryOptions, formatMoney, type Campaign } from "@/lib/catalog";
 import {
   campaignErrors,
   campaignForm,
   campaignPayload,
   campaignPayoutError,
   countWords,
-  focusError,
   type CampaignForm,
 } from "@/lib/creation";
-
+import { formatCheckoutInput } from "@/lib/checkout";
+import { isPublished } from "@/lib/discovery";
+import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/create")({
-  validateSearch: (search: Record<string, unknown>): { draftId?: string } => ({
-    draftId: typeof search.draftId === "string" ? search.draftId : undefined,
+  validateSearch: (s: Record<string, unknown>): { draftId?: string } => ({
+    draftId: typeof s.draftId === "string" ? s.draftId : undefined,
   }),
   component: CreateCampaign,
 });
-const templates = [
+
+type Draft = {
+  mode?: Campaign["mode"];
+  type?: Campaign["type"];
+  title?: string;
+  story?: string;
+  faithCategory?: string;
+  orgId?: string;
+  location?: string;
+  goal?: string | number;
+  urgency?: Campaign["urgency"];
+  cover?: string;
+  gallery?: string[];
+  frequencies?: Campaign["frequencies"];
+};
+type Category = string;
+type Requirement = { key: string; label: string; ok: boolean; required: boolean; target: string };
+const categories = faithCategoryOptions;
+function targetFor(key: string) {
+  return (
+    (
+      {
+        mode: "basics",
+        type: "basics",
+        title: "basics",
+        faithCategory: "basics",
+        location: "basics",
+        story: "story",
+        goalAmount: "goal",
+        frequencies: "goal",
+        coverImageUrl: "photos",
+        galleryImageUrls: "photos",
+        needs: "needs",
+        organizationId: "org",
+        profile: "org",
+        payoutAccount: "field-payoutAccount",
+      } as Record<string, string>
+    )[key] ?? "basics"
+  );
+}
+/** Templates (after Gamma's create-from-template): each sets the basics and a story outline. */
+const templates: {
+  key: string;
+  label: string;
+  line: string;
+  icon: LucideIcon;
+  set: Partial<Draft>;
+  outline: string;
+}[] = [
   {
+    key: "building",
     label: "Building project",
     line: "A roof, a hall, a classroom",
     icon: Warehouse,
-    fields: { mode: "ONE_TIME", type: "MONEY", faithCategory: "CHURCH_BUILDING" },
+    set: { mode: "one-time", type: "money", faithCategory: "Church Building", urgency: "medium" },
+    outline:
+      "Who we are: [your church or ministry, and how long you've served here]\n\nWhat we're building: [the project, in one sentence]\n\nWhat it costs: [the main items and their prices, e.g. 120 bags of cement at ₦9,500]\n\nWhy now: [what happens if it waits]\n\nHow we'll report back: [photos at each stage, receipts]",
   },
   {
+    key: "monthly",
     label: "Monthly support",
     line: "Missionaries, pastors, outreach",
     icon: Repeat2,
-    fields: {
-      mode: "ONGOING",
-      type: "MONEY",
-      faithCategory: "MISSIONS_OUTREACH",
-      frequencies: ["MONTHLY"],
+    set: {
+      mode: "ongoing",
+      type: "money",
+      faithCategory: "Missions & Outreach",
+      frequencies: ["monthly"],
     },
+    outline:
+      "Who we are: [the ministry and the people you serve]\n\nWhat regular gifts pay for: [salaries, fuel, food, rent, with monthly amounts]\n\nWhat a month looks like: [one real story from last month]\n\nHow we'll keep you posted: [a monthly update with photos]",
   },
   {
-    label: "Emergency relief",
-    line: "Urgent help for your community",
-    icon: Siren,
-    fields: {
-      mode: "ONE_TIME",
-      type: "EMERGENCY",
-      faithCategory: "EMERGENCY",
-      urgency: "CRITICAL",
-    },
+    key: "children",
+    label: "Children's home",
+    line: "Beds, food, school fees",
+    icon: Home,
+    set: { mode: "one-time", type: "money", faithCategory: "Orphanage", urgency: "high" },
+    outline:
+      "Who we care for: [how many children, ages, and how they came to you]\n\nWhat they need: [the need, with numbers, e.g. 20 bunk beds at ₦60,000]\n\nWhy it matters now: [what changes for the children]\n\nHow we'll report back: [photos once it's done, receipts]",
   },
-  { label: "Start blank", line: "Write it your way", icon: FileText, fields: {} },
+  {
+    key: "emergency",
+    label: "Emergency relief",
+    line: "After violence, floods, fire",
+    icon: Siren,
+    set: { mode: "one-time", type: "emergency", faithCategory: "Emergency", urgency: "critical" },
+    outline:
+      "What happened: [the event, where and when]\n\nWho is affected: [how many families and where they are now]\n\nWhat we need right now: [food, water, shelter, with costs]\n\nWho is on the ground: [the church or team handing out help]",
+  },
+  {
+    key: "medical",
+    label: "Medical outreach",
+    line: "Clinics, medicine, surgery",
+    icon: Ambulance,
+    set: { mode: "one-time", type: "money", faithCategory: "Medical Mission", urgency: "high" },
+    outline:
+      "Who we serve: [the community and what care they lack]\n\nWhat we'll do: [the outreach, how many days, how many people]\n\nWhat it costs: [medicines, staff, transport, with amounts]\n\nHow we'll report back: [numbers seen and treated, photos]",
+  },
+  {
+    key: "blank",
+    label: "Start blank",
+    line: "Write it your way",
+    icon: FileText,
+    set: {},
+    outline: "",
+  },
+];
+
+const types = [
+  { v: "money", label: "Money for a goal" },
+  { v: "item", label: "Items" },
+  { v: "volunteer", label: "Volunteers" },
+  { v: "professional", label: "Professional help" },
+  { v: "emergency", label: "Emergency relief" },
 ] as const;
-const checklist = [
-  ["mode", "Choose campaign mode"],
-  ["type", "Choose the kind of help"],
-  ["title", "Give it a title"],
-  ["faithCategory", "Choose a cause"],
-  ["location", "Add your location"],
-  ["story", "Tell your story"],
-  ["coverImageUrl", "Upload a cover photo"],
-  ["galleryImageUrls", "Add gallery photos"],
-] as const;
+
 function CreateCampaign() {
   const { draftId } = Route.useSearch();
   const { ready, userId } = useCreationSession();
@@ -122,7 +212,11 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
   const [form, setForm] = useState(() => campaignForm(draft));
   const [savedId, setSavedId] = useState(draft?.id);
   const [showErrors, setShowErrors] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploads, setUploads] = useState(0);
+  const onBusy = (uploading: boolean) => setUploads((n) => Math.max(0, n + (uploading ? 1 : -1)));
+  const [template, setTemplate] = useState<string | null>(null);
+  const [done, setDone] = useState<Campaign | null>(null);
+  const savingLock = useRef(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [need, setNeed] = useState("");
   const [needError, setNeedError] = useState("");
@@ -145,16 +239,24 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
     enabled: eligibleOrganization,
   });
   useCreationSession(payout.error);
-  const payoutError = campaignPayoutError({
-    account: payout.data,
-    loading: payout.isPending,
-    failed: payout.isError,
-  });
+  const payoutError = !eligibleOrganization
+    ? "Choose an eligible organization before checking its payout account."
+    : campaignPayoutError({
+        account: payout.data,
+        loading: payout.isPending,
+        failed: payout.isError,
+      });
   const change = (patch: Partial<CampaignForm>) => {
     setForm((current) => ({ ...current, ...patch }));
     setDirty(true);
   };
   const allErrors = campaignErrors(form);
+  const hasTemplateInstructions = templates.some((t) =>
+    (t.outline.match(/\[[^\]]*\]/g) ?? []).some((instruction) => form.story.includes(instruction)),
+  );
+  if (hasTemplateInstructions)
+    allErrors.story =
+      "Replace the bracketed template instructions with your own story, using 100 to 200 words.";
   if (
     form.organizationId &&
     profile.data &&
@@ -166,14 +268,6 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
       "Select one of your eligible organizations, or create a standalone campaign.";
   if (payoutError) allErrors.payoutAccount = payoutError;
   const errors = showErrors ? allErrors : {};
-  const checks: Array<readonly [string, string]> = [...checklist];
-  checks.push(["payoutAccount", "Reuse a verified payout account"]);
-  if (form.mode === "ONE_TIME" && form.type === "MONEY")
-    checks.push(["goalAmount", "Set your goal"]);
-  if (form.mode === "ONGOING") checks.push(["frequencies", "Choose giving frequencies"]);
-  if (["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type))
-    checks.push(["needs", "List what you need"]);
-  const completed = checks.filter(([key]) => !allErrors[key]).length;
   const mutation = useMutation({
     mutationFn: async ({ submit, exit }: { submit: boolean; exit: boolean }) => {
       const payload = campaignPayload(form);
@@ -194,554 +288,1098 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
           ? "Campaign submitted. Its review status is shown on the preview page."
           : "Campaign draft saved.",
       );
-      if (submit) await navigate({ to: "/campaign/$id", params: { id: result.id } });
-      else if (exit) await navigate({ to: "/manage" });
+      savingLock.current = false;
+      if (submit) setDone(result);
+      else if (exit) await navigate({ to: "/dashboard" });
       else if (!draft)
         await navigate({ to: "/create", search: { draftId: result.id }, replace: true });
     },
+    onError: () => {
+      savingLock.current = false;
+    },
   });
   useCreationSession(mutation.error);
-  const busy = mutation.isPending || uploading;
+  const busy = mutation.isPending || uploads > 0;
   const submit = () => {
+    if (busy || savingLock.current) return;
+    if (need.trim()) {
+      setNeedError("Add this need or clear the field before submitting.");
+      jump("needs");
+      return;
+    }
     setShowErrors(true);
     const missing = Object.keys(allErrors);
     if (missing.length) {
-      focusError(missing[0]);
+      jump(targetFor(missing[0]));
+      document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus({ preventScroll: true });
       return;
     }
+    savingLock.current = true;
     mutation.mutate({ submit: true, exit: false });
   };
-  const preview = (
-    <div className="overflow-hidden rounded-2xl border border-[#efedf3] bg-white shadow-sm">
-      {form.coverImageUrl ? (
-        <img
-          src={form.coverImageUrl}
-          alt="Campaign cover preview"
-          className="aspect-[1.6] w-full object-cover"
-        />
-      ) : (
-        <div className="grid aspect-[1.6] place-items-center bg-[#ebe7f2] text-sm text-[#777283]">
-          Add your cover photo
-        </div>
-      )}
-      <div className="space-y-4 p-5">
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-[#f2eff7] px-3 py-1">
-            {form.mode === "ONGOING" ? "Ongoing support" : "One-time campaign"}
-          </span>
-          <span className="rounded-full bg-[#fff5db] px-3 py-1">Draft preview</span>
-        </div>
-        <h2 className="break-words text-xl font-semibold">{form.title || "Your campaign title"}</h2>
-        <p className="text-xs text-[#777283]">
-          {profile.data?.ownedOrganizations.find((org) => org.id === form.organizationId)?.name ||
-            profile.data?.fullName ||
-            "Your campaign"}
-          {form.location && ` · ${form.location}`}
-        </p>
-        {form.mode === "ONGOING" ? (
-          <p className="text-sm">
-            {form.frequencies.map((frequency) => frequency.toLowerCase()).join(" · ") ||
-              "Choose giving frequencies"}
-          </p>
-        ) : form.goalAmount ? (
-          <p className="text-sm">
-            Goal: {formatMoney(Number(form.goalAmount.replaceAll(",", "")))}
-          </p>
-        ) : null}
-        <p className="max-h-72 overflow-y-auto whitespace-pre-wrap break-words border-t pt-4 text-sm leading-relaxed">
-          {form.story || "Your story will appear here as you write."}
-        </p>
-        {form.needs.length > 0 && (
-          <ul className="space-y-2 text-sm">
-            {form.needs.map((item) => (
-              <li key={item} className="break-words">
-                • {item}
-              </li>
-            ))}
-          </ul>
-        )}
-        {form.galleryImageUrls.length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
-            {form.galleryImageUrls.map((url) => (
-              <img
-                key={url}
-                src={url}
-                alt="Campaign gallery preview"
-                className="aspect-square w-full rounded-lg object-cover"
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-  const section = (title: string, subtitle: string) => (
-    <div className="mb-6">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-[#777283]">{subtitle}</p>
-    </div>
-  );
+
+  const draftState: Draft = {
+    mode: form.mode ? (form.mode === "ONGOING" ? "ongoing" : "one-time") : undefined,
+    type: form.type ? (form.type.toLowerCase() as Campaign["type"]) : undefined,
+    title: form.title,
+    story: form.story,
+    faithCategory: faithCategoryOptions.find((c) => c.value === form.faithCategory)?.label,
+    location: form.location,
+    orgId: form.organizationId || undefined,
+    goal: form.goalAmount,
+    urgency: form.urgency?.toLowerCase() as Campaign["urgency"],
+    cover: form.coverImageUrl || undefined,
+    gallery: form.galleryImageUrls,
+    frequencies: form.frequencies.map((f) => f.toLowerCase()) as Campaign["frequencies"],
+  };
+  const setDraft = (patch: Partial<Draft>) =>
+    change({
+      ...("mode" in patch
+        ? { mode: patch.mode ? (patch.mode === "ongoing" ? "ONGOING" : "ONE_TIME") : "" }
+        : {}),
+      ...("type" in patch ? { type: patch.type?.toUpperCase() as CampaignForm["type"] } : {}),
+      ...("title" in patch ? { title: patch.title ?? "" } : {}),
+      ...("story" in patch ? { story: patch.story ?? "" } : {}),
+      ...("faithCategory" in patch
+        ? {
+            faithCategory:
+              faithCategoryOptions.find((c) => c.label === patch.faithCategory)?.value ?? "",
+          }
+        : {}),
+      ...("orgId" in patch ? { organizationId: patch.orgId ?? "" } : {}),
+      ...("location" in patch ? { location: patch.location ?? "" } : {}),
+      ...("goal" in patch ? { goalAmount: String(patch.goal ?? "") } : {}),
+      ...("urgency" in patch
+        ? { urgency: patch.urgency?.toUpperCase() as CampaignForm["urgency"] }
+        : {}),
+      ...("frequencies" in patch
+        ? {
+            frequencies: patch.frequencies?.map((f) =>
+              f.toUpperCase(),
+            ) as CampaignForm["frequencies"],
+          }
+        : {}),
+      ...("cover" in patch ? { coverImageUrl: patch.cover ?? "" } : {}),
+      ...("gallery" in patch ? { galleryImageUrls: patch.gallery ?? [] } : {}),
+    });
+  const orgs = profile.data?.ownedOrganizations.filter((o) => o.reviewAction !== "rejected") ?? [];
+  const org = orgs.find((o) => o.id === form.organizationId);
+  if (profile.isPending || profile.isError)
+    allErrors.profile = "Load your organizations before submitting.";
+  const checks: Requirement[] = [
+    {
+      key: "kind",
+      label: "Choose one-time or ongoing",
+      ok: !allErrors.mode && !allErrors.type,
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "title",
+      label: "Give it a title",
+      ok: !allErrors.title,
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "cause",
+      label: "Pick a cause and a place",
+      ok: !allErrors.faithCategory && !allErrors.location,
+      required: true,
+      target: "basics",
+    },
+    {
+      key: "story",
+      label: "Tell the story",
+      ok: !allErrors.story,
+      required: true,
+      target: "story",
+    },
+    form.mode === "ONGOING"
+      ? {
+          key: "freq",
+          label: "Choose how often people give",
+          ok: !allErrors.frequencies,
+          required: true,
+          target: "goal",
+        }
+      : {
+          key: "goal",
+          label: "Set a goal",
+          ok: !allErrors.goalAmount,
+          required: form.type === "MONEY" || Boolean(form.goalAmount),
+          target: "goal",
+        },
+    {
+      key: "cover",
+      label: "Add a cover photo",
+      ok: !allErrors.coverImageUrl,
+      required: true,
+      target: "photos",
+    },
+    {
+      key: "gallery",
+      label: "Add at least one gallery photo",
+      ok: !allErrors.galleryImageUrls,
+      required: true,
+      target: "photos",
+    },
+    {
+      key: "payout",
+      label: "Reuse your verified payout account",
+      ok: !allErrors.payoutAccount,
+      required: true,
+      target: "field-payoutAccount",
+    },
+    {
+      key: "profile",
+      label: "Choose an eligible organizer",
+      ok: !allErrors.profile && !allErrors.organizationId,
+      required: true,
+      target: "org",
+    },
+    ...(["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type)
+      ? [
+          {
+            key: "needs",
+            label: "List the help you need",
+            ok: !allErrors.needs,
+            required: true,
+            target: "needs",
+          },
+        ]
+      : []),
+    {
+      key: "photos",
+      label: "Add 3 or more photos",
+      ok: form.galleryImageUrls.length + (form.coverImageUrl ? 1 : 0) >= 3,
+      required: false,
+      target: "photos",
+    },
+    {
+      key: "numbers",
+      label: "Put numbers in the story",
+      ok: /\d/.test(form.story.replace(/\[[^\]]*\]/g, "")),
+      required: false,
+      target: "story",
+    },
+    {
+      key: "org",
+      label: "Link a verified organization",
+      ok: org?.verificationStatus === "verified",
+      required: false,
+      target: "org",
+    },
+  ];
+  const required = checks.filter((c) => c.required),
+    missing = required.filter((c) => !c.ok),
+    score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
+  const err = (key: string) =>
+    showErrors ? checks.find((c) => c.key === key && c.required && !c.ok) : undefined;
+  const pick = (key: string) => {
+    const t = templates.find((t) => t.key === key);
+    if (!t) return;
+    setTemplate(key);
+    const hasStory = form.story.trim().length > 0;
+    setDraft({ ...t.set, story: hasStory ? form.story : t.outline });
+    if (hasStory && t.outline) toast("Template applied. Your story was kept as it is");
+  };
+  const jump = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const saveDraft = (exit: boolean) => {
+    if (busy || savingLock.current) return;
+    if (need.trim()) {
+      setNeedError("Add this need or clear the field before saving.");
+      jump("needs");
+      return;
+    }
+    const goalText = form.goalAmount.replaceAll(",", "").trim();
+    if (
+      form.mode === "ONE_TIME" &&
+      ["MONEY", "EMERGENCY"].includes(form.type) &&
+      goalText &&
+      (!/^\d+$/.test(goalText) || Number(goalText) > 2147483647)
+    ) {
+      setShowErrors(true);
+      toast.error(
+        "Enter a whole-naira goal no greater than ₦2,147,483,647, or leave it blank for your draft.",
+      );
+      jump("goal");
+      return;
+    }
+    savingLock.current = true;
+    mutation.mutate({ submit: false, exit });
+  };
+  if (done)
+    return (
+      <Submitted
+        campaign={done}
+        onView={() => void navigate({ to: "/campaign/$id", params: { id: done.id } })}
+      />
+    );
   return (
-    <div className="creation-layout dashboard-layout min-h-screen bg-white text-[#130e30]">
-      <header className="sticky top-0 z-30 border-b border-[#efedf3] bg-white/95 backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <span className="hidden sm:inline">
-            <CreationLogo />
-          </span>
-          <Link to="/manage" className="text-sm">
-            Manage
+    <div className="designer-app min-h-screen bg-paper font-gsf text-heading">
+      <header className="sticky top-0 z-30 border-b border-line-soft bg-paper/90 backdrop-blur-md">
+        <div className="flex h-14 items-center gap-3 px-4 max-[360px]:gap-2 sm:px-6">
+          <Link
+            to="/dashboard"
+            onClick={(event) => {
+              event.preventDefault();
+              saveDraft(true);
+            }}
+            aria-disabled={busy}
+            aria-label="Close"
+            className="grid h-9 w-9 place-items-center rounded-full text-ink-soft transition-colors hover:bg-panel hover:text-ink"
+          >
+            <X className="h-5 w-5" strokeWidth={1.75} />
           </Link>
-          <span className="rounded-full bg-[#f2eff7] px-3 py-1 text-xs">Draft</span>
-          <span className="mr-auto text-xs text-[#777283]">
+          <span className="hidden sm:block">
+            <AuthLogo />
+          </span>
+          <span className="hidden h-5 w-px bg-line-soft sm:block" />
+          <p className="hidden min-w-0 truncate text-sm font-medium text-ink sm:block">
+            {draftState.title?.trim() || "New campaign"}
+          </p>
+          <Tag>Draft</Tag>
+          <span className="hidden text-[13px] text-muted-ink md:inline">
             {mutation.isPending ? "Saving..." : dirty || !savedId ? "Unsaved changes" : "Saved"}
           </span>
+          <span className="flex-1" />
           <button
             type="button"
-            className="giving-small-button lg:hidden"
             onClick={() => setPreviewOpen(true)}
+            className={cn(btn("secondary", "sm"), "lg:hidden")}
           >
-            <Eye size={15} /> Preview
+            <Eye className="h-4 w-4" strokeWidth={1.75} /> Preview
           </button>
           <button
             type="button"
-            disabled={busy}
-            className="giving-small-button"
-            onClick={() => mutation.mutate({ submit: false, exit: false })}
-          >
-            Save draft
-          </button>
-          <button
-            type="button"
-            disabled={busy}
             onClick={submit}
-            className="rounded-full bg-[#130e30] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            disabled={busy}
+            title={
+              missing.length
+                ? `Still to do: ${missing.map((m) => m.label.toLowerCase()).join(", ")}`
+                : undefined
+            }
+            className={btn("primary", "sm")}
           >
-            Submit for review
+            {mutation.isPending ? (
+              "Submitting…"
+            ) : (
+              <>
+                Submit<span className="hidden sm:inline"> for review</span>
+              </>
+            )}
           </button>
         </div>
       </header>
-      <div className="mx-auto grid max-w-[1600px] xl:grid-cols-[230px_minmax(0,1fr)_380px] lg:grid-cols-[minmax(0,1fr)_340px]">
-        <aside className="hidden border-r border-[#efedf3] bg-[#faf9fc] p-5 xl:block">
-          <div className="sticky top-28">
-            <h2 className="mb-2 text-sm font-semibold">Ready for review</h2>
-            <p className="mb-3 text-xs text-[#777283]">
-              {completed}/{checks.length} requirements complete
-            </p>
-            <progress
-              aria-label="Campaign completion"
-              value={completed}
-              max={checks.length}
-              className="mb-5 h-2 w-full accent-[#130e30]"
-            />
-            <ul className="space-y-2">
-              {checks.map(([key, label]) => (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => focusError(key)}
-                    className="flex items-start gap-2 text-left text-xs leading-relaxed"
-                  >
-                    <span
-                      className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${!allErrors[key] ? "border-[#130e30] bg-[#130e30] text-white" : "border-[#d8d5e0]"}`}
-                    >
-                      {!allErrors[key] && <Check size={11} />}
-                    </span>
-                    {label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-6 text-xs leading-relaxed text-[#777283]">
-              Saving a draft does not publish it. Submit when your details are complete.
-            </p>
+
+      <div className="grid lg:grid-cols-[264px_minmax(0,1fr)_420px]">
+        <aside className="hidden border-r border-line-soft bg-panel/40 lg:block">
+          <div className="sticky top-14 flex max-h-[calc(100vh-56px)] flex-col gap-5 overflow-y-auto p-5">
+            <Strength score={score} missing={missing.length} />
+            {[
+              { title: "Required", items: required },
+              { title: "Recommended", items: checks.filter((c) => !c.required) },
+            ].map((g) => (
+              <div key={g.title} className="flex flex-col gap-1">
+                <p className="px-2 text-[12px] font-medium text-subtle">
+                  {g.title}{" "}
+                  <span className="font-normal">
+                    {g.items.filter((c) => c.ok).length}/{g.items.length}
+                  </span>
+                </p>
+                <ul className="flex flex-col gap-0.5">
+                  {g.items.map((c) => (
+                    <li key={c.key}>
+                      <CheckItem check={c} onClick={() => jump(c.target)} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </aside>
-        <main className="min-w-0 px-5 py-8 sm:px-8 xl:px-10">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight">Create a campaign</h1>
-            <p className="mt-2 text-sm text-[#777283]">
-              A clear story. A real need. A way for people to help.
-            </p>
-          </div>
-          {mutation.error && (
-            <div role="alert" className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-              {mutation.error.message} Your details are still here.{" "}
-              {mutation.error.message.toLowerCase().includes("payout") && (
-                <Link to="/profile" hash="payouts" className="underline">
-                  Check your payout settings
-                </Link>
-              )}
-            </div>
-          )}
-          <fieldset disabled={busy} className="min-w-0 space-y-8">
-            <div>
-              {section(
-                "Start with a template",
-                "Templates set your campaign type, not your story. Existing details are kept.",
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {templates.map((template) => (
-                  <button
-                    type="button"
-                    key={template.label}
-                    onClick={() => change(template.fields as Partial<CampaignForm>)}
-                    className="flex gap-3 rounded-xl border border-[#efedf3] p-4 text-left transition hover:border-[#130e30]"
+
+        <main className="min-w-0 px-5 pb-24 pt-8 sm:px-10">
+          <fieldset disabled={busy} className="contents">
+            <div className="mx-auto flex max-w-[640px] flex-col gap-12">
+              <details className="group rounded-field border border-line-soft lg:hidden">
+                <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm">
+                  <span className="font-medium text-ink">{score}%</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-soft">
+                    <span
+                      className={cn(
+                        "block h-full rounded-full transition-[width] duration-500",
+                        missing.length ? "bg-brand" : "bg-verified",
+                      )}
+                      style={{ width: `${score}%` }}
+                    />
+                  </span>
+                  <span className="text-muted-ink">
+                    {missing.length ? `${missing.length} required left` : "Ready"}
+                  </span>
+                  <ChevronDown
+                    className="h-4 w-4 text-muted-ink transition-transform group-open:rotate-180"
+                    strokeWidth={2}
+                  />
+                </summary>
+                <ul className="flex flex-col gap-0.5 border-t border-line-soft p-2">
+                  {checks.map((c) => (
+                    <li key={c.key}>
+                      <CheckItem check={c} onClick={() => jump(c.target)} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+
+              <Section
+                id="template"
+                title="Start from a template"
+                note="It fills in the basics and an outline for your story. You can change anything."
+              >
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {templates.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      aria-pressed={template === t.key}
+                      onClick={() => pick(t.key)}
+                      className={cn(
+                        "flex flex-col items-start gap-2 rounded-field border p-3.5 text-left transition-[border-color,box-shadow]",
+                        template === t.key
+                          ? "border-ink shadow-[0_0_0_1px_var(--color-ink)]"
+                          : "border-line-soft hover:border-line-input",
+                      )}
+                    >
+                      <t.icon className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
+                      <span>
+                        <span className="block text-sm font-medium text-ink">{t.label}</span>
+                        <span className="block text-[12px] text-muted-ink">{t.line}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </Section>
+
+              <Section id="basics" title="Basics">
+                <div className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Kind of campaign</span>
+                  <div
+                    className="grid grid-cols-2 gap-0.5 rounded-[12px] bg-panel p-1"
+                    role="radiogroup"
                   >
-                    <template.icon size={21} className="shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">{template.label}</p>
-                      <p className="mt-1 text-xs text-[#777283]">{template.line}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <section className="border-t border-[#efedf3] pt-8">
-              {section("The basics", "Tell people what you are raising support for.")}
-              <div className="space-y-5">
-                <Field id="mode" label="Campaign mode" error={errors.mode}>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      ["ONE_TIME", "One-time"],
-                      ["ONGOING", "Ongoing support"],
-                    ].map(([mode, label]) => (
+                    {(
+                      [
+                        { v: "one-time", label: "One-time", note: "A goal for one need" },
+                        { v: "ongoing", label: "Ongoing", note: "Regular monthly or weekly gifts" },
+                      ] as const
+                    ).map((o) => (
                       <button
+                        key={o.v}
                         type="button"
-                        key={mode}
-                        aria-pressed={form.mode === mode}
-                        onClick={() => change({ mode: mode as CampaignForm["mode"] })}
-                        className={`rounded-xl border p-3 text-sm ${form.mode === mode ? "border-[#130e30] bg-[#f4f0fa]" : "border-[#efedf3]"}`}
+                        role="radio"
+                        aria-checked={draftState.mode === o.v}
+                        onClick={() => setDraft({ mode: o.v })}
+                        className={cn(
+                          "flex flex-col items-start rounded-[9px] px-3 py-2 text-left transition-all",
+                          draftState.mode === o.v
+                            ? "bg-paper shadow-[0_1px_2px_rgba(19,14,48,0.12)] ring-1 ring-line-soft"
+                            : "hover:bg-paper/50",
+                        )}
                       >
-                        {label}
+                        <span className="text-sm font-medium text-ink">{o.label}</span>
+                        <span className="text-[12px] text-muted-ink">{o.note}</span>
                       </button>
                     ))}
                   </div>
-                </Field>
-                <Field id="type" label="Kind of help" error={errors.type}>
-                  <select
-                    id="type"
-                    className="giving-input"
-                    value={form.type}
-                    onChange={(event) =>
-                      change({ type: event.target.value as CampaignForm["type"] })
-                    }
-                  >
-                    <option value="">Choose a type</option>
-                    {campaignTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field id="title" label="Campaign title" error={errors.title}>
-                  <input
-                    id="title"
-                    className="giving-input"
-                    value={form.title}
-                    maxLength={150}
-                    onChange={(event) => change({ title: event.target.value })}
-                  />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field id="faithCategory" label="Cause category" error={errors.faithCategory}>
-                    <select
-                      id="faithCategory"
-                      className="giving-input"
-                      value={form.faithCategory}
-                      onChange={(event) =>
-                        change({
-                          faithCategory: event.target.value as CampaignForm["faithCategory"],
-                        })
-                      }
-                    >
-                      <option value="">Choose a cause</option>
-                      {faithCategoryOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field id="location" label="City and state" error={errors.location}>
-                    <input
-                      id="location"
-                      className="giving-input"
-                      value={form.location}
-                      maxLength={160}
-                      onChange={(event) => change({ location: event.target.value })}
-                    />
-                  </Field>
+                  {err("kind") ? <FieldError>Choose one-time or ongoing.</FieldError> : null}
                 </div>
-                <Field id="urgency" label="Urgency">
-                  <select
-                    id="urgency"
-                    className="giving-input"
-                    value={form.urgency}
-                    onChange={(event) =>
-                      change({ urgency: event.target.value as CampaignForm["urgency"] })
+
+                <label className="flex flex-col gap-1.5">
+                  <span className="flex items-baseline justify-between">
+                    <span className={labelClass}>Title</span>
+                    <span
+                      className={cn(
+                        "text-[12px]",
+                        (draftState.title?.length ?? 0) > 150 ? "text-danger" : "text-subtle",
+                      )}
+                    >
+                      {draftState.title?.length ?? 0}/150
+                    </span>
+                  </span>
+                  <input
+                    value={draftState.title ?? ""}
+                    maxLength={150}
+                    onChange={(e) => setDraft({ title: e.target.value })}
+                    placeholder="e.g. 20 bunk beds for new children at Grace Harvest, Jos"
+                    className={cn(inputClass, err("title") && "border-danger")}
+                  />
+                  <span className="text-[12px] text-muted-ink">
+                    Say what it is and where. Givers decide from the title.
+                  </span>
+                  {err("title") ? (
+                    <FieldError>
+                      {allErrors.title || "Use a title of 8 to 150 characters."}
+                    </FieldError>
+                  ) : null}
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <SelectField
+                    label="Asking for"
+                    value={draftState.type ?? ""}
+                    onChange={(v) =>
+                      setDraft({ type: (v || undefined) as Campaign["type"] | undefined })
                     }
-                  >
-                    {urgencyOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-            </section>
-            <section className="border-t border-[#efedf3] pt-8">
-              {section(
-                "Tell your story",
-                "Who you serve, what you need, what it costs, and how you will report back.",
-              )}
-              <Field
+                    options={types.map((t) => ({ value: t.v, label: t.label }))}
+                    placeholder="Choose"
+                  />
+                  <SelectField
+                    label="Cause"
+                    value={draftState.faithCategory ?? ""}
+                    onChange={(v) =>
+                      setDraft({ faithCategory: (v || undefined) as Category | undefined })
+                    }
+                    options={categories.map((c) => ({ value: c.label, label: c.label }))}
+                    placeholder="Choose"
+                    error={err("cause") && !draftState.faithCategory}
+                  />
+                </div>
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Town and state</span>
+                  <input
+                    value={draftState.location ?? ""}
+                    onChange={(e) => setDraft({ location: e.target.value })}
+                    placeholder="e.g. Jos, Plateau State"
+                    className={cn(
+                      inputClass,
+                      err("cause") && !draftState.location?.trim() && "border-danger",
+                    )}
+                  />
+                  {err("cause") ? (
+                    <FieldError>Pick a cause and add where the work happens.</FieldError>
+                  ) : null}
+                </label>
+              </Section>
+
+              <Section
                 id="story"
-                label="Campaign story"
-                error={errors.story}
-                hint={`${countWords(form.story)} / 200 words. Write at least 100 words.`}
+                title="Story"
+                note="The single biggest reason people give. Be specific."
               >
                 <textarea
-                  id="story"
-                  rows={10}
-                  className="giving-input resize-y"
-                  value={form.story}
-                  aria-invalid={Boolean(errors.story)}
-                  onChange={(event) => change({ story: event.target.value })}
+                  rows={12}
+                  value={draftState.story ?? ""}
+                  onChange={(e) => setDraft({ story: e.target.value })}
+                  placeholder="Who you serve, what you need and what it costs, why now, and how you'll report back."
+                  className={cn(
+                    inputClass,
+                    "resize-y leading-[1.65]",
+                    err("story") && "border-danger",
+                  )}
                 />
-              </Field>
-            </section>
-            <section className="border-t border-[#efedf3] pt-8">
-              {section("Support and goals", "Make it clear how people can help.")}
-              <div className="space-y-5">
-                {form.mode === "ONGOING" ? (
-                  <Field
-                    id="frequencies"
-                    label="Available giving frequencies"
-                    error={errors.frequencies}
-                  >
-                    <div className="flex flex-wrap gap-2">
-                      {frequencyOptions.map((option) => (
-                        <button
-                          type="button"
-                          key={option.value}
-                          aria-pressed={form.frequencies.includes(option.value)}
-                          className={`rounded-full border px-4 py-2 text-sm ${form.frequencies.includes(option.value) ? "border-[#130e30] bg-[#130e30] text-white" : "border-[#efedf3]"}`}
-                          onClick={() =>
-                            change({
-                              frequencies: form.frequencies.includes(option.value)
-                                ? form.frequencies.filter((value) => value !== option.value)
-                                : [...form.frequencies, option.value],
-                            })
-                          }
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                ) : (
-                  ["MONEY", "EMERGENCY"].includes(form.type) && (
-                    <Field
-                      id="goalAmount"
-                      label={
-                        form.type === "EMERGENCY"
-                          ? "Goal amount (NGN, optional)"
-                          : "Goal amount (NGN)"
-                      }
-                      error={errors.goalAmount}
-                    >
-                      <input
-                        id="goalAmount"
-                        className="giving-input"
-                        inputMode="numeric"
-                        value={form.goalAmount}
-                        onChange={(event) =>
-                          change({ goalAmount: formatAmountInput(event.target.value) })
-                        }
-                      />
-                    </Field>
-                  )
-                )}
-                {["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) && (
-                  <Field
-                    id="needs"
-                    label={
-                      form.type === "ITEM"
-                        ? "Items needed"
-                        : form.type === "VOLUNTEER"
-                          ? "Volunteer roles"
-                          : "Professional skills"
-                    }
-                    error={errors.needs || needError}
-                  >
-                    <div className="flex gap-2">
-                      <input
-                        id="needs"
-                        className="giving-input min-w-0"
-                        maxLength={200}
-                        value={need}
-                        onChange={(event) => setNeed(event.target.value)}
-                        placeholder="Describe one item, role or skill"
-                      />
-                      <button
-                        type="button"
-                        className="giving-small-button shrink-0"
-                        onClick={() => {
-                          if (
-                            !need.trim() ||
-                            form.needs.includes(need.trim()) ||
-                            form.needs.length >= 8
-                          ) {
-                            setNeedError("Add up to 8 different items, roles or skills.");
-                            return;
-                          }
-                          change({ needs: [...form.needs, need.trim()] });
-                          setNeed("");
-                          setNeedError("");
-                        }}
-                      >
-                        <Plus size={15} /> Add
-                      </button>
-                    </div>
-                    <ul className="mt-3 space-y-2">
-                      {form.needs.map((item, index) => (
-                        <li
-                          key={item}
-                          className="flex items-center justify-between gap-3 rounded-xl bg-[#f8f7fa] p-3 text-sm"
-                        >
-                          <span className="break-words">{item}</span>
-                          <button
-                            type="button"
-                            aria-label={`Remove need ${index + 1}`}
-                            onClick={() =>
-                              change({ needs: form.needs.filter((value) => value !== item) })
-                            }
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </Field>
-                )}
-              </div>
-            </section>
-            <section className="space-y-5 border-t border-[#efedf3] pt-8">
-              {section("Photos", "Use real photos that help people understand your work.")}
-              <div id="field-coverImageUrl">
-                <MediaPicker
-                  label="Cover photo"
+                <div className="flex items-start justify-between gap-4">
+                  <span className="text-[12px] text-muted-ink">
+                    {(draftState.story ?? "").includes("[")
+                      ? "Replace the [bracketed] parts with your own words."
+                      : "Numbers help: “20 bunk beds at ₦60,000 each” beats “beds for the children”."}
+                  </span>
+                  <span className="shrink-0 text-[12px] text-subtle">
+                    {countWords(draftState.story ?? "")} / 200 words
+                  </span>
+                </div>
+                {err("story") ? (
+                  <FieldError>
+                    {allErrors.story || "Write 100 to 200 words and fill in every bracketed part."}
+                  </FieldError>
+                ) : null}
+              </Section>
+
+              <Section
+                id="photos"
+                title="Photos"
+                note="Real photos of the people and the place. No stock images."
+              >
+                <CampaignUploads
+                  cover
                   folder="campaign-cover"
                   urls={form.coverImageUrl ? [form.coverImageUrl] : []}
                   limit={1}
-                  onChange={(urls) => change({ coverImageUrl: urls[0] || "" })}
-                  onBusy={setUploading}
+                  disabled={busy}
+                  onChange={(urls) => change({ coverImageUrl: urls[0] ?? "" })}
+                  onBusy={onBusy}
                   error={errors.coverImageUrl}
                 />
-              </div>
-              <div id="field-galleryImageUrls">
-                <MediaPicker
-                  label="Gallery photos"
+                <CampaignUploads
                   folder="campaign-gallery"
                   urls={form.galleryImageUrls}
                   limit={8}
+                  disabled={busy}
                   onChange={(galleryImageUrls) => change({ galleryImageUrls })}
-                  onBusy={setUploading}
+                  onBusy={onBusy}
                   error={errors.galleryImageUrls}
                 />
-              </div>
-            </section>
-            <section className="border-t border-[#efedf3] pt-8">
-              {section(
-                "Organization",
-                "Link an organization you own, or raise support in your own name.",
-              )}
-              {profile.isPending ? (
-                <p className="text-sm">Loading your organizations...</p>
-              ) : !profile.data || profile.isError ? (
-                <LoadError
-                  message="Could not load your organizations. Retry before choosing one."
-                  retry={() => void profile.refetch()}
+                <p className="text-[12px] text-subtle">
+                  JPEG, PNG or WebP, up to 5 MB each. A cover and at least one gallery photo are
+                  required.
+                </p>
+              </Section>
+
+              <Section
+                id="goal"
+                title={draftState.mode === "ongoing" ? "Regular giving" : "Goal"}
+                note={
+                  draftState.mode === "ongoing"
+                    ? "Givers choose from the options you allow."
+                    : "What the whole thing costs. Givers see how close you are."
+                }
+              >
+                {draftState.mode === "ongoing" ? (
+                  <div className="flex flex-wrap gap-2">
+                    {(["weekly", "monthly", "quarterly"] as const).map((f) => {
+                      const on = draftState.frequencies?.includes(f) ?? false;
+                      return (
+                        <button
+                          key={f}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                            setDraft({
+                              frequencies: on
+                                ? (draftState.frequencies ?? []).filter((x) => x !== f)
+                                : [...(draftState.frequencies ?? []), f],
+                            })
+                          }
+                          className={cn(
+                            "inline-flex h-10 items-center gap-2 rounded-field border px-4 text-sm font-medium capitalize transition-colors",
+                            on
+                              ? "border-ink bg-ink text-ink-contrast"
+                              : "border-line-input hover:border-ink",
+                          )}
+                        >
+                          {on ? (
+                            <Check className="h-4 w-4" strokeWidth={2.5} />
+                          ) : (
+                            <Plus className="h-4 w-4" strokeWidth={2} />
+                          )}
+                          {f}
+                        </button>
+                      );
+                    })}
+                    {err("freq") ? <FieldError>Choose at least one.</FieldError> : null}
+                  </div>
+                ) : (
+                  <>
+                    {draftState.type === "money" ||
+                    draftState.type === "emergency" ||
+                    !draftState.type ? (
+                      <label className="flex max-w-[320px] flex-col gap-1.5">
+                        <span className={labelClass}>Amount needed</span>
+                        <span className="relative">
+                          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                            ₦
+                          </span>
+                          <input
+                            aria-label="Amount needed"
+                            type="text"
+                            inputMode="numeric"
+                            value={draftState.goal ?? ""}
+                            onChange={(e) =>
+                              change({ goalAmount: formatCheckoutInput(e.target.value) })
+                            }
+                            placeholder="1,200,000"
+                            className={cn(inputClass, "pl-8", err("goal") && "border-danger")}
+                          />
+                        </span>
+                        {err("goal") ? (
+                          <FieldError>
+                            {allErrors.goalAmount || "Set a goal of at least ₦5,000."}
+                          </FieldError>
+                        ) : null}
+                      </label>
+                    ) : (
+                      <p className="text-sm text-ink-soft">
+                        No money goal for this kind of campaign.
+                      </p>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <span className={labelClass}>How urgent is it?</span>
+                      <div className="grid grid-cols-2 gap-0.5 rounded-[12px] bg-panel p-1 sm:grid-cols-4">
+                        {(["low", "medium", "high", "critical"] as const).map((u) => (
+                          <button
+                            key={u}
+                            type="button"
+                            aria-pressed={(draftState.urgency ?? "medium") === u}
+                            onClick={() => setDraft({ urgency: u })}
+                            className={cn(
+                              "h-9 rounded-[9px] text-[13px] font-medium capitalize transition-all",
+                              (draftState.urgency ?? "medium") === u
+                                ? "bg-paper text-ink shadow-[0_1px_2px_rgba(19,14,48,0.12)] ring-1 ring-line-soft"
+                                : "text-muted-ink hover:text-ink",
+                            )}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[12px] text-muted-ink">
+                        Critical campaigns are shown first in Discover. Use it only for real
+                        emergencies.
+                      </span>
+                    </div>
+                  </>
+                )}
+              </Section>
+
+              <Section
+                id="org"
+                title="Organization"
+                note="Link one of your organizations, or create a standalone campaign. Only approved records are public."
+              >
+                <SelectField
+                  label="Raising for"
+                  value={draftState.orgId ?? ""}
+                  onChange={(v) => setDraft({ orgId: v || undefined })}
+                  options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+                  placeholder="Myself (a personal campaign)"
                 />
-              ) : (
-                <Field
-                  id="organizationId"
-                  label="Organization (optional)"
-                  error={errors.organizationId}
+                {profile.isError && (
+                  <LoadError
+                    message="Could not load your organizations. Retry before submitting."
+                    retry={() => void profile.refetch()}
+                  />
+                )}
+                {profile.isPending && (
+                  <p role="status" className="text-sm text-muted-ink">
+                    Loading your organizations...
+                  </p>
+                )}
+                {errors.organizationId && <FieldError>{errors.organizationId}</FieldError>}
+                {org && org.verificationStatus !== "verified" ? (
+                  <p className="rounded-field bg-panel px-4 py-3 text-[13px] text-ink-soft">
+                    {org.name} isn't verified yet. You can submit now; the campaign goes live once
+                    they are.
+                  </p>
+                ) : null}
+              </Section>
+
+              {["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) && (
+                <Section
+                  id="needs"
+                  title="What help do you need?"
+                  note="List the specific items, volunteer roles or professional skills."
                 >
-                  <select
-                    id="organizationId"
-                    className="giving-input"
-                    value={form.organizationId ?? ""}
-                    onChange={(event) => change({ organizationId: event.target.value })}
-                  >
-                    <option value="">Standalone campaign</option>
-                    {profile.data.ownedOrganizations.map((org) => (
-                      <option
-                        key={org.id}
-                        value={org.id}
-                        disabled={org.reviewAction === "rejected"}
+                  <div className="flex gap-2">
+                    <input
+                      aria-label="Add a need"
+                      className={inputClass}
+                      value={need}
+                      onChange={(e) => {
+                        setNeed(e.target.value);
+                        setNeedError("");
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className={btn("secondary")}
+                      onClick={() => {
+                        const value = need.trim();
+                        if (
+                          !value ||
+                          value.length > 300 ||
+                          form.needs.length >= 8 ||
+                          form.needs.includes(value)
+                        ) {
+                          setNeedError(
+                            "Add up to 8 different needs, each with 1 to 300 characters.",
+                          );
+                          return;
+                        }
+                        change({ needs: [...form.needs, value] });
+                        setNeed("");
+                        setNeedError("");
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {(needError || errors.needs) && (
+                    <FieldError>{needError || errors.needs}</FieldError>
+                  )}
+                  <ul className="flex flex-col gap-2">
+                    {form.needs.map((item, i) => (
+                      <li
+                        key={item}
+                        className="flex items-center justify-between gap-3 rounded-field bg-panel p-3 text-sm text-ink-soft"
                       >
-                        {org.name} (
-                        {org.reviewAction === "rejected"
-                          ? "Rejected"
-                          : org.verificationStatus.replaceAll("_", " ")}
-                        )
-                      </option>
+                        <span className="min-w-0 break-words">{item}</span>
+                        <button
+                          type="button"
+                          aria-label={"Remove need " + (i + 1)}
+                          onClick={() => change({ needs: form.needs.filter((_, j) => j !== i) })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </li>
                     ))}
-                  </select>
-                </Field>
+                  </ul>
+                </Section>
               )}
-            </section>
-            <CampaignPayoutAccount
-              account={payout.data}
-              loading={payout.isPending}
-              failed={payout.isError}
-              message={payoutError}
-              retry={() => void payout.refetch()}
-              organizationId={form.organizationId || undefined}
-            />
-            <CreationNotice>
-              Campaigns are reviewed before going live. A campaign linked to an organization is only
-              available to donors when that organization is also approved.
-            </CreationNotice>
-            <div className="flex flex-wrap justify-between gap-3 border-t pt-6">
-              <button
-                type="button"
-                onClick={() => mutation.mutate({ submit: false, exit: true })}
-                className="giving-small-button"
-              >
-                Save and exit
-              </button>
-              <button
-                type="button"
-                onClick={submit}
-                className="rounded-full bg-[#130e30] px-6 py-3 text-sm font-semibold text-white"
-              >
-                Submit for review
-              </button>
+              <CampaignPayoutAccount
+                account={payout.data}
+                loading={payout.isFetching}
+                failed={payout.isError}
+                message={errors.payoutAccount}
+                retry={() => void payout.refetch()}
+                organizationId={form.organizationId || undefined}
+                appearance="app"
+              />
+              <div className="flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => saveDraft(false)}
+                  className={btn("secondary")}
+                >
+                  Save draft
+                </button>
+                <button type="button" onClick={submit} disabled={busy} className={btn("primary")}>
+                  {mutation.isPending ? "Submitting..." : "Submit for review"}
+                </button>
+              </div>
             </div>
           </fieldset>
-        </main>
-        <aside className="hidden border-l border-[#efedf3] bg-[#faf9fc] px-5 py-8 lg:block">
-          <div className="sticky top-28">
-            <p className="mb-4 text-sm font-medium">Your campaign preview</p>
-            {preview}
-            <p className="mt-4 text-xs text-[#777283]">
-              Preview only. No donations have been collected.
+          {mutation.error && (
+            <p
+              role="alert"
+              className="mx-auto mt-5 max-w-[640px] rounded-field bg-panel p-4 text-sm text-danger"
+            >
+              {mutation.error.message} Your details are still here.
             </p>
+          )}
+        </main>
+
+        <aside className="hidden border-l border-line-soft bg-panel/40 lg:block">
+          <div className="sticky top-14 max-h-[calc(100vh-56px)] overflow-y-auto p-6">
+            <Preview draft={draftState} orgName={org?.name} />
           </div>
         </aside>
       </div>
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto">
-          <DialogTitle>Your campaign preview</DialogTitle>
-          <DialogDescription>Preview only. Save or submit from the editor.</DialogDescription>
-          {preview}
-        </DialogContent>
-      </Dialog>
+
+      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[88vh] overflow-y-auto rounded-t-card p-5"
+          aria-describedby={undefined}
+        >
+          <SheetTitle className="sr-only">Preview</SheetTitle>
+          <Preview draft={draftState} orgName={org?.name} />
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+function Section({
+  id,
+  title,
+  note,
+  children,
+}: {
+  id: string;
+  title: string;
+  note?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="flex scroll-mt-24 flex-col gap-4">
+      <div>
+        <h2 className="font-display text-[22px] leading-tight tracking-[-0.02em] text-ink">
+          {title}
+        </h2>
+        {note ? <p className="mt-1 text-sm text-muted-ink">{note}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  error,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  error?: unknown;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className={labelClass}>{label}</span>
+      <span className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            inputClass,
+            "cursor-pointer appearance-none pr-10",
+            !value && "text-subtle",
+            error ? "border-danger" : "",
+          )}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink"
+          strokeWidth={2}
+        />
+      </span>
+    </label>
+  );
+}
+
+function CheckItem({ check: c, onClick }: { check: Requirement; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-2.5 rounded-[8px] px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-paper"
+    >
+      {c.ok ? (
+        <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-verified text-white">
+          <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+        </span>
+      ) : c.required ? (
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-brand" strokeWidth={2} />
+      ) : (
+        <Circle className="mt-0.5 h-4 w-4 shrink-0 text-line-input" strokeWidth={2} />
+      )}
+      <span className={c.ok ? "text-muted-ink" : "text-ink"}>{c.label}</span>
+    </button>
+  );
+}
+
+/** Rezi-style score ring: how ready the campaign is, and how many required things are left. */
+function Strength({ score, missing }: { score: number; missing: number }) {
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  const label = missing
+    ? `${missing} required left`
+    : score >= 85
+      ? "Strong and ready"
+      : "Ready to submit";
+  return (
+    <div className="flex items-center gap-3">
+      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden className="-rotate-90">
+        <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-line-soft)" strokeWidth="5" />
+        <circle
+          cx="28"
+          cy="28"
+          r={r}
+          fill="none"
+          stroke={missing ? "var(--color-brand)" : "var(--color-verified)"}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - score / 100)}
+          className="transition-[stroke-dashoffset] duration-500 ease-[cubic-bezier(0.2,0.7,0.2,1)]"
+        />
+      </svg>
+      <div>
+        <p className="font-display text-[22px] leading-none text-ink">{score}%</p>
+        <p className="mt-1 text-[13px] text-muted-ink">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function previewOf(d: Draft, me: { name: string; avatar: string }): Campaign {
+  return {
+    id: "preview",
+    ownerId: "preview",
+    isPublic: false,
+    isDraft: true,
+    mode: d.mode ?? "one-time",
+    type: d.type ?? "money",
+    title: d.title?.trim() || "Your campaign title",
+    story: d.story ?? "",
+    faithCategory: d.faithCategory ?? categories[0].label,
+    orgId: d.orgId,
+    raiser: { name: me.name, avatar: me.avatar, location: d.location ?? "" },
+    cover: d.cover ?? placeholderCover,
+    gallery: d.gallery ?? [],
+    goal:
+      d.mode !== "ongoing" &&
+      Number.isSafeInteger(Number(String(d.goal).replaceAll(",", ""))) &&
+      Number(String(d.goal).replaceAll(",", "")) > 0
+        ? Number(String(d.goal).replaceAll(",", ""))
+        : undefined,
+    raised: 0,
+    donors: 0,
+    currency: "NGN",
+    location: d.location ?? "",
+    urgency: d.urgency ?? "medium",
+    createdAt: "",
+    verificationStatus: "pending",
+    updates: [],
+    comments: [],
+    donations: [],
+    frequencies: d.mode === "ongoing" ? (d.frequencies ?? []) : undefined,
+  };
+}
+
+/** Live preview with two views: the card in Discover, and the top of the campaign page. */
+function Preview({ draft, orgName }: { draft: Draft; orgName?: string }) {
+  const user = useAppSelector((s) => s.auth.user);
+  const me = { name: user?.fullName ?? "Your name", avatar: user?.avatarUrl ?? "" };
+  const [view, setView] = useState<"page" | "card">("page");
+  const c = previewOf(draft, me);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium text-subtle">How givers will see it</p>
+        <div className="inline-flex rounded-[9px] bg-paper p-0.5 ring-1 ring-line-soft">
+          {(["page", "card"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
+              className={cn(
+                "h-7 rounded-[7px] px-2.5 text-[12px] font-medium capitalize transition-colors",
+                view === v ? "bg-ink text-ink-contrast" : "text-muted-ink hover:text-ink",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div inert className="pointer-events-none">
+        {view === "card" ? (
+          <CampaignCard campaign={c} />
+        ) : (
+          <div className="overflow-hidden rounded-card border border-line-soft bg-paper">
+            <img src={c.cover} alt="" className="aspect-[16/10] w-full object-cover" />
+            <div className="flex flex-col gap-3 p-4">
+              <p className="flex items-center gap-1.5 text-[12px] text-muted-ink">
+                <UserAvatar
+                  src={me.avatar}
+                  name={me.name}
+                  className="h-4 w-4 bg-panel text-[8px]"
+                />
+                {me.name}
+                {orgName ? ` for ${orgName}` : ""}
+              </p>
+              <p className="font-display text-[19px] leading-[1.2] text-ink">{c.title}</p>
+              {c.goal ? (
+                <div className="flex flex-col gap-1.5">
+                  <Segments pct={0} />
+                  <p className="text-[12px] text-muted-ink">₦0 raised of {formatMoney(c.goal)}</p>
+                </div>
+              ) : c.mode === "ongoing" ? (
+                <p className="flex items-center gap-1.5 text-[12px] text-muted-ink">
+                  <HeartHandshake className="h-3.5 w-3.5" strokeWidth={1.75} /> Regular giving:{" "}
+                  {(c.frequencies ?? []).join(", ")}
+                </p>
+              ) : null}
+              <p className="line-clamp-6 whitespace-pre-wrap text-[13px] leading-[1.6] text-ink-soft">
+                {c.story || "Your story appears here."}
+              </p>
+              {c.gallery.length ? (
+                <div className="grid grid-cols-4 gap-1.5">
+                  {c.gallery.slice(0, 4).map((p) => (
+                    <img
+                      key={p}
+                      src={p}
+                      alt=""
+                      className="aspect-square w-full rounded-[6px] object-cover"
+                    />
+                  ))}
+                </div>
+              ) : null}
+              <span className={cn(btn("primary", "sm"), "w-full")}>Give now</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Submitted({ campaign, onView }: { campaign: Campaign; onView: () => void }) {
+  const steps = [
+    { label: "Submitted", note: "Just now", done: true },
+    {
+      label: "We review it",
+      note: "The team checks your campaign",
+      done: campaign.verificationStatus === "verified",
+    },
+    {
+      label: "It goes live",
+      note: "Only approved public campaigns accept gifts",
+      done: isPublished(campaign),
+    },
+    { label: "Share it", note: "Your congregation first", done: false },
+  ];
+  return (
+    <div className="designer-app min-h-screen bg-panel px-6 py-10 font-gsf">
+      <div className="mx-auto flex max-w-[520px] flex-col items-center gap-6">
+        <Link to="/" aria-label="AzarFaith home">
+          <AuthLogo />
+        </Link>
+        <div className="admin-rise w-full rounded-card bg-paper p-6 shadow-[0_24px_64px_-24px_rgba(19,14,48,0.25)] sm:p-8">
+          <h1 className="font-display text-[28px] leading-tight text-ink">
+            {isPublished(campaign) ? "Campaign approved" : "Submitted for review"}
+          </h1>
+          <p className="mt-2 text-[15px] text-ink-soft">“{campaign.title}” is with our team.</p>
+          <ol className="mt-6 flex flex-col">
+            {steps.map((s, i) => (
+              <li key={s.label} className="relative flex gap-3 pb-5 last:pb-0">
+                {i < steps.length - 1 ? (
+                  <span
+                    aria-hidden
+                    className="absolute left-[9px] top-6 h-full w-px bg-line-soft"
+                  />
+                ) : null}
+                <span
+                  className={cn(
+                    "relative grid h-5 w-5 shrink-0 place-items-center rounded-full",
+                    s.done
+                      ? "bg-verified text-white"
+                      : "border border-dashed border-line-input bg-paper",
+                  )}
+                >
+                  {s.done ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-ink">{s.label}</span>
+                  <span className="block text-[13px] text-muted-ink">{s.note}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={onView} className={btn("primary")}>
+            View campaign
+          </button>
+          <Link to="/dashboard" className={btn("secondary")}>
+            Back to Manage
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

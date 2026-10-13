@@ -13,14 +13,43 @@ import {
 } from "@/features/catalog/api";
 import { formatMoney, type PayoutAccount, type PayoutBank } from "@/lib/catalog";
 import { LoadError, SettingsSection } from "./SettingsParts";
+import type { ComponentProps } from "react";
+import { inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { ManagementError, ManagementPanel } from "@/components/app/ManagementParts";
+import { DesignSettingsSection } from "./DesignSettingsParts";
+import { cn } from "@/lib/utils";
+
+function AppPayoutSection({
+  id,
+  title,
+  description,
+  children,
+}: ComponentProps<typeof SettingsSection>) {
+  return (
+    <ManagementPanel id={id} title={title}>
+      <div className="p-5">
+        <p className="mb-6 text-sm leading-relaxed text-ink-soft">{description}</p>
+        {children}
+      </div>
+    </ManagementPanel>
+  );
+}
 
 export function PayoutSettings({
   userId,
   organizationId,
+  appearance,
 }: {
   userId: string;
   organizationId?: string;
+  appearance?: "app" | "profile";
 }) {
+  const app = appearance === "app" || appearance === "profile";
+  const Section =
+    appearance === "profile" ? DesignSettingsSection : app ? AppPayoutSection : SettingsSection;
+  const ErrorNotice = app ? ManagementError : LoadError;
+  const subtle = app ? "text-muted-ink" : "text-[#777283]";
   const scope = organizationId ?? "personal";
   const account = useQuery({
     queryKey: ["payout-account", scope, userId],
@@ -34,7 +63,7 @@ export function PayoutSettings({
       organizationId ? getOrganizationPayoutSummary(organizationId) : getPersonalPayoutSummary(),
   });
   return (
-    <SettingsSection
+    <Section
       id="payouts"
       title={organizationId ? "Organization payouts" : "Payout account"}
       description={
@@ -46,7 +75,7 @@ export function PayoutSettings({
       {account.isPending || banks.isPending ? (
         <p role="status">Getting payout account...</p>
       ) : account.isError || banks.isError ? (
-        <LoadError
+        <ErrorNotice
           message="Could not load payout account settings."
           retry={() => {
             void account.refetch();
@@ -56,11 +85,16 @@ export function PayoutSettings({
       ) : (
         <>
           {account.data && (
-            <div className="mb-5 rounded-xl bg-[#f7f6fa] p-4 text-sm">
+            <div
+              className={cn(
+                "mb-5 p-4 text-sm",
+                app ? "rounded-field bg-panel" : "rounded-xl bg-[#f7f6fa]",
+              )}
+            >
               <p className="font-semibold">
                 {account.data.bankName} · {account.data.accountNumberMasked}
               </p>
-              <p className="mt-1 text-[#777283]">
+              <p className={cn("mt-1", subtle)}>
                 {account.data.accountName} ·{" "}
                 {account.data.status === "verified"
                   ? "Verified"
@@ -71,7 +105,7 @@ export function PayoutSettings({
             </div>
           )}
           {organizationId && account.data?.ownerType === "user" && (
-            <p className="mb-4 text-sm text-[#777283]">
+            <p className={cn("mb-4 text-sm", subtle)}>
               Using your profile payout account. Saving below creates an organization-specific
               destination.
             </p>
@@ -82,14 +116,15 @@ export function PayoutSettings({
             organizationId={organizationId}
             account={account.data ?? null}
             banks={banks.data ?? []}
+            appearance={appearance}
           />
         </>
       )}
-      <div className="mt-6 border-t border-[#efedf3] pt-5">
+      <div className={cn("mt-6 border-t pt-5", app ? "border-line-soft" : "border-[#efedf3]")}>
         {summary.isPending ? (
           <p role="status">Getting payout balances...</p>
         ) : summary.isError || !summary.data ? (
-          <LoadError
+          <ErrorNotice
             message="Could not load payout balances."
             retry={() => void summary.refetch()}
           />
@@ -103,21 +138,29 @@ export function PayoutSettings({
                 ["Released / reserved", summary.data.totalReleased],
                 ["Available for release", summary.data.availableBalance],
               ].map(([label, amount]) => (
-                <div key={label} className="rounded-xl bg-[#f7f6fa] p-4">
-                  <p className="text-xs text-[#777283]">{label}</p>
-                  <p className="mt-2 text-lg font-semibold">{formatMoney(Number(amount))}</p>
+                <div
+                  key={label}
+                  className={cn(
+                    "min-w-0 p-4",
+                    app ? "rounded-field bg-panel" : "rounded-xl bg-[#f7f6fa]",
+                  )}
+                >
+                  <p className={cn("text-xs", subtle)}>{label}</p>
+                  <p className="mt-2 break-words text-lg font-semibold">
+                    {formatMoney(Number(amount))}
+                  </p>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-[#777283]">
+            <p className={cn("mt-3 text-xs", subtle)}>
               Available balance excludes platform fees and payouts that are completed, processing or
               awaiting OTP. Tips belong to AzarFaith and are not payable to creators.
             </p>
             <h3 className="mt-5 text-sm font-semibold">Recent payouts</h3>
             {!summary.data.recentTransfers.length ? (
-              <p className="mt-2 text-sm text-[#777283]">No payouts have been released yet.</p>
+              <p className={cn("mt-2 text-sm", subtle)}>No payouts have been released yet.</p>
             ) : (
-              <ul className="mt-3 divide-y divide-[#efedf3]">
+              <ul className={cn("mt-3 divide-y", app ? "divide-line-soft" : "divide-[#efedf3]")}>
                 {summary.data.recentTransfers.map((transfer) => (
                   <li
                     key={transfer.id}
@@ -125,16 +168,18 @@ export function PayoutSettings({
                   >
                     <div>
                       <p className="font-medium">{formatMoney(transfer.amount)}</p>
-                      <p className="mt-1 break-all text-xs text-[#777283]">{transfer.reference}</p>
+                      <p className={cn("mt-1 break-all text-xs", subtle)}>{transfer.reference}</p>
                     </div>
-                    <div className="text-right text-xs text-[#777283]">
+                    <div className={cn("text-right text-xs", subtle)}>
                       <p>{transfer.status.replaceAll("_", " ")}</p>
                       <time dateTime={transfer.releasedAt}>
                         {new Date(transfer.releasedAt).toLocaleDateString("en-NG")}
                       </time>
                     </div>
                     {transfer.failureMessage && (
-                      <p className="w-full text-xs text-red-700">{transfer.failureMessage}</p>
+                      <p className={cn("w-full text-xs", app ? "text-danger" : "text-red-700")}>
+                        {transfer.failureMessage}
+                      </p>
                     )}
                   </li>
                 ))}
@@ -143,7 +188,7 @@ export function PayoutSettings({
           </>
         )}
       </div>
-    </SettingsSection>
+    </Section>
   );
 }
 
@@ -152,12 +197,17 @@ function PayoutEditor({
   organizationId,
   account,
   banks,
+  appearance,
 }: {
   userId: string;
   organizationId?: string;
   account: PayoutAccount | null;
   banks: PayoutBank[];
+  appearance?: "app" | "profile";
 }) {
+  const app = appearance === "app" || appearance === "profile";
+  const label = app ? cn(labelClass, "flex flex-col gap-2") : "giving-label";
+  const input = app ? inputClass : "giving-input";
   const client = useQueryClient();
   const [bankCode, setBankCode] = useState(account?.bankCode ?? "");
   const [accountNumber, setAccountNumber] = useState("");
@@ -243,11 +293,11 @@ function PayoutEditor({
       }}
     >
       <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
-        <label className="giving-label">
+        <label className={label}>
           Bank
           <select
             aria-label="Bank"
-            className="giving-input"
+            className={input}
             value={bankCode}
             required
             onChange={(event) => {
@@ -263,10 +313,10 @@ function PayoutEditor({
             ))}
           </select>
         </label>
-        <label className="giving-label">
+        <label className={label}>
           Account number
           <input
-            className="giving-input"
+            className={input}
             inputMode="numeric"
             pattern="[0-9]{10}"
             required
@@ -280,20 +330,20 @@ function PayoutEditor({
             }}
           />
         </label>
-        <label className="giving-label">
+        <label className={label}>
           Account holder name
           <input
-            className="giving-input"
+            className={input}
             maxLength={120}
             required
             value={holder}
             onChange={(event) => setHolder(event.target.value)}
           />
         </label>
-        <label className="giving-label">
+        <label className={label}>
           Beneficiary name
           <input
-            className="giving-input"
+            className={input}
             maxLength={120}
             required
             value={name}
@@ -305,7 +355,7 @@ function PayoutEditor({
           />
         </label>
       </fieldset>
-      <p className="mt-3 text-xs leading-relaxed text-[#777283]">
+      <p className={cn("mt-3 text-xs leading-relaxed", app ? "text-muted-ink" : "text-[#777283]")}>
         We check the account automatically. If the bank lookup is unavailable, enter the beneficiary
         name manually. Only a confirmed account is marked verified.
       </p>
@@ -315,19 +365,19 @@ function PayoutEditor({
         </p>
       )}
       {resolveError && (
-        <p role="status" className="mt-2 text-xs text-amber-800">
+        <p role="status" className={cn("mt-2 text-xs", app ? "text-brand-ink" : "text-amber-800")}>
           {resolveError}
         </p>
       )}
       {save.isError && (
-        <p role="alert" className="mt-3 text-sm text-red-700">
+        <p role="alert" className={cn("mt-3 text-sm", app ? "text-danger" : "text-red-700")}>
           {save.error.message}
         </p>
       )}
       <div className="mt-5 flex flex-wrap justify-end gap-3">
         <button
           type="button"
-          className="giving-small-button"
+          className={app ? btn("secondary", "sm") : "giving-small-button"}
           disabled={checking || save.isPending || !bankCode || accountNumber.length !== 10}
           onClick={() => setRetry((value) => value + 1)}
         >
@@ -343,7 +393,11 @@ function PayoutEditor({
             !holder.trim() ||
             !name.trim()
           }
-          className="rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          className={
+            app
+              ? btn("primary", "sm")
+              : "rounded-xl bg-black px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+          }
         >
           {save.isPending ? "Saving..." : "Save payout account"}
         </button>

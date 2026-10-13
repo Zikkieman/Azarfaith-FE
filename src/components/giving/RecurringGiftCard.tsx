@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CreditCard, Heart, Pause, Play, Repeat2, SkipForward } from "lucide-react";
+import { CreditCard, HandHeart, Pause, Play, SkipForward, Wallet } from "lucide-react";
 import type { RecurringDonation, SavedPaymentMethod } from "@/lib/catalog";
-import { frequencyLabels, givingDate, money } from "@/lib/giving";
-
+import { formatMoney } from "@/lib/catalog";
+import { frequencyLabels, everyLabel, givingDate } from "@/lib/giving";
+import { Tag } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { cn } from "@/lib/utils";
+/** One regular gift, managed like a subscription: the facts, then what you can do with it. */
 export type GiftAction = "edit" | "skip" | "pause" | "resume" | "cancel" | "card";
-
 export function RecurringGiftCard({
-  gift,
+  gift: g,
   methods,
   busy,
   onAction,
@@ -16,148 +20,158 @@ export function RecurringGiftCard({
   busy: boolean;
   onAction: (gift: RecurringDonation, action: GiftAction) => void;
 }) {
-  const paused = gift.status === "paused";
-  const method = methods?.find((item) => item.id === gift.authorizationId);
-  const fee = Math.round((gift.amount * gift.platformFeePercent) / 100);
+  const paused = g.status === "paused";
+  const method = methods?.find((card) => card.id === g.authorizationId);
+  const fee = Math.round((g.amount * g.platformFeePercent) / 100);
+  const skip = () => onAction(g, "skip");
+  const togglePause = () => onAction(g, paused ? "resume" : "pause");
+  const facts = [
+    { label: "Amount", value: formatMoney(g.amount) },
+    { label: "How often", value: frequencyLabels[g.frequency] },
+    {
+      label: g.status === "missed" && g.mode === "auto" ? "Next retry" : "Next gift",
+      value: paused
+        ? "Paused"
+        : g.status === "missed" && g.mode === "auto"
+          ? g.nextReminderDate
+            ? givingDate(g.nextReminderDate)
+            : "Needs attention"
+          : givingDate(g.nextDate),
+    },
+    {
+      label: "Paid with",
+      value:
+        g.mode === "pledge"
+          ? "Reminder, you pay"
+          : (method?.label ?? (methods ? "No available saved card" : "Card details unavailable")),
+    },
+    { label: "Since", value: givingDate(g.createdAt) },
+  ];
+
+  const status =
+    g.status === "missed" ? (
+      <Tag tone="attention">Needs attention</Tag>
+    ) : paused ? (
+      <Tag>Paused</Tag>
+    ) : g.mode === "pledge" ? (
+      <Tag tone="attention">Reminder</Tag>
+    ) : (
+      <Tag tone="verified">Automatic</Tag>
+    );
+
   return (
-    <article className="dashboard-panel overflow-hidden">
-      <div className="p-5 sm:p-6">
-        <div className="flex items-start gap-4">
-          {gift.targetCover ? (
-            <img
-              src={gift.targetCover}
-              alt=""
-              className="h-14 w-14 shrink-0 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[#fff7ed]">
-              <Heart className="text-[#e88b00]" size={22} />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <Link
-              to="/campaign/$id"
-              params={{ id: gift.targetId }}
-              className="block text-base font-semibold leading-snug hover:underline"
-            >
-              {gift.targetName}
-            </Link>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-[#777283]">
-              <Repeat2 size={13} />{" "}
-              {gift.mode === "pledge" ? "Reminder-based pledge" : "Automatic card gift"}
-            </p>
-          </div>
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${gift.status === "on_track" ? "bg-emerald-50 text-emerald-800" : paused ? "bg-[#f2f1f5] text-[#615970]" : "bg-amber-50 text-amber-800"}`}
+    <article className="overflow-hidden rounded-card border border-line-soft">
+      <div className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
+        <GiftPhoto src={g.targetCover} className="h-12 w-12 shrink-0 rounded-field object-cover" />
+        <div className="min-w-0 flex-1">
+          <Link
+            to="/campaign/$id"
+            params={{ id: g.targetId }}
+            className="line-clamp-2 text-[16px] font-semibold leading-snug text-ink hover:underline"
           >
-            {gift.status === "on_track"
-              ? "Active"
-              : gift.status === "paused"
-                ? "Paused"
-                : "Needs attention"}
-          </span>
+            {g.targetName}
+          </Link>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-ink">
+            {formatMoney(g.amount)} {everyLabel[g.frequency]}
+            <span className="sm:hidden">{status}</span>
+          </p>
         </div>
-        <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 lg:grid-cols-4">
-          <Fact label="Gift amount" value={money(gift.amount)} />
-          <Fact label="Frequency" value={frequencyLabels[gift.frequency]} />
-          <Fact
-            label={
-              paused
-                ? "Saved schedule"
-                : gift.status === "missed" && gift.mode === "auto"
-                  ? "Next retry"
-                  : "Next gift"
-            }
-            value={givingDate(
-              gift.status === "missed" && gift.mode === "auto" && gift.nextReminderDate
-                ? gift.nextReminderDate
-                : gift.nextDate,
-            )}
-          />
-          <Fact
-            label={gift.mode === "pledge" ? "Giving since" : "Paid with"}
-            value={
-              gift.mode === "pledge"
-                ? givingDate(gift.createdAt)
-                : (method?.label ??
-                  (methods ? "No available saved card" : "Card details unavailable"))
-            }
-          />
-        </dl>
-        <p className="mt-5 text-xs leading-relaxed text-[#777283]">
-          {gift.mode === "pledge"
-            ? "We'll remind you to give. You complete each donation yourself."
-            : `${money(gift.amount + fee)} per payment, including ${money(fee)} platform fee. No custom tip is repeated automatically.`}
-        </p>
-        {gift.hasPendingPayment && (
-          <p role="status" className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            A payment is processing. Schedule and card changes will be available after confirmation.
-            Pausing or stopping won't reverse that payment.
-          </p>
-        )}
-        {gift.status === "missed" && (
-          <p className="mt-3 text-xs text-amber-800">
-            {gift.mode === "auto"
-              ? `Payment needs attention (${gift.retryCount} failed attempts). Pause before changing the schedule.`
-              : `${gift.missedCount} missed pledges. You can still complete a donation manually.`}
-          </p>
-        )}
+        <span className="hidden sm:block">{status}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-2 border-t border-[#eeedf1] bg-[#fbfafc] px-5 py-4 sm:px-6">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line-soft px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
+        {facts.map((f) => (
+          <div key={f.label} className="min-w-0">
+            <dt className="text-[12px] text-muted-ink">{f.label}</dt>
+            <dd
+              className={cn("truncate text-sm text-ink", f.value === "Paused" && "text-muted-ink")}
+            >
+              {f.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="px-5 pb-4 text-[12px] leading-relaxed text-muted-ink">
+        {g.mode === "pledge"
+          ? "We remind you to give. You complete each donation yourself."
+          : formatMoney(g.amount + fee) +
+            " per payment, including " +
+            formatMoney(fee) +
+            " platform fee. Custom tips are not repeated."}
+      </p>
+      {g.hasPendingPayment ? (
+        <p role="status" className="px-5 pb-4 text-[13px] text-brand-ink">
+          A payment is processing. Schedule and card changes are unavailable until confirmation.
+          Pausing or stopping won't reverse it.
+        </p>
+      ) : null}
+      {g.status === "missed" ? (
+        <p className="px-5 pb-4 text-[13px] text-brand-ink">
+          {g.mode === "auto"
+            ? "Payment needs attention. Pause before changing the schedule."
+            : "A pledge was missed. You can still give manually."}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2 border-t border-line-soft bg-panel/50 px-5 py-3">
         <button
           type="button"
-          className="giving-small-button"
-          disabled={busy || gift.hasPendingPayment || gift.status === "missed"}
-          onClick={() => onAction(gift, "edit")}
+          className={btn("secondary", "sm")}
+          disabled={busy || g.hasPendingPayment || g.status === "missed"}
+          onClick={() => onAction(g, "edit")}
         >
-          Change amount / frequency
+          <Wallet className="h-3.5 w-3.5" strokeWidth={1.75} /> Change amount
         </button>
         <button
           type="button"
-          className="giving-small-button"
-          disabled={busy || gift.hasPendingPayment || paused || gift.status !== "on_track"}
-          onClick={() => onAction(gift, "skip")}
+          className={btn("secondary", "sm")}
+          onClick={skip}
+          disabled={busy || g.hasPendingPayment || paused || g.status !== "on_track"}
         >
-          <SkipForward size={14} /> Skip next
+          <SkipForward className="h-3.5 w-3.5" strokeWidth={1.75} /> Skip next
         </button>
         <button
           type="button"
-          className="giving-small-button"
-          disabled={busy || (paused && gift.hasPendingPayment)}
-          onClick={() => onAction(gift, paused ? "resume" : "pause")}
+          className={btn("secondary", "sm")}
+          disabled={busy || (paused && g.hasPendingPayment)}
+          onClick={togglePause}
         >
-          {paused ? <Play size={14} /> : <Pause size={14} />}
-          {paused ? "Resume" : "Pause"}
+          {paused ? (
+            <>
+              <Play className="h-3.5 w-3.5" strokeWidth={1.75} /> Resume
+            </>
+          ) : (
+            <>
+              <Pause className="h-3.5 w-3.5" strokeWidth={1.75} /> Pause
+            </>
+          )}
         </button>
-        {gift.mode === "auto" && (
+        {g.mode === "auto" ? (
           <button
             type="button"
-            className="giving-small-button"
+            className={btn("secondary", "sm")}
             disabled={
               busy ||
-              gift.hasPendingPayment ||
+              g.hasPendingPayment ||
               !methods?.some((method) => method.active && method.reusable)
             }
-            onClick={() => onAction(gift, "card")}
+            onClick={() => onAction(g, "card")}
           >
-            <CreditCard size={14} /> Change card
+            <CreditCard className="h-3.5 w-3.5" strokeWidth={1.75} /> Change card
           </button>
-        )}
-        {gift.mode === "pledge" && !paused && (
+        ) : !paused ? (
           <Link
             to="/donate/$id"
-            params={{ id: gift.targetId }}
-            search={{ recurringGiftId: gift.id, amount: String(gift.amount), freq: gift.frequency }}
-            className="giving-small-button"
+            params={{ id: g.targetId }}
+            search={{ recurringGiftId: g.id, amount: String(g.amount), freq: g.frequency }}
+            className={btn("secondary", "sm")}
           >
             Give now
           </Link>
-        )}
+        ) : null}
         <button
           type="button"
-          className="giving-small-button text-red-700 sm:ml-auto"
           disabled={busy}
-          onClick={() => onAction(gift, "cancel")}
+          onClick={() => onAction(g, "cancel")}
+          className="ml-auto text-sm font-medium text-danger hover:underline"
         >
           Stop giving
         </button>
@@ -166,11 +180,16 @@ export function RecurringGiftCard({
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="mb-1 text-xs text-[#777283]">{label}</dt>
-      <dd className="break-words text-sm font-medium">{value}</dd>
-    </div>
+export function GiftPhoto({ src, className }: { src?: string; className: string }) {
+  const [failedSrc, setFailedSrc] = useState<string>();
+  return src && failedSrc !== src ? (
+    <img src={src} alt="" className={className} onError={() => setFailedSrc(src)} />
+  ) : (
+    <span
+      aria-hidden="true"
+      className={cn(className, "grid place-items-center bg-panel text-ink-soft")}
+    >
+      <HandHeart className="h-5 w-5" strokeWidth={1.5} />
+    </span>
   );
 }

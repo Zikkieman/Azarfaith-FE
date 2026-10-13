@@ -214,12 +214,14 @@ export function campaignErrors(form: CampaignForm) {
   if (form.location.trim().length < 2) errors.location = "Add your city and state.";
   if (countWords(form.story) < 100 || countWords(form.story) > 200)
     errors.story = "Tell your campaign story in 100 to 200 words.";
+  const goalText = form.goalAmount.replaceAll(",", "").trim();
+  const goal = Number(goalText);
   if (
     form.mode === "ONE_TIME" &&
-    form.type === "MONEY" &&
-    Number(form.goalAmount.replaceAll(",", "")) < 5000
+    (form.type === "MONEY" || (form.type === "EMERGENCY" && Boolean(goalText))) &&
+    (!/^\d+$/.test(goalText) || !Number.isSafeInteger(goal) || goal < 5000 || goal > 2147483647)
   )
-    errors.goalAmount = "Set a goal of at least ₦5,000.";
+    errors.goalAmount = "Set a whole-naira goal from ₦5,000 to ₦2,147,483,647.";
   if (form.mode === "ONGOING" && !form.frequencies.length)
     errors.frequencies = "Choose at least one giving frequency.";
   if (!form.coverImageUrl) errors.coverImageUrl = "Upload a cover photo.";

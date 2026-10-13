@@ -1,8 +1,25 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogHeader,
+  DialogFooter,
+} from "@/components/app/DesignDialog";
 import type { RecurringDonation, SavedPaymentMethod } from "@/lib/catalog";
 import { formatCheckoutInput, parseCheckoutInput } from "@/lib/checkout";
-import { frequencyLabels, givingDate, money, validateGiftChange } from "@/lib/giving";
+import {
+  frequencyLabels,
+  givingDate,
+  money,
+  validateGiftChange,
+  giftPresets,
+  everyLabel,
+} from "@/lib/giving";
+import { inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { cn } from "@/lib/utils";
 import type { GiftAction } from "./RecurringGiftCard";
 
 export type GiftActionValues = {
@@ -20,6 +37,7 @@ export function GiftActionDialog({
   error,
   onClose,
   onConfirm,
+  onPauseInstead,
 }: {
   gift: RecurringDonation;
   action: GiftAction;
@@ -28,6 +46,7 @@ export function GiftActionDialog({
   error: string | null;
   onClose: () => void;
   onConfirm: (values: GiftActionValues) => void;
+  onPauseInstead?: () => void;
 }) {
   const [amountText, setAmountText] = useState(formatCheckoutInput(String(gift.amount)));
   const [frequency, setFrequency] = useState(gift.frequency);
@@ -37,18 +56,23 @@ export function GiftActionDialog({
   const [validation, setValidation] = useState<string | null>(null);
   const amount = parseCheckoutInput(amountText);
   const title = {
-    edit: "Change your recurring gift",
+    edit: "Change your gift",
     skip: "Skip the next gift?",
     pause: "Pause your giving?",
     resume: "Resume your giving?",
-    cancel: "Stop this recurring gift?",
+    cancel: "Stop giving to " + gift.targetName + "?",
     card: "Change your saved card",
   }[action];
   function submit() {
+    if (busy) return;
     const invalid =
       action === "edit"
         ? validateGiftChange(gift, amount, frequency, consent)
-        : action === "card" && (!authorizationId || !consent)
+        : action === "card" &&
+            (!methods.some(
+              (method) => method.id === authorizationId && method.active && method.reusable,
+            ) ||
+              !consent)
           ? "Choose a saved card and confirm automatic charge consent."
           : null;
     if (invalid) {
@@ -65,52 +89,97 @@ export function GiftActionDialog({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] w-[calc(100%-32px)] overflow-y-auto rounded-2xl border-[#e6e3eb] bg-white p-6 text-[#130e30] sm:max-w-[480px]">
-        <DialogTitle className="pr-6 text-xl leading-snug">{title}</DialogTitle>
-        <DialogDescription className="text-[#777283]">{gift.targetName}</DialogDescription>
+      <DialogContent className="sm:max-w-[460px] max-h-[92dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {action === "edit"
+              ? "The change starts with your next gift. Past payments are unchanged."
+              : action === "cancel"
+                ? "No more payments or reminders. Gifts you've already made aren't affected, and you can start again any time."
+                : gift.targetName}
+          </DialogDescription>
+        </DialogHeader>
         {action === "edit" ? (
           <>
-            <label className="giving-label" htmlFor="gift-frequency">
-              Frequency
-            </label>
-            <select
-              id="gift-frequency"
-              className="giving-input"
-              value={frequency}
-              onChange={(event) => setFrequency(event.target.value as typeof frequency)}
-            >
-              {gift.frequencies.map((value) => (
-                <option key={value} value={value}>
-                  {frequencyLabels[value]}
-                </option>
+            <div className="grid grid-cols-3 gap-0.5 rounded-[12px] bg-panel p-1">
+              {(["weekly", "monthly", "quarterly"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  disabled={busy || !gift.frequencies.includes(f)}
+                  aria-pressed={frequency === f}
+                  onClick={() => {
+                    setFrequency(f);
+                    setConsent(false);
+                  }}
+                  className={cn(
+                    "h-9 rounded-[9px] text-[13px] font-medium transition-all",
+                    frequency === f
+                      ? "bg-paper text-ink shadow-[0_1px_2px_rgba(19,14,48,0.12)] ring-1 ring-line-soft"
+                      : "text-muted-ink hover:text-ink",
+                  )}
+                >
+                  {frequencyLabels[f]}
+                </button>
               ))}
-            </select>
-            <label className="giving-label" htmlFor="gift-amount">
-              Gift amount (NGN)
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {giftPresets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  disabled={busy || p < gift.minDonation || p > gift.maxDonation}
+                  aria-pressed={amount === p}
+                  onClick={() => {
+                    setAmountText(formatCheckoutInput(String(p)));
+                    setConsent(false);
+                  }}
+                  className={cn(
+                    "h-11 rounded-field border text-sm font-medium transition-colors",
+                    amount === p
+                      ? "border-ink bg-ink text-ink-contrast"
+                      : "border-line-input hover:border-ink",
+                  )}
+                >
+                  {money(p)}
+                </button>
+              ))}
+            </div>
+            <label className="relative block">
+              <span className="sr-only">Another amount</span>
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                ₦
+              </span>
+              <input
+                id="gift-amount"
+                disabled={busy}
+                inputMode="numeric"
+                value={amountText}
+                onChange={(event) => {
+                  setAmountText(formatCheckoutInput(event.target.value));
+                  setConsent(false);
+                }}
+                className={cn(inputClass, "pl-8")}
+                aria-invalid={Boolean(validation)}
+              />
             </label>
-            <input
-              id="gift-amount"
-              className="giving-input"
-              inputMode="numeric"
-              value={amountText}
-              onChange={(event) => setAmountText(formatCheckoutInput(event.target.value))}
-              aria-invalid={Boolean(validation)}
-            />
-            <p className="text-xs leading-relaxed text-[#777283]">
+            <p className="text-[13px] text-ink-soft">
               {frequency === gift.frequency
-                ? `An amount change keeps the saved date: ${givingDate(gift.nextDate)}.`
+                ? "An amount change keeps your saved date: " + givingDate(gift.nextDate) + "."
                 : "Changing frequency schedules the next gift one new interval from today."}{" "}
               {gift.status === "paused"
-                ? "Your gift will remain paused until you resume it."
+                ? "Your gift remains paused until you resume it."
                 : "Past payments are unchanged."}
             </p>
-            {gift.mode === "auto" && (
+            {gift.mode === "auto" ? (
               <label className="flex items-start gap-3 text-sm leading-relaxed">
                 <input
                   type="checkbox"
+                  disabled={busy}
                   checked={consent}
                   onChange={(event) => setConsent(event.target.checked)}
-                  className="mt-1 accent-[#e88b00]"
+                  className="mt-1 accent-ink"
                 />
                 <span>
                   I authorize{" "}
@@ -121,18 +190,22 @@ export function GiftActionDialog({
                   platform fee.
                 </span>
               </label>
-            )}
+            ) : null}
           </>
         ) : action === "card" ? (
           <>
-            <label className="giving-label" htmlFor="gift-card">
+            <label className={labelClass} htmlFor="gift-card">
               Saved card
             </label>
             <select
               id="gift-card"
-              className="giving-input"
+              disabled={busy}
+              className={inputClass}
               value={authorizationId}
-              onChange={(event) => setAuthorizationId(event.target.value)}
+              onChange={(event) => {
+                setAuthorizationId(event.target.value);
+                setConsent(false);
+              }}
             >
               <option value="">Select a card</option>
               {methods
@@ -143,12 +216,13 @@ export function GiftActionDialog({
                   </option>
                 ))}
             </select>
-            <label className="flex items-start gap-3 text-sm">
+            <label className="flex items-start gap-3 text-sm leading-relaxed">
               <input
                 type="checkbox"
+                disabled={busy}
                 checked={consent}
                 onChange={(event) => setConsent(event.target.checked)}
-                className="mt-1 accent-[#e88b00]"
+                className="mt-1 accent-ink"
               />
               <span>
                 I authorize automatic payments of{" "}
@@ -157,74 +231,89 @@ export function GiftActionDialog({
                 fee.
               </span>
             </label>
-            <p className="text-xs text-[#777283]">
+            <p className="text-[13px] text-ink-soft">
               Changing the card doesn't resume a paused gift.
             </p>
           </>
         ) : (
-          <p className="rounded-xl bg-[#f7f6f9] p-4 text-sm leading-relaxed text-[#615970]">
-            {action === "skip"
-              ? `We'll skip the scheduled ${givingDate(gift.nextDate)} gift and move to the next future ${frequencyLabels[gift.frequency].toLowerCase()} date. No charge or missed-pledge penalty is added for the skipped date.`
-              : action === "pause"
-                ? "New charge attempts and pledge reminders will stop. Your schedule is kept for when you're ready to resume."
-                : action === "resume"
-                  ? "Your gift will resume on the next future date in the saved schedule. We won't collect missed dates as catch-up payments."
-                  : "Future payments and reminders will stop permanently. Donations you've already made are unchanged. You can start a new gift any time."}
+          <p className="rounded-field bg-panel px-4 py-3 text-sm text-ink-soft">
+            {action === "cancel" ? (
+              <>
+                Not sure? You can <strong className="font-medium text-ink">pause</strong> instead
+                and keep everything as it is.
+              </>
+            ) : action === "skip" ? (
+              "Skip the scheduled gift, with no charge or missed-pledge penalty for that date."
+            ) : action === "pause" ? (
+              "New charges and pledge reminders stop; your schedule is kept."
+            ) : (
+              "Resume on the next future date in the saved schedule. Missed dates are not charged as catch-up payments."
+            )}
           </p>
         )}
-        {action === "cancel" && (
-          <>
-            <label htmlFor="cancel-reason" className="giving-label">
-              Reason (optional)
-            </label>
+        {action === "cancel" ? (
+          <label className="flex flex-col gap-2">
+            <span className={labelClass}>Reason (optional)</span>
             <textarea
               id="cancel-reason"
-              className="giving-input"
+              disabled={busy}
+              className={inputClass}
               rows={3}
               maxLength={240}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
               placeholder="Anything you'd like to note for your records"
             />
-          </>
-        )}
-        {gift.hasPendingPayment && (
-          <p className="text-sm text-amber-800">
+          </label>
+        ) : null}
+        {gift.hasPendingPayment ? (
+          <p className="text-[13px] text-brand-ink">
             A payment is already processing. This action won't reverse it.
           </p>
-        )}
-        {(validation || error) && (
-          <p role="alert" className="text-sm text-red-700">
+        ) : null}
+        {validation || error ? (
+          <p role="alert" className="text-[13px] text-danger">
             {validation || error}
           </p>
-        )}
-        <div className="mt-2 flex flex-wrap justify-end gap-2">
+        ) : null}
+        <DialogFooter>
           <button
             type="button"
-            className="dashboard-button secondary"
+            className={btn("secondary")}
             disabled={busy}
-            onClick={onClose}
+            onClick={action === "cancel" && onPauseInstead ? onPauseInstead : onClose}
           >
-            Keep as is
+            {action === "cancel"
+              ? gift.status === "paused"
+                ? "Keep paused"
+                : "Pause instead"
+              : "Cancel"}
           </button>
           <button
             type="button"
-            className={`dashboard-button ${action === "cancel" ? "!bg-red-700" : ""}`}
-            disabled={busy}
+            className={btn(action === "cancel" ? "danger" : "primary")}
+            disabled={
+              busy || (action === "edit" && gift.amount === amount && gift.frequency === frequency)
+            }
             onClick={submit}
           >
             {busy
               ? "Saving..."
-              : action === "edit" || action === "card"
-                ? "Save changes"
-                : {
-                    skip: "Skip next gift",
-                    pause: "Pause gift",
-                    resume: "Resume gift",
-                    cancel: "Stop giving",
-                  }[action]}
+              : action === "edit"
+                ? Number.isSafeInteger(amount) && amount > 0
+                  ? "Save " + money(amount) + " " + everyLabel[frequency]
+                  : "Save gift"
+                : action === "card"
+                  ? "Save changes"
+                  : action === "cancel"
+                    ? "Stop giving"
+                    : action === "pause"
+                      ? "Pause gift"
+                      : action === "resume"
+                        ? "Resume gift"
+                        : "Skip next gift"}
           </button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

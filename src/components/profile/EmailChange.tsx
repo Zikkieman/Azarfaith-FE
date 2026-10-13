@@ -1,8 +1,21 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-export function EmailChange({ currentEmail }: { currentEmail: string }) {
+import * as Legacy from "@/components/ui/dialog";
+import * as Source from "@/components/app/DesignDialog";
+import { inputClass, labelClass } from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { cn } from "@/lib/utils";
+export function EmailChange({
+  currentEmail,
+  appearance,
+}: {
+  currentEmail: string;
+  appearance?: "app";
+}) {
+  const { Dialog, DialogContent, DialogDescription, DialogTitle } =
+    appearance === "app" ? Source : Legacy;
+  const app = appearance === "app";
   const [open, setOpen] = useState(false),
     [email, setEmail] = useState(""),
     [oldCode, setOldCode] = useState(""),
@@ -37,7 +50,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
     <>
       <button
         type="button"
-        className="giving-small-button mt-4"
+        className={app ? cn(btn("secondary", "sm"), "self-start") : "giving-small-button mt-4"}
         onClick={() => {
           request.reset();
           confirm.reset();
@@ -69,13 +82,13 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
               }}
             >
               <p className="text-sm break-all">Current email: {currentEmail}</p>
-              <label className="giving-label">
+              <label className={app ? cn(labelClass, "flex flex-col gap-1.5") : "giving-label"}>
                 New sign-in email
                 <input
                   type="email"
                   required
                   maxLength={160}
-                  className="giving-input"
+                  className={app ? inputClass : "giving-input"}
                   disabled={busy}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -87,7 +100,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
                 </p>
               )}
               <button
-                className="giving-small-button bg-black text-white"
+                className={app ? btn("primary", "sm") : "giving-small-button bg-black text-white"}
                 disabled={busy || email.trim().toLowerCase() === currentEmail}
               >
                 {request.isPending ? "Sending codes..." : "Send verification codes"}
@@ -106,10 +119,10 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
                 {challenge.newEmail}. If you used Google only, use password reset for the new email
                 to set a password.
               </p>
-              <label className="giving-label">
+              <label className={app ? cn(labelClass, "flex flex-col gap-1.5") : "giving-label"}>
                 Code from current inbox
                 <input
-                  className="giving-input"
+                  className={app ? inputClass : "giving-input"}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   required
@@ -120,10 +133,10 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
                   onChange={(event) => setOldCode(event.target.value.replace(/\D/g, ""))}
                 />
               </label>
-              <label className="giving-label">
+              <label className={app ? cn(labelClass, "flex flex-col gap-1.5") : "giving-label"}>
                 Code from new inbox
                 <input
-                  className="giving-input"
+                  className={app ? inputClass : "giving-input"}
                   inputMode="numeric"
                   required
                   pattern="[0-9]{6}"
@@ -140,7 +153,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
               )}
               <div className="flex flex-wrap gap-3">
                 <button
-                  className="giving-small-button bg-black text-white"
+                  className={app ? btn("primary", "sm") : "giving-small-button bg-black text-white"}
                   disabled={busy || oldCode.length !== 6 || newCode.length !== 6}
                 >
                   {confirm.isPending ? "Verifying..." : "Verify and change email"}
@@ -148,7 +161,7 @@ export function EmailChange({ currentEmail }: { currentEmail: string }) {
                 <button
                   type="button"
                   disabled={busy}
-                  className="giving-small-button"
+                  className={app ? btn("secondary", "sm") : "giving-small-button"}
                   onClick={() => {
                     setChallenge(null);
                     request.reset();

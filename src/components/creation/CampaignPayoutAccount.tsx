@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { PayoutAccount } from "@/lib/catalog";
 import { LoadError } from "@/components/profile/SettingsParts";
+import { inputClass } from "@/components/app/AppShell";
 import { Field } from "./CreationParts";
 
 export function CampaignPayoutAccount({
@@ -10,6 +11,7 @@ export function CampaignPayoutAccount({
   message,
   retry,
   organizationId,
+  appearance,
 }: {
   account?: PayoutAccount | null;
   loading: boolean;
@@ -17,11 +19,30 @@ export function CampaignPayoutAccount({
   message?: string;
   retry: () => void;
   organizationId?: string;
+  appearance?: "app";
 }) {
+  const app = appearance === "app";
   return (
-    <section id="field-payoutAccount" className="scroll-mt-24 border-t border-[#efedf3] pt-8">
-      <h2 className="text-lg font-semibold">Payout account</h2>
-      <p className="mb-5 mt-1 text-sm leading-relaxed text-[#777283]">
+    <section
+      id="field-payoutAccount"
+      className={
+        app ? "flex scroll-mt-24 flex-col gap-4" : "scroll-mt-24 border-t border-[#efedf3] pt-8"
+      }
+    >
+      <h2
+        className={
+          app
+            ? "font-display text-[22px] leading-tight tracking-[-0.02em] text-ink"
+            : "text-lg font-semibold"
+        }
+      >
+        Payout account
+      </h2>
+      <p
+        className={
+          app ? "mt-1 text-sm text-muted-ink" : "mb-5 mt-1 text-sm leading-relaxed text-[#777283]"
+        }
+      >
         Reuse your saved account. No bank details need to be entered for this campaign.
       </p>
       {loading ? (
@@ -34,11 +55,17 @@ export function CampaignPayoutAccount({
           retry={retry}
         />
       ) : account ? (
-        <div className="rounded-2xl border border-[#e5e1ee] bg-[#f8f7fa] p-4">
+        <div
+          className={
+            app
+              ? "rounded-field border border-line-soft bg-panel p-4"
+              : "rounded-2xl border border-[#e5e1ee] bg-[#f8f7fa] p-4"
+          }
+        >
           <Field id="savedPayoutAccount" label="Saved payout account" error={message}>
             <select
               id="savedPayoutAccount"
-              className="giving-input"
+              className={app ? inputClass : "giving-input"}
               key={account.id}
               defaultValue={account.id}
             >

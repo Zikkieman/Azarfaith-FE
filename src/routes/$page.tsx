@@ -1,6 +1,8 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { PublicShell } from "@/components/public/PublicShell";
+import { landingGuidePreviews } from "@/lib/landing-guides";
 const pages: Record<string, { title: string; body: string[] }> = {
+  ...landingGuidePreviews,
   about: {
     title: "About AzarFaith",
     body: [
