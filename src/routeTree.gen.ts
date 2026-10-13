@@ -14,6 +14,7 @@ import { Route as PageRouteImport } from './routes/$page'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DataDeletionRouteImport } from './routes/data-deletion'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
@@ -65,6 +66,11 @@ const CreateRoute = CreateRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataDeletionRoute = DataDeletionRouteImport.update({
+  id: '/data-deletion',
+  path: '/data-deletion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DiscoverRoute = DiscoverRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/data-deletion': typeof DataDeletionRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/$page': typeof PageRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/data-deletion': typeof DataDeletionRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/data-deletion': typeof DataDeletionRoute
   '/discover': typeof DiscoverRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/create'
     | '/dashboard'
+    | '/data-deletion'
     | '/discover'
     | '/forgot-password'
     | '/login'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
     | '/$page'
     | '/create'
     | '/dashboard'
+    | '/data-deletion'
     | '/discover'
     | '/forgot-password'
     | '/login'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/create'
     | '/dashboard'
+    | '/data-deletion'
     | '/discover'
     | '/forgot-password'
     | '/login'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  DataDeletionRoute: typeof DataDeletionRoute
   DiscoverRoute: typeof DiscoverRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -466,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-deletion': {
+      id: '/data-deletion'
+      path: '/data-deletion'
+      fullPath: '/data-deletion'
+      preLoaderRoute: typeof DataDeletionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/discover': {
@@ -739,6 +759,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  DataDeletionRoute: DataDeletionRoute,
   DiscoverRoute: DiscoverRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,

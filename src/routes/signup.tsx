@@ -10,7 +10,7 @@ import { AuthBack } from "@/components/auth/AuthBack";
 import { OtpInputs } from "@/components/auth/OtpInputs";
 import { SocialButton } from "@/components/auth/SocialButton";
 import { useAuthReady } from "@/components/auth/useAuthReady";
-import { UnavailableFacebook } from "@/components/auth/UnavailableFacebook";
+import { FacebookSignInButton } from "@/components/auth/FacebookSignInButton";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import {
   clearAuthError,
@@ -358,7 +358,7 @@ function Signup() {
                 }
               }}
             />
-            <UnavailableFacebook />
+            <FacebookSignInButton disabled={loading} />
             <AuthDivider>or</AuthDivider>
             <SocialButton variant="solid" onClick={() => go("form")}>
               Continue with email

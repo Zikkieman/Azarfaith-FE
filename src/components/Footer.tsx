@@ -73,6 +73,7 @@ export function Footer() {
             links={[
               { label: "Verified orgs only", href: "#" },
               { label: "Report a cause", href: "#" },
+              { label: "Request data deletion", to: "/data-deletion" },
             ]}
           />
         </div>

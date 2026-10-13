@@ -7,7 +7,7 @@ import { AuthField } from "@/components/auth/AuthField";
 import { AuthCard, AuthDivider, AuthHeading } from "@/components/auth/AuthCard";
 import { AuthError } from "@/components/auth/AuthContent";
 import { SocialButton } from "@/components/auth/SocialButton";
-import { UnavailableFacebook } from "@/components/auth/UnavailableFacebook";
+import { FacebookSignInButton } from "@/components/auth/FacebookSignInButton";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import {
   clearAuthError,
@@ -72,7 +72,7 @@ function Login() {
               }
             }}
           />
-          <UnavailableFacebook />
+          <FacebookSignInButton disabled={loading} />
         </div>
         <AuthDivider>or sign in with email</AuthDivider>
         <form
