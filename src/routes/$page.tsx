@@ -1,6 +1,7 @@
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import { Footer as LandingFooter } from "@/components/landing/Footer";
 import { SiteNav } from "@/components/landing/SiteNav";
+import { LandingDataProvider } from "@/components/landing/data";
 import { PublicShell } from "@/components/public/PublicShell";
 import { landingGuidePreviews } from "@/lib/landing-guides";
 import { useScrollProgress } from "@/lib/motion";
@@ -80,7 +81,7 @@ function slugify(value: string) {
 
 function LegalPage({ doc }: { doc: LegalDoc }) {
   const progress = useScrollProgress();
-  return <div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
+  return <LandingDataProvider><div className="min-h-screen overflow-x-clip bg-paper font-gsf text-heading">
     <div aria-hidden className="fixed inset-x-0 top-0 z-[60] h-[3px] origin-left bg-[#FE5102]" style={{ transform: `scaleX(${progress})` }} />
     <SiteNav />
     <main>
@@ -90,7 +91,7 @@ function LegalPage({ doc }: { doc: LegalDoc }) {
       </div></section>
     </main>
     <LandingFooter />
-  </div>;
+  </div></LandingDataProvider>;
 }
 
 function Content() {
