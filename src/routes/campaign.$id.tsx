@@ -19,10 +19,10 @@ import {
 import { toast } from "sonner";
 
 import { useAppSelector } from "@/app/hooks";
-import { Navbar } from "@/components/Navbar";
-import { PageSpinner } from "@/components/PageSpinner";
+import { AppShell, Container } from "@/components/app/AppShell";
+import { CampaignDetailSkeleton } from "@/components/app/Skeletons";
 import { CampaignPublicView } from "@/components/public/CampaignPublicView";
-import { PublicShell, CatalogError } from "@/components/public/PublicShell";
+import { CatalogError } from "@/components/public/PublicShell";
 import { useClientReady } from "@/lib/useClientReady";
 import { ApiError } from "@/lib/api";
 import { isPublished } from "@/lib/discovery";
@@ -217,28 +217,17 @@ function CampaignRoute() {
   if (error instanceof ApiError && error.status === 404) throw notFound();
   if (ready && hydrated && error)
     return (
-      <PublicShell>
-        <CatalogError
-          retry={() => {
-            void refetch();
-          }}
-        />
-      </PublicShell>
+      <AppShell>
+        <Container className="py-10">
+          <CatalogError
+            retry={() => {
+              void refetch();
+            }}
+          />
+        </Container>
+      </AppShell>
     );
-  if (!ready || !hydrated)
-    return (
-      <PublicShell>
-        <PageSpinner label="Loading campaign..." fullScreen={false} />
-      </PublicShell>
-    );
-  if (!campaign) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <PageSpinner label="Loading campaign..." />
-      </div>
-    );
-  }
+  if (!ready || !hydrated || !campaign) return <CampaignDetailSkeleton />;
 
   const pct = campaign.goal
     ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
@@ -285,6 +274,7 @@ function CampaignRoute() {
   if (!ownerTools || !isOwner)
     return (
       <CampaignPublicView
+        key={campaign.id}
         campaign={campaign}
         authenticated={Boolean(user)}
         isOwner={isOwner}
@@ -297,8 +287,7 @@ function CampaignRoute() {
     );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <AppShell>
       <div className="mx-auto max-w-6xl space-y-8 px-5 py-8 md:px-8">
         <button className="public-button-outline" onClick={() => setOwnerTools(false)}>
           Back to campaign preview
@@ -948,7 +937,7 @@ function CampaignRoute() {
           </section>
         ) : null}
       </div>
-    </div>
+    </AppShell>
   );
 }
 

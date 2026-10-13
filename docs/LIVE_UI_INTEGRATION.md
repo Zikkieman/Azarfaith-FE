@@ -1,5 +1,35 @@
 # Refreshed UI: Live Integration
 
+The designer's actual Manage screen (`/dashboard`) now has a dedicated rendered
+parity pass: onboarding, verified and pending states match measured source layout
+and styling at four widths. Extra stacked selector/payout sections were removed
+without dropping their real actions. See [App Restoration](APP_RESTORATION.md).
+
+The additional `/manage` workspace and `/manage/org/$id` owner dashboard now use
+the same source app kit and dashboard panel/list patterns, preserving their live
+APIs, drafts, sharing and scoped payout settings. The reference has no standalone
+files for those additional routes; see [App Restoration](APP_RESTORATION.md).
+
+My Giving now uses the source page, recurring cards, history table and dialogs,
+with real recurring actions and receipt downloads. Its earlier adapted workspace
+shell has been removed. See [App Restoration](APP_RESTORATION.md) for scope.
+
+The source-faithful app pass has restored `/dashboard`, `/discover`, and the shared
+app kit/navigation. See [App Restoration](APP_RESTORATION.md) for actual source
+navigation, API adaptations, QA evidence, and the remaining screen inventory.
+
+The auth screen restoration is now separately verified against the pinned source.
+See [Auth Restoration](AUTH_RESTORATION.md) for source provenance, supported
+flows, required-field/provider exceptions and QA evidence. Other "Completed"
+entries below still describe functional integration, not a blanket visual-parity
+certification.
+
+Status clarification: the earlier "Completed" sections below describe functional
+integration, not exact designer-screen visual parity. Faithful visual restoration
+is being verified screen by screen against a separate pinned local clone, starting
+with `/`. See [Landing Restoration](LANDING_RESTORATION.md) for source provenance,
+scope, verification and the explicitly approved preview-content inventory.
+
 Design source: `https://github.com/mos-ski/azarfaith.git`, main commit
 `6c27cda68d4c738b62e9867d7ca7b196ec828d7d`.
 

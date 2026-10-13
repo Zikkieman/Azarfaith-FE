@@ -1,5 +1,5 @@
 import type { CreateCampaignPayload, CreateOrganizationPayload } from "@/features/catalog/api";
-import type { Campaign, Org } from "@/lib/catalog";
+import type { Campaign, Org, PayoutAccount } from "@/lib/catalog";
 
 export type OrgForm = Omit<CreateOrganizationPayload, "category" | "foundedYear"> & {
   category: CreateOrganizationPayload["category"] | "";
@@ -21,6 +21,24 @@ export type CampaignForm = Omit<
   frequencies: NonNullable<CreateCampaignPayload["frequencies"]>;
 };
 export const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+export function campaignPayoutError({
+  account,
+  loading,
+  failed,
+}: {
+  account?: Pick<PayoutAccount, "active" | "status"> | null;
+  loading: boolean;
+  failed: boolean;
+}): string | undefined {
+  if (loading) return "Please wait while we load your saved payout account.";
+  if (failed) return "Could not check your saved payout account. Retry before submitting.";
+  if (!account) return "Add a payout account once in your profile to submit campaigns.";
+  if (!account.active || account.status === "inactive")
+    return "Your saved payout account is inactive. Review your payout settings; do not register it again.";
+  if (account.status !== "verified")
+    return "Your account is already saved but needs verification before submission. You do not need to enter it again.";
+  return undefined;
+}
 export function focusError(key: string) {
   const target = document.getElementById(`field-${key}`);
   target?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -28,18 +46,29 @@ export function focusError(key: string) {
     ?.querySelector<HTMLElement>("input,textarea,select,button")
     ?.focus({ preventScroll: true });
 }
-export function publicLink(value: string) {
+export function normalizePublicLink(value: string): string | null {
+  const raw = value.trim();
+  if (!raw || /[\s\\]/.test(raw) || raw.startsWith("//")) return null;
+  const hasScheme = /^[a-z][a-z\d+.-]*:/i.test(raw);
+  if (hasScheme && !/^https?:\/\/[^/?#]/i.test(raw)) return null;
   try {
-    const url = new URL(value.trim());
-    return (
-      ["https:", "http:"].includes(url.protocol) &&
-      Boolean(url.hostname.includes(".")) &&
-      !url.username &&
-      !url.password
-    );
+    const url = new URL(hasScheme ? raw : `https://${raw}`);
+    if (
+      !["https:", "http:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.hostname.length > 253 ||
+      url.hostname.split(".").some((label) => label.length > 63) ||
+      !/^(?:[a-z\d](?:[a-z\d-]*[a-z\d])?\.)+[a-z](?:[a-z\d-]*[a-z\d])?$/i.test(url.hostname)
+    )
+      return null;
+    return url.href;
   } catch {
-    return false;
+    return null;
   }
+}
+export function publicLink(value: string) {
+  return normalizePublicLink(value) !== null;
 }
 export function validateMedia(
   files: Array<Pick<File, "size" | "type">>,
@@ -91,7 +120,23 @@ export function organizationPayload(form: OrgForm) {
     foundedYear: form.foundedYear ? Number(form.foundedYear) : null,
     denomination: form.denomination.trim(),
     location: form.location.trim(),
+    externalLinks: form.externalLinks.map((link) => normalizePublicLink(link) ?? link.trim()),
   };
+}
+export function hasOrganizationDraftContent(form: OrgForm) {
+  return Boolean(
+    form.name.trim() ||
+      form.tagline.trim() ||
+      form.otherCategoryLabel?.trim() ||
+      form.denomination.trim() ||
+      form.foundedYear.trim() ||
+      form.location.trim() ||
+      form.bio.trim() ||
+      form.category ||
+      form.photoUrls.length ||
+      form.externalLinks.length ||
+      form.registrationDocumentUrls.length,
+  );
 }
 export function organizationErrors(form: OrgForm) {
   const errors: Record<string, string> = {};
@@ -118,6 +163,11 @@ export function organizationErrors(form: OrgForm) {
     errors.photoUrls = "Upload at least 3 photos. Your first photo is the cover.";
   if (!form.registrationDocumentUrls.length)
     errors.registrationDocumentUrls = "Add a CAC document or a recommendation letter.";
+  const links = form.externalLinks.map(normalizePublicLink);
+  if (links.some((link) => !link))
+    errors.externalLinks = "Enter a valid website or social link, such as www.example.com.";
+  else if (links.length > 10 || new Set(links).size !== links.length)
+    errors.externalLinks = "Add up to 10 different links.";
   return errors;
 }
 export function campaignForm(draft?: Campaign): CampaignForm {
@@ -169,6 +219,23 @@ export function campaignPayload(form: CampaignForm) {
     frequencies: form.mode === "ONGOING" ? form.frequencies : [],
   };
 }
+export function hasCampaignDraftContent(form: CampaignForm) {
+  return Boolean(
+    form.mode ||
+      form.type ||
+      form.title.trim() ||
+      form.story.trim() ||
+      form.faithCategory ||
+      form.organizationId ||
+      form.location.trim() ||
+      form.goalAmount.replaceAll(",", "").trim() ||
+      form.coverImageUrl.trim() ||
+      form.galleryImageUrls.length ||
+      form.needs.length ||
+      form.frequencies.length ||
+      form.urgency !== "MEDIUM",
+  );
+}
 export function campaignErrors(form: CampaignForm) {
   const errors: Record<string, string> = {};
   if (!form.mode) errors.mode = "Choose one-time or ongoing support.";
@@ -179,12 +246,14 @@ export function campaignErrors(form: CampaignForm) {
   if (form.location.trim().length < 2) errors.location = "Add your city and state.";
   if (countWords(form.story) < 100 || countWords(form.story) > 200)
     errors.story = "Tell your campaign story in 100 to 200 words.";
+  const goalText = form.goalAmount.replaceAll(",", "").trim();
+  const goal = Number(goalText);
   if (
     form.mode === "ONE_TIME" &&
-    form.type === "MONEY" &&
-    Number(form.goalAmount.replaceAll(",", "")) < 5000
+    (form.type === "MONEY" || (form.type === "EMERGENCY" && Boolean(goalText))) &&
+    (!/^\d+$/.test(goalText) || !Number.isSafeInteger(goal) || goal < 5000 || goal > 2147483647)
   )
-    errors.goalAmount = "Set a goal of at least ₦5,000.";
+    errors.goalAmount = "Set a whole-naira goal from ₦5,000 to ₦2,147,483,647.";
   if (form.mode === "ONGOING" && !form.frequencies.length)
     errors.frequencies = "Choose at least one giving frequency.";
   if (!form.coverImageUrl) errors.coverImageUrl = "Upload a cover photo.";

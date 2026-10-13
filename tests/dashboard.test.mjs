@@ -18,7 +18,32 @@ function load(path, imports = {}) {
   );
   return module.exports;
 }
-const { dashboardStatus } = load("../src/lib/dashboard.ts");
+const { dashboardStatus, dashboardMonthsSince, dashboardGiftAge, dashboardCompactMoney } =
+  load("../src/lib/dashboard.ts");
+
+test("dashboard amounts retain the designer's compact-money thresholds and rounding", () => {
+  assert.equal(dashboardCompactMoney(1500), "₦1,500");
+  assert.equal(dashboardCompactMoney(9999), "₦9,999");
+  assert.equal(dashboardCompactMoney(12400), "₦12K");
+  assert.equal(dashboardCompactMoney(12400000), "₦12.4M");
+});
+
+test("recent gifts use the source's compact relative dates from real timestamps", () => {
+  const now = new Date("2026-10-12T12:00:00Z");
+  assert.equal(dashboardGiftAge("2026-10-12T10:00:00Z", now), "2h ago");
+  assert.equal(dashboardGiftAge("2026-10-11T12:00:00Z", now), "1d ago");
+  assert.equal(dashboardGiftAge("2026-10-05T12:00:00Z", now), "1w ago");
+  assert.equal(dashboardGiftAge("2026-10-12T13:00:00Z", now), "just now");
+  assert.equal(dashboardGiftAge("not a date", now), "Date unavailable");
+});
+
+test("dashboard update reminders use calendar months and handle invalid/future timestamps", () => {
+  const now = new Date("2026-10-12T10:00:00Z");
+  assert.equal(dashboardMonthsSince("2026-08-31T23:00:00Z", now), 2);
+  assert.equal(dashboardMonthsSince("2026-10-01", now), 0);
+  assert.equal(dashboardMonthsSince("2027-01-01", now), 0);
+  assert.equal(dashboardMonthsSince("bad date", now), 0);
+});
 
 test("Review badges use actual backend statuses, including rejected organizations and drafts", () => {
   const record = {

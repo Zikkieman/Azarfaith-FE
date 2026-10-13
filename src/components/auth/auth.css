@@ -1,0 +1,17 @@
+.designer-auth {
+  --af-line-soft: rgba(57, 62, 70, 0.1);
+}
+.designer-auth,
+.designer-auth .font-gsf,
+.designer-auth .font-display {
+  font-family: "AzarFaith Landing", system-ui, sans-serif;
+}
+@layer base {
+  .designer-auth :is(h1, h2, h3, h4, .font-display) {
+    font-weight: 500;
+    letter-spacing: -0.03em;
+  }
+  .designer-auth :is(h1, h2) {
+    text-wrap: balance;
+  }
+}

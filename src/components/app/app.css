@@ -1,0 +1,124 @@
+/* Reference app theme and effects, isolated from screens not yet migrated. */
+.designer-app {
+  --af-line-soft: rgba(57, 62, 70, 0.1);
+  font-family: "AzarFaith Landing", system-ui, sans-serif;
+}
+.designer-app .font-display,
+.designer-app .font-gsf {
+  font-family: "AzarFaith Landing", system-ui, sans-serif;
+}
+@layer base {
+  .designer-app :is(h1, h2, h3, h4, .font-display) {
+    font-family: "AzarFaith Landing", system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+  }
+  .designer-app :is(h1, h2) {
+    text-wrap: balance;
+  }
+}
+.designer-app .expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 380ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.designer-app .expand[data-open] {
+  grid-template-rows: 1fr;
+}
+.designer-app .expand > * {
+  overflow: hidden;
+  min-height: 0;
+}
+.designer-app .skeleton {
+  background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, #fff 55%, transparent) 50%,
+      transparent 100%
+    )
+    #f7f5f3;
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.designer-app .halftone {
+  --dot: 4px;
+  -webkit-mask-image: radial-gradient(
+    circle,
+    #000 var(--dot),
+    transparent calc(var(--dot) + 0.5px)
+  );
+  mask-image: radial-gradient(circle, #000 var(--dot), transparent calc(var(--dot) + 0.5px));
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+.designer-app .group:hover .halftone,
+.designer-app .group:focus-within .halftone {
+  --dot: 1.6px;
+  filter: grayscale(1) contrast(1.3) brightness(0.95);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .designer-app .halftone {
+    transition:
+      --dot 650ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      filter 650ms ease,
+      transform 700ms ease-out,
+      opacity 500ms ease;
+  }
+  .designer-app .admin-rise {
+    animation: designer-app-rise 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .designer-app .admin-row {
+    animation: designer-giving-row 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .designer-app[data-js] [data-segments]:not([data-shown]) > [data-on] {
+    background-color: var(--af-line-soft);
+  }
+  .designer-app[data-js] [data-segments] > [data-on] {
+    transition: background-color 220ms ease calc(var(--i) * 35ms + 150ms);
+  }
+  .designer-app .press {
+    transition:
+      transform 120ms ease,
+      opacity 150ms ease,
+      background-color 150ms ease;
+  }
+  .designer-app .press:active {
+    transform: scale(0.97);
+  }
+}
+@keyframes designer-app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes designer-giving-row {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .designer-app .expand {
+    transition: none;
+  }
+  .designer-app .skeleton {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .designer-app .bar-rise {
+    transform-origin: bottom;
+    animation: designer-admin-bar-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+@keyframes designer-admin-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.designer-app .admin-rise :is(h1, p, dd, a) {
+  overflow-wrap: anywhere;
+}

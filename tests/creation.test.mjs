@@ -53,6 +53,71 @@ const campaign = {
   galleryImageUrls: ["https://fixture.example/gallery.png"],
 };
 
+test("campaigns reuse verified saved accounts and distinguish missing, pending, inactive and unavailable destinations", () => {
+  const ready = { active: true, status: "verified" };
+  assert.equal(
+    creation.campaignPayoutError({ account: ready, loading: false, failed: false }),
+    undefined,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: null, loading: false, failed: false }),
+    /Add.*once/,
+  );
+  assert.match(
+    creation.campaignPayoutError({
+      account: { ...ready, status: "pending" },
+      loading: false,
+      failed: false,
+    }),
+    /already saved.*verification/,
+  );
+  assert.match(
+    creation.campaignPayoutError({
+      account: { ...ready, active: false },
+      loading: false,
+      failed: false,
+    }),
+    /inactive/,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: ready, loading: true, failed: false }),
+    /wait/,
+  );
+  assert.match(
+    creation.campaignPayoutError({ account: ready, loading: false, failed: true }),
+    /Retry/,
+  );
+});
+
+test("saved payout destination reads use authenticated existing endpoints, not account registration", async (t) => {
+  const original = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, ...init });
+    return new Response(JSON.stringify({ id: "saved-bank", active: true, status: "verified" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  await api.getPersonalPayoutAccount();
+  await api.getOrganizationPayoutAccount("org");
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      "https://fixture.example/me/payout-account",
+      "https://fixture.example/organizations/org/payout-account",
+    ],
+  );
+  assert.ok(
+    calls.every(
+      (call) =>
+        call.credentials === "include" && (!call.method || call.method === "GET") && !call.body,
+    ),
+  );
+});
+
 test("organization bio and campaign story require 100-200 words, including both boundaries", () => {
   for (const count of [100, 200]) {
     assert.equal(creation.organizationErrors({ ...org, bio: words(count) }).bio, undefined);
@@ -84,6 +149,9 @@ test("public links allow real websites and social URLs, never script or credenti
     "https://riverlight.example",
     "https://instagram.com/riverlight",
     "http://riverlight.example/about",
+    "www.ezekieloladele.dev",
+    "ezekieloladele.dev/about",
+    "instagram.com/riverlight",
   ])
     assert.equal(creation.publicLink(url), true);
   for (const url of [
@@ -91,8 +159,49 @@ test("public links allow real websites and social URLs, never script or credenti
     "javascript:alert(1)",
     "ftp://example.com",
     "https://user:password@example.com",
+    "https:///example.com",
+    "https:example.com",
+    "//example.com",
+    "user@example.com",
+    "https://exa_mple.com",
+    "https://example.com\\@evil.com",
+    "https://example.123",
   ])
     assert.equal(creation.publicLink(url), false);
+});
+test("public links normalize domains before saving and detect equivalent duplicates", () => {
+  assert.equal(
+    creation.normalizePublicLink(" www.ezekieloladele.dev "),
+    "https://www.ezekieloladele.dev/",
+  );
+  assert.equal(
+    creation.normalizePublicLink("example.com/about?ref=org#team"),
+    "https://example.com/about?ref=org#team",
+  );
+  assert.equal(
+    creation.normalizePublicLink("HTTP://example.com/about"),
+    "http://example.com/about",
+  );
+  const form = { ...org, externalLinks: ["www.ezekieloladele.dev"] };
+  assert.deepEqual(creation.organizationPayload(form).externalLinks, [
+    "https://www.ezekieloladele.dev/",
+  ]);
+  assert.equal(creation.organizationErrors(form).externalLinks, undefined);
+  assert.ok(
+    creation.organizationErrors({
+      ...org,
+      externalLinks: ["www.ezekieloladele.dev", "https://www.ezekieloladele.dev/"],
+    }).externalLinks,
+  );
+  assert.ok(
+    creation.organizationErrors({ ...org, externalLinks: ["javascript:alert(1)"] }).externalLinks,
+  );
+  assert.ok(
+    creation.organizationErrors({
+      ...org,
+      externalLinks: Array.from({ length: 11 }, (_, i) => `example.com/${i}`),
+    }).externalLinks,
+  );
 });
 test("uploads enforce supported MIME types, 5 MB per file and total count before network calls", () => {
   assert.equal(creation.validateMedia([{ size: 5 * 1024 * 1024, type: "image/png" }], 7, 8), null);
@@ -173,4 +282,19 @@ test("draft API uses real authenticated persistence/submit endpoints with cookie
   );
   assert.ok(calls.every((call) => call.credentials === "include"));
   assert.deepEqual(calls[4].body, { organizationId: null, goalAmount: null, galleryImageUrls: [] });
+});
+
+test("publication goals reject malformed, fractional, below-minimum and overflowing amounts", () => {
+  for (const goalAmount of ["", "NaN", "5000.50", "-5000", "4,999", "2147483648"]) {
+    assert.ok(creation.campaignErrors({ ...campaign, goalAmount }).goalAmount, goalAmount);
+  }
+  for (const goalAmount of ["5,000", "2,147,483,647"])
+    assert.equal(creation.campaignErrors({ ...campaign, goalAmount }).goalAmount, undefined);
+  assert.equal(
+    creation.campaignErrors({ ...campaign, type: "EMERGENCY", goalAmount: "" }).goalAmount,
+    undefined,
+  );
+  assert.ok(
+    creation.campaignErrors({ ...campaign, type: "EMERGENCY", goalAmount: "NaN" }).goalAmount,
+  );
 });

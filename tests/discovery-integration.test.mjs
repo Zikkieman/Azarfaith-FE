@@ -20,7 +20,9 @@ function load(path, imports = {}) {
   return module.exports;
 }
 
-const helpers = load("../src/lib/discovery.ts");
+const helpers = load("../src/lib/discovery.ts", {
+  "@/lib/catalog": load("../src/lib/catalog.ts"),
+});
 const requests = [];
 const api = load("../src/features/catalog/api.ts", {
   "@/lib/api": {
@@ -32,6 +34,14 @@ const api = load("../src/features/catalog/api.ts", {
       throw new Error("Public discovery must not call admin endpoints");
     },
   },
+});
+
+test("designer cause labels and enum links map to the real backend category without invented values", () => {
+  assert.equal(helpers.discoveryCategory("Missions & Outreach"), "MISSIONS_OUTREACH");
+  assert.equal(helpers.discoveryCategory("EDUCATION"), "EDUCATION");
+  assert.equal(helpers.discoveryCategory("Education"), "EDUCATION");
+  assert.equal(helpers.discoveryCategory(undefined), undefined);
+  assert.equal(helpers.discoveryCategory("unknown"), undefined);
 });
 
 test("publication requires server approval, not just an optimistic verified badge", () => {

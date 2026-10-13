@@ -1,0 +1,56 @@
+{
+  "repository": "https://github.com/mos-ski/azarfaith.git",
+  "commit": "6c27cda68d4c738b62e9867d7ca7b196ec828d7d",
+  "classes": {
+    "src/components/auth/AuthLayout.tsx": [
+      "73f664dee27b0b42ac43b39afee90ef3d55e45d60546bcc89f8f8df75d08bb08",
+      "b6a146dfdb58e75309f631c93b040df6a64e12206e0d926becbe49b7bc0e6e0f",
+      "af1762d6d751f1d4abb2dbc9702178e997320274bd04eae65bdbc750394622b8",
+      "662e2d1a7f98825ba0269bb626b511929d4ca45de7153a8d26341128759e4b4b",
+      "632fd5a4654de2459146d34872fa77768a44642d31595c6d339d502b08ca83f6",
+      "3f2288e84cf585f996f3dcdaee3e1fee399b8533d67456c464be0df56f79cefa",
+      "c3a3295ae7cd2964bd7411214e72086e9e22ea08e2b745ace2adc381a5c36860",
+      "cc7626d3656e9abac8c29a4c1fec24fc7f40ff5ad9d73f3b7b803d995f8258e7",
+      "71a318ded6d3bb9ab2071374690abf5205df20fa250abc011336a637a91ef15b",
+      "5d3740164dc215a6a06634a2dc2b0736ce465ce63093d053c50134d95038047f",
+      "8513087ca52f8b5f4a82a54036b53f57c14a6633588d19e08292b8868899c3da",
+      "b32119cab91df03e2ff4c3d8ce8bc3bff0afc1acdbb62d2a485cc8a1cb9837c4",
+      "2fe84f3d3585f9d3a3142a8465bab74cb98828b4820c65ff325adde933877fd8",
+      "c94eae787cb379990e9acc967d76c1217f39b4691f5b2d4c23aa22a978aae325",
+      "f14c38fcd1acbc78f5e715e99b1e345dc6172ddfbe41bd7fbd3d24d288ed617b"
+    ],
+    "src/components/auth/AuthCard.tsx": [
+      "7da57c9f8545fb59a4794409aa9f474cffd691dbfa8c16e733a54423eaf108c0",
+      "cba9c30443073c97d11aa345c0c7f8f4d93c39528d57001c2cbbed616378b789",
+      "2f1154749107a244cf8a14378c535e647e7336d25485275e3a61332d5b6b68ef",
+      "9766a708e05c48b28519d3cc08d15d569ce2f625c37f16b4a28c268da60cf887",
+      "b730d5eff5998d69ea7070a22a50d4a81607bd60c482e303dc803044d70d06ce",
+      "9bf82dc288e16f052fa54a2e3abf0d190c2855930318ee3f6f40df85c35bfa1e",
+      "f14c38fcd1acbc78f5e715e99b1e345dc6172ddfbe41bd7fbd3d24d288ed617b"
+    ],
+    "src/components/auth/AuthLogo.tsx": [
+      "142013d5257b412d9f60250dfd0d4de71a33b65324eec04109c302953a0da055",
+      "073799b7b5db805e7f0fa107a1ae2f519438f5ce2e22c5adc9835a5040908ab2",
+      "63a4829bb565dfbe7906d68c404923150fc8281f049ba1ebe2b349ce6ac68437"
+    ],
+    "src/components/auth/SocialButton.tsx": [
+      "25b7f99178df8e439d20e558247b50921390058651440d93bd0f335a52501cb1"
+    ],
+    "src/components/auth/OtpInputs.tsx": [
+      "0f81dcf61aa466970847d7af072f0594008e096fcbbad9e48918f9711f531fec",
+      "0cf39cc1335a4d1df1bf60817296dfe876782d0a6814772d1c882fd3c2bbb963"
+    ]
+  },
+  "recipes": {
+    "flowTitleClass": "font-display text-[clamp(28px,2.6vw,40px)] leading-[1.12] tracking-[-0.03em] text-ink",
+    "inputClass": "w-full rounded-field border border-line-input bg-paper px-3.5 py-3 font-gsf text-[15px] leading-6 text-ink placeholder:text-subtle focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink",
+    "labelClass": "font-gsf text-sm font-semibold leading-[21px] text-ink",
+    "backClass": "inline-flex w-fit items-center gap-1.5 font-gsf text-sm font-medium text-ink-soft transition-colors hover:text-ink"
+  },
+  "assets": {
+    "src/assets/signup/logo-mark.svg": "9cd716190f65f820a8092ee44b9c903a7d74b0a6590c251836071f9cf794d125",
+    "src/assets/signup/logo-wordmark.svg": "356e3c41149a6472032dc650dfb36507d7710e4dae1a341dfcdd94a7749dde4e",
+    "src/assets/signup/google-icon.svg": "c731a9b5348ed07c2198be879d9b03e0c1ac24d7178fcc29330e0a79c9955194",
+    "src/assets/signup/facebook-icon.svg": "f8d6c9b90e823420980603886d04be4a4527ad1e98541c0bf322971f908cbd88"
+  }
+}

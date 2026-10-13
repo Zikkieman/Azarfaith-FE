@@ -353,6 +353,11 @@ export const updateOrganizationDraft = (id: string, payload: SaveOrganizationDra
     body: JSON.stringify(payload),
   });
 
+export const deleteOrganizationDraft = (id: string) =>
+  apiFetch<{ id: string; deleted: true }>(`/organizations/drafts/${id}`, {
+    method: "DELETE",
+  });
+
 export const submitOrganizationDraft = (id: string) =>
   apiFetch<Org>(`/organizations/${id}/submit`, {
     method: "POST",
@@ -393,6 +398,11 @@ export const updateCampaignDraft = (id: string, payload: SaveCampaignDraftPayloa
   apiFetch<Campaign>(`/campaigns/${id}/draft`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+
+export const deleteCampaignDraft = (id: string) =>
+  apiFetch<{ id: string; deleted: true }>(`/campaigns/drafts/${id}`, {
+    method: "DELETE",
   });
 
 export const submitCampaignDraft = (id: string) =>

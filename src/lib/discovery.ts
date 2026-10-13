@@ -1,4 +1,5 @@
 import type { Campaign, CampaignFrequency, Org } from "@/lib/catalog";
+import { faithCategoryOptions } from "@/lib/catalog";
 
 export type DiscoveryView = "all" | "urgent" | "nearly" | "regular" | "new" | "one-time";
 export type DiscoverySort = "urgent" | "nearly" | "newest" | "givers";
@@ -31,4 +32,10 @@ export function activityDate(activity: { date: string; createdAt?: string }) {
   return Number.isNaN(Date.parse(timestamp))
     ? activity.date
     : new Date(timestamp).toLocaleDateString();
+}
+
+export function discoveryCategory(cause?: string) {
+  return faithCategoryOptions.find(
+    (category) => category.label === cause || category.value === cause,
+  )?.value;
 }

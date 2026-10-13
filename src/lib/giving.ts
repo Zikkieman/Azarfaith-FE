@@ -9,6 +9,12 @@ export const givingDate = (value: string) =>
     timeZone: "UTC",
   }).format(new Date(value));
 export const frequencyLabels = { weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly" };
+export const everyLabel = {
+  weekly: "every week",
+  monthly: "every month",
+  quarterly: "every quarter",
+};
+export const giftPresets = [5000, 10000, 25000, 50000];
 export const donationDate = (donation: DonationHistoryItem) =>
   donation.paidAt ?? donation.createdAt;
 
@@ -21,6 +27,45 @@ export function givingSummary(donations: DonationHistoryItem[], now = new Date()
       .reduce((sum, donation) => sum + donation.amount, 0),
     campaigns: new Set(successful.map((donation) => donation.campaignId)).size,
     receipts: successful.length,
+  };
+}
+
+export function currentGifts(gifts: RecurringDonation[]) {
+  return gifts.filter(
+    (gift) =>
+      (gift.active || gift.status === "paused") &&
+      !["cancelled", "completed"].includes(gift.status),
+  );
+}
+
+export function givingOverview(
+  donations: DonationHistoryItem[],
+  gifts: RecurringDonation[],
+  now = new Date(),
+) {
+  const year = now.getUTCFullYear();
+  const yearly = donations.filter(
+    (donation) =>
+      donation.status === "succeeded" && donationDate(donation).startsWith(String(year) + "-"),
+  );
+  const current = currentGifts(gifts);
+  const upcoming = current
+    .filter(
+      (gift) =>
+        gift.status === "on_track" &&
+        !gift.hasPendingPayment &&
+        Number.isFinite(Date.parse(gift.nextDate)),
+    )
+    .sort((a, b) => Date.parse(a.nextDate) - Date.parse(b.nextDate))[0];
+  return {
+    ...givingSummary(donations, now),
+    year,
+    yearGiven: yearly.reduce((sum, donation) => sum + donation.amount, 0),
+    yearReceipts: yearly.length,
+    activeCount: current.filter((gift) => gift.status !== "paused").length,
+    pausedCount: current.filter((gift) => gift.status === "paused").length,
+    upcoming,
+    dueNow: Boolean(upcoming && Date.parse(upcoming.nextDate) <= now.getTime()),
   };
 }
 
@@ -111,6 +156,29 @@ export function receiptHtml(donation: DonationDetail) {
     ["Reference", donation.reference],
   ];
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>AzarFaith donation receipt</title><style>body{font:16px Georgia,serif;color:#130e30;max-width:680px;margin:40px auto;padding:24px}h1{border-bottom:2px solid #f59e0b;padding-bottom:20px}th,td{text-align:left;vertical-align:top;padding:12px;overflow-wrap:anywhere;border-bottom:1px solid #eee}table{width:100%;table-layout:fixed}th{width:35%}@media print{body{margin:0}}</style></head><body><h1>AzarFaith</h1><h2>Donation receipt</h2><table>${rows.map(([label, value]) => `<tr><th>${escape(label)}</th><td>${escape(value)}</td></tr>`).join("")}</table><p>Keep this receipt for your giving records. Use your browser's Print option to print or save as PDF.</p></body></html>`;
+}
+
+export function receiptsHtml(donations: DonationDetail[]) {
+  if (!donations.length) throw new Error("No successful receipts to download.");
+  const documents = donations.map(receiptHtml);
+  const first = documents[0];
+  const start = first.indexOf("<body>") + "<body>".length;
+  const end = first.lastIndexOf("</body>");
+  return (
+    first.slice(0, start) +
+    documents
+      .map(
+        (document) =>
+          '<section style="break-after:page">' +
+          document.slice(
+            document.indexOf("<body>") + "<body>".length,
+            document.lastIndexOf("</body>"),
+          ) +
+          "</section>",
+      )
+      .join("") +
+    first.slice(end)
+  );
 }
 
 export function validateGiftChange(

@@ -1,17 +1,47 @@
 import { useState } from "react";
+import { CauseLightbox } from "@/components/app/CauseLightbox";
 import { Link } from "@tanstack/react-router";
-import { Calendar, MapPin } from "lucide-react";
-import { formatMoney, type Org, type Campaign } from "@/lib/catalog";
-import { isPublished } from "@/lib/discovery";
-import { PublicShell } from "./PublicShell";
-import { PhotoGallery } from "./PhotoGallery";
-import { CampaignCard, VerifiedBadge } from "./CatalogCards";
-import { GiveBox } from "./GiveBox";
-import { ShareCause } from "./ShareCause";
+import { Calendar, Church, Link2, MapPin, Users } from "lucide-react";
+import { Photo } from "@/components/app/Photo";
+import {
+  AppShell,
+  Container,
+  EmptyState,
+  SectionHeading,
+  Tag,
+  VerifiedBadge,
+  cardClass,
+  smallHeadingClass,
+} from "@/components/app/AppShell";
+import { btn } from "@/components/app/btn";
+import { GiveBox } from "@/components/app/GiveBox";
+import { CampaignCard } from "@/components/app/CampaignCard";
+import { formatMoney, type Campaign, type Org } from "@/lib/catalog";
+import { dashboardCompactMoney as formatCompactMoney } from "@/lib/dashboard";
+import { activityDate, isPublished } from "@/lib/discovery";
+import { shareCause } from "@/lib/share-cause";
+import { cn } from "@/lib/utils";
 
+const orgCategoryLabel: Record<string, string> = {
+  church: "Church",
+  mission: "Mission",
+  orphanage: "Orphanage",
+  school: "Faith school",
+  other: "Ministry",
+};
+
+const tiers = [
+  { amount: 2000, name: "Friend", line: "A steady gift they can plan around." },
+  { amount: 5000, name: "Partner", line: "Covers a real, recurring cost every month." },
+  { amount: 10000, name: "Sponsor", line: "Carries a whole line of their monthly budget." },
+];
+
+/**
+ * Organization page (after Buy Me a Coffee's creator page): a photo mosaic, who they are, and on
+ * the right, give once or become a regular giver without leaving.
+ */
 export function OrganizationPublicView({
-  organization,
-  authenticated,
+  organization: org,
   isOwner,
   onManage,
 }: {
@@ -20,182 +50,301 @@ export function OrganizationPublicView({
   isOwner: boolean;
   onManage: () => void;
 }) {
-  const [selectedId, setSelectedId] = useState("");
-  const published = isPublished(organization);
-  const campaigns = organization.campaigns.filter(isPublished);
-  const selected = campaigns.find((campaign) => campaign.id === selectedId) ?? campaigns[0];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const published = isPublished(org);
+  const campaigns = org.campaigns.filter(isPublished);
+  const main = published
+    ? (campaigns.find((c) => c.mode === "ongoing") ?? campaigns[0])
+    : undefined;
+  const ongoing = published
+    ? campaigns.find((c) => c.mode === "ongoing" && c.frequencies?.includes("monthly"))
+    : undefined;
+  const givers = campaigns
+    .flatMap((c) => c.donations.map((d) => ({ ...d, campaign: c.title })))
+    .sort((a, b) => Date.parse(b.createdAt ?? b.date) - Date.parse(a.createdAt ?? a.date))
+    .slice(0, 5);
+  const photos = org.photos.length ? org.photos : [];
+  const share = () => void shareCause("org", org.id, org.name, true);
   return (
-    <PublicShell>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <Link to="/discover" className="text-sm text-muted-foreground">
-          ← Back to discover
-        </Link>
-        {isOwner && (
-          <button className="public-button-outline" onClick={onManage}>
-            Manage organization
-          </button>
-        )}
-      </div>
-      <PhotoGallery photos={organization.photos} title={organization.name} panoramic />
-      <header className="py-8 md:py-10">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
-            {organization.category === "other"
-              ? organization.otherCategoryLabel || "Other ministry"
-              : organization.category}
-          </span>
-          {published ? (
-            <VerifiedBadge />
-          ) : (
-            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
-              {organization.isDraft
-                ? "Draft"
-                : organization.reviewAction === "rejected"
-                  ? "Not approved"
-                  : "Awaiting review"}
-            </span>
-          )}
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{organization.name}</h1>
-        <p className="mt-3 max-w-3xl text-lg leading-relaxed text-muted-foreground">
-          {organization.tagline}
-        </p>
-        <div className="mt-5 flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="h-4 w-4" />
-            {organization.location}
-          </span>
-          {organization.founded && (
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              Est. {organization.founded}
-            </span>
-          )}
-          {organization.denomination && <span>{organization.denomination}</span>}
-        </div>
-      </header>
-      {published && selected && (
-        <a
-          href={`#give-${selected.id}`}
-          className="public-button mb-6 w-full justify-center lg:hidden"
-        >
-          Support this organization
-        </a>
-      )}
-      {!published && (
-        <div role="status" className="mb-8 rounded-xl bg-amber-50 p-5 text-sm text-amber-900">
-          This organization isn't public yet.{" "}
-          {organization.reviewReason ||
-            "Once approved, donors will be able to discover and support its campaigns."}
-        </div>
-      )}
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px] xl:gap-12">
-        <div className="min-w-0">
-          <div className="grid grid-cols-3 gap-3 border-y border-stone-100 py-6">
-            <div>
-              <strong className="block text-lg md:text-2xl">
-                {formatMoney(organization.totalReceived)}
-              </strong>
-              <span className="mt-1 block text-xs text-muted-foreground">Total received</span>
-            </div>
-            <div>
-              <strong className="block text-lg md:text-2xl">{campaigns.length}</strong>
-              <span className="mt-1 block text-xs text-muted-foreground">Published campaigns</span>
-            </div>
-            <div>
-              <strong className="block text-lg md:text-2xl">{organization.supporters}</strong>
-              <span className="mt-1 block text-xs text-muted-foreground">Campaign supporters</span>
-            </div>
-          </div>
-          <section className="mt-8">
-            <h2 className="text-xl font-semibold">About our mission</h2>
-            <p className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-muted-foreground">
-              {organization.bio}
+    <AppShell
+      bottomBar={
+        main ? (
+          <div className="flex items-center gap-3">
+            <p className="min-w-0 flex-1 truncate text-sm text-muted-ink">
+              <span className="font-semibold text-ink">
+                {org.supporters.toLocaleString()} givers
+              </span>{" "}
+              support {org.name}
             </p>
-          </section>
-          {organization.links.length > 0 && (
-            <section className="mt-8">
-              <h2 className="text-lg font-semibold">Find us online</h2>
-              <ul className="mt-3 space-y-3">
-                {organization.links
-                  .filter((url) => /^https?:\/\//i.test(url))
-                  .map((url) => (
-                    <li key={url}>
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="break-all text-sm text-orange-600 underline underline-offset-4"
-                      >
-                        {url}
-                      </a>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-          )}
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold">Support our campaigns</h2>
-            {campaigns.length ? (
-              <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                {campaigns.map((campaign) => (
-                  <CampaignCard key={campaign.id} campaign={campaign} />
-                ))}
-              </div>
-            ) : (
-              <div className="public-panel mt-5 p-6 text-sm text-muted-foreground">
-                No campaigns are open for donations yet.
-                {isOwner && (
-                  <>
-                    {" "}
-                    <Link to="/create" className="text-orange-600 underline">
-                      Create a campaign
-                    </Link>{" "}
-                    or use Manage organization to review your submissions.
-                  </>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
-        <aside className="space-y-6 lg:sticky lg:top-24">
-          {selected && published ? (
-            <>
-              {campaigns.length > 1 && (
-                <div>
-                  <label htmlFor="organization-campaign" className="mb-2 block text-sm font-medium">
-                    Choose a campaign to support
-                  </label>
-                  <select
-                    id="organization-campaign"
-                    className="public-input"
-                    value={selected.id}
-                    onChange={(event) => setSelectedId(event.target.value)}
-                  >
-                    {campaigns.map((campaign) => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <GiveBox key={selected.id} campaign={selected} authenticated={authenticated} />
-            </>
-          ) : (
-            <div className="public-panel p-6">
-              <h2 className="text-lg font-semibold">Support this organization</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                Giving will be available when an approved campaign is published here.
+            <button
+              type="button"
+              onClick={() =>
+                document.getElementById("give")?.scrollIntoView({ behavior: "smooth" })
+              }
+              className={btn("primary")}
+            >
+              Give
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
+      <div className="grid h-[200px] grid-cols-3 gap-1 overflow-hidden bg-panel sm:h-[260px] md:grid-cols-4 lg:h-[300px]">
+        {[...photos, ...photos].slice(0, 4).map((p, i) => (
+          <button
+            type="button"
+            key={i}
+            aria-label={"Enlarge organization photo " + (i + 1)}
+            className={cn("h-full min-w-0 cursor-zoom-in", i === 3 && "hidden md:block")}
+            onClick={() => {
+              setPhotoIndex(i % photos.length);
+              setPhotosOpen(true);
+            }}
+          >
+            <Photo src={p} className="h-full" imgClassName="halftone" />
+          </button>
+        ))}
+      </div>
+
+      <CauseLightbox
+        photos={photos}
+        index={photoIndex}
+        onIndex={setPhotoIndex}
+        title={org.name}
+        open={photosOpen}
+        onOpenChange={setPhotosOpen}
+      />
+      <Container className="pb-16">
+        <div className="flex flex-col gap-4 border-b border-line-soft pb-6 pt-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:gap-4">
+            <Photo
+              src={photos[0]}
+              className="relative -mt-12 h-20 w-20 shrink-0 rounded-card object-cover ring-4 ring-paper sm:-mt-16 sm:h-28 sm:w-28"
+            />
+            <div className="min-w-0 pb-1">
+              <h1 className="flex flex-wrap items-center gap-2 font-display text-[clamp(26px,2.8vw,38px)] leading-tight tracking-[-0.02em] text-ink">
+                {org.name}
+                {published ? <VerifiedBadge label={null} /> : null}
+              </h1>
+              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-ink">
+                <span className="inline-flex items-center gap-1.5">
+                  <Users className="h-4 w-4" strokeWidth={1.5} />
+                  {org.supporters.toLocaleString()} givers
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4" strokeWidth={1.5} /> {org.location}
+                </span>
+                {org.verificationStatus !== "verified" ? (
+                  <Tag>
+                    {org.verificationStatus === "pending"
+                      ? "Verification pending"
+                      : org.isDraft
+                        ? "Draft"
+                        : org.reviewAction === "rejected"
+                          ? "Not approved"
+                          : "Not verified yet"}
+                  </Tag>
+                ) : null}
               </p>
             </div>
-          )}
-          <section className="public-panel p-6">
-            <h2 className="mb-4 font-semibold">Share our mission</h2>
-            <ShareCause path={`/org/${organization.id}`} title={organization.name} />
-          </section>
-        </aside>
-      </div>
-    </PublicShell>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {isOwner && (
+              <button type="button" className={btn("secondary", "sm")} onClick={onManage}>
+                Manage organization
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={share}
+              className={cn(btn("secondary", "sm"), "self-start sm:self-auto")}
+            >
+              <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share
+            </button>
+          </div>
+        </div>
+
+        {!published && (
+          <p role="status" className="mt-5 rounded-field bg-panel p-4 text-sm text-ink-soft">
+            Organization preview. This organization is not public yet.{" "}
+            {org.reviewReason ||
+              "Once approved, donors will be able to discover and support its campaigns."}
+          </p>
+        )}
+        <div className="grid gap-8 pt-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-10">
+          <div className="flex min-w-0 flex-col gap-10">
+            <section className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+              <p className={smallHeadingClass}>About {org.name}</p>
+              <p className="text-[17px] font-medium leading-[1.5] text-ink">{org.tagline}</p>
+              <p className="text-[15px] leading-[1.7] text-ink-soft">{org.bio}</p>
+              <dl className="grid gap-3 border-t border-line-soft pt-4 sm:grid-cols-3">
+                {[
+                  {
+                    icon: Church,
+                    label:
+                      org.category === "other"
+                        ? org.otherCategoryLabel || "Ministry"
+                        : orgCategoryLabel[org.category],
+                    sub: org.denomination,
+                  },
+                  { icon: Calendar, label: `Since ${org.founded}`, sub: "Founded" },
+                  {
+                    icon: Users,
+                    label: formatCompactMoney(org.totalReceived),
+                    sub: "Received on AzarFaith",
+                  },
+                ].map((f) => (
+                  <div key={f.sub} className="flex items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-ink-soft">
+                      <f.icon className="h-4 w-4" strokeWidth={1.5} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-ink">{f.label}</span>
+                      <span className="block truncate text-[12px] text-muted-ink">{f.sub}</span>
+                    </span>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section className="flex flex-col gap-5">
+              <SectionHeading
+                aside={<span className="text-sm text-muted-ink">{campaigns.length}</span>}
+              >
+                Campaigns
+              </SectionHeading>
+              {campaigns.length ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {campaigns.map((c) => (
+                    <CampaignCard key={c.id} campaign={c} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No campaigns yet"
+                  body={`${org.name} hasn't started a campaign. Share their page so they're ready when they do.`}
+                  action={
+                    <button type="button" onClick={share} className={btn("secondary")}>
+                      Copy link
+                    </button>
+                  }
+                />
+              )}
+            </section>
+
+            {org.links.length ? (
+              <section className={cn(cardClass, "flex flex-col gap-4 p-5 sm:p-6")}>
+                <p className={smallHeadingClass}>Relevant public links</p>
+                <ul className="space-y-2 text-sm text-ink-soft">
+                  {org.links
+                    .filter((link) => /^https?:\/\//i.test(link))
+                    .map((link, i) => (
+                      <li key={i}>
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="break-all underline underline-offset-2"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {givers.length ? (
+              <section className="flex flex-col gap-5">
+                <SectionHeading>Recent givers</SectionHeading>
+                <ul className="flex flex-col gap-5">
+                  {givers.map((g) => (
+                    <li key={g.id} className="flex gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-panel text-sm font-semibold text-ink-soft">
+                        {g.donor.charAt(0)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-ink-soft">
+                          <span className="font-medium text-ink">{g.donor}</span> gave{" "}
+                          {formatMoney(g.amount)} to {g.campaign}
+                        </p>
+                        {g.note ? (
+                          <p className="mt-1.5 max-w-[560px] rounded-[14px] rounded-tl-[4px] bg-panel px-3.5 py-2.5 text-sm leading-[1.5] text-ink">
+                            {g.note}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-[12px] text-subtle">{activityDate(g)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
+            {main ? (
+              <div
+                id="give"
+                className={cn(cardClass, "flex scroll-mt-20 flex-col gap-4 p-5 sm:p-6")}
+              >
+                <div>
+                  <p className="font-display text-[22px] leading-tight text-ink">
+                    Give to {org.name}
+                  </p>
+                  <p className="mt-1 text-[13px] text-muted-ink">
+                    Your gift goes to{" "}
+                    <Link
+                      to="/campaign/$id"
+                      params={{ id: main.id }}
+                      className="underline underline-offset-2 hover:text-ink"
+                    >
+                      {main.title}
+                    </Link>
+                  </p>
+                </div>
+                <GiveBox campaign={main} />
+              </div>
+            ) : null}
+
+            {ongoing ? (
+              <div className={cn(cardClass, "flex flex-col gap-3 p-5 sm:p-6")}>
+                <p className="font-display text-[20px] leading-tight text-ink">
+                  Become a regular giver
+                </p>
+                <ul className="flex flex-col gap-2.5">
+                  {tiers.map((t) => (
+                    <li
+                      key={t.name}
+                      className="flex items-center gap-3 rounded-field border border-line-soft p-3.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-ink">
+                          {t.name}{" "}
+                          <span className="font-normal text-muted-ink">
+                            {formatMoney(t.amount)} a month
+                          </span>
+                        </p>
+                        <p className="text-[13px] text-muted-ink">{t.line}</p>
+                      </div>
+                      <Link
+                        to="/donate/$id"
+                        params={{ id: ongoing.id }}
+                        search={{ freq: "monthly", amount: String(t.amount) }}
+                        className={btn("secondary", "sm")}
+                      >
+                        Join
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[12px] text-muted-ink">Change or stop any time in My giving.</p>
+              </div>
+            ) : null}
+          </aside>
+        </div>
+      </Container>
+    </AppShell>
   );
 }

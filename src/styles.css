@@ -3,6 +3,9 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "./components/landing/landing.css";
+@import "./components/auth/auth.css";
+@import "./components/app/app.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -13,7 +16,7 @@
   --color-ink: #130e30;
   --color-ink-soft: #4a4660;
   --color-muted-ink: #667085;
-  --color-line-soft: #eae8ed;
+  --color-line-soft: var(--af-line-soft, #eae8ed);
   --color-line-input: #d0d5dd;
   --color-brand: #fe5102;
   --color-brand-ink: #a63a05;
