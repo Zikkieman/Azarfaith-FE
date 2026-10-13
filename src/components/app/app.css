@@ -106,3 +106,19 @@
     animation: none;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .designer-app .bar-rise {
+    transform-origin: bottom;
+    animation: designer-admin-bar-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+@keyframes designer-admin-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.designer-app .admin-rise :is(h1, p, dd, a) {
+  overflow-wrap: anywhere;
+}

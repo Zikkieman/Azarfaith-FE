@@ -29,6 +29,7 @@ import {
 import type { Org } from "@/lib/catalog";
 import {
   countWords,
+  hasOrganizationDraftContent,
   orgForm,
   organizationErrors,
   organizationPayload,
@@ -168,6 +169,20 @@ function OrganizationEditor({ draft, userId }: { draft?: Org; userId: string }) 
     savingLock.current = true;
     mutation.mutate({ submit: true, exit: false });
   };
+  const saveAndExit = () => {
+    if (busy || savingLock.current) return;
+    if (link.trim()) {
+      setLinkError("Add this link or clear the field before saving and exiting.");
+      return;
+    }
+    if (!hasOrganizationDraftContent(form)) {
+      toast.info("Add at least one detail before saving an organization draft.");
+      void navigate({ to: "/dashboard" });
+      return;
+    }
+    savingLock.current = true;
+    mutation.mutate({ submit: false, exit: true });
+  };
 
   const orgDraft = {
     name: form.name,
@@ -263,15 +278,7 @@ function OrganizationEditor({ draft, userId }: { draft?: Org; userId: string }) 
       steps={steps}
       current={step}
       busy={busy}
-      onExit={() => {
-        if (busy || savingLock.current) return;
-        if (link.trim()) {
-          setLinkError("Add this link or clear the field before saving and exiting.");
-          return;
-        }
-        savingLock.current = true;
-        mutation.mutate({ submit: false, exit: true });
-      }}
+      onExit={saveAndExit}
       exitLabel={mutation.isPending ? "Saving..." : "Save and exit"}
       previewLabel="Your public profile"
       preview={preview}

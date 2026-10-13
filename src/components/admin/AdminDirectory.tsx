@@ -36,11 +36,17 @@ const labels: Record<Action, string> = {
 const titleCase = (value: string | null) =>
   value?.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "-";
 
-export function AdminDirectory({ entity }: { entity: DirectoryEntity }) {
+export function AdminDirectory({
+  entity,
+  initialStatus = "",
+}: {
+  entity: DirectoryEntity;
+  initialStatus?: string;
+}) {
   const client = useQueryClient();
   const [filters, setFilters] = useState<Record<string, string>>({
     search: "",
-    status: "",
+    status: initialStatus,
     category: "",
     mode: "",
     type: "",

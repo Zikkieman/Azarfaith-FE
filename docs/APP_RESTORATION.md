@@ -262,14 +262,55 @@ Missing review flags are never inferred as completed.
   Extended panel/page heights are explicitly excluded, not silently ignored.
   Paired images/report: /private/tmp/azarfaith-creation-parity.
 
+## Admin Overview Restoration
+
+- /admin: original review-first overview, two queues, four-value giving strip,
+  7/30-day source column chart and audit timeline. Source layout/classes are copied,
+  not replaced by the earlier analytics/card grid. Greeting uses the real admin.
+- Shared admin frame, breadcrumb header, grouped Review/Directory sidebar, source
+  mobile drawer, account dropdown and command-palette markup are restored. The
+  existing payout destination and dedicated /admin/profile remain accessible.
+  This does not claim restoration of each directory/detail/settings page's body.
+- Queue previews use the paginated directory API (four records, real total count),
+  actual submission dates and saved check counts. Pending links actually filter
+  lists, and All directory links clear that view. Campaigns retain priority order.
+  The binary backend checklist cannot invent prototype failed-check states.
+- Giving uses real successful-only analytics and prior-period percentages. New
+  users are not mislabeled as newly donating givers. Thirty days are grouped into
+  seven-day buckets including the final partial week, rather than discarding dates
+  to mimic the prototype's four weekly samples. Dates use the API's UTC periods.
+- Click the giving chart's total to open the source-style reporting dialog. This
+  retains existing platform totals, all five reporting metrics and daily CSV,
+  without adding a row or shifting Recent activity on the original overview.
+- Timeline uses real audit actors/actions/reasons; no fictional sample decisions.
+  Notifications retain the real per-admin read state, unread totals, paging and
+  read-all snapshot, with source-admin styling and half-screen scroll height.
+- Search queries real record directories, guards stale results and preserves
+  keyboard navigation and retry. Logout still calls the server and clears caches.
+  Role/session rejection rechecks the cookie session and removes private data;
+  explicit panel/request gates prevent stale content during redirects.
+- Existing APIs cover the screen: directory, analytics, audit activity, dashboard,
+  giving-control, inbox, session/logout. No new endpoint or DB migration is needed.
+- Source manifest: tests/fixtures/admin-overview-design.json. All 35 original
+  overview style expressions and the core header/chart/palette/skeleton recipes
+  are retained. Frame/sidebar exceptions are namespacing, fallback avatars,
+  accessible real logout and additional payout access. The original mock inbox
+  store is deliberately not copied. A clipped sr-only wrapper fixes the chart's
+  narrow-screen hidden-table overflow without changing its visible appearance.
+- tests/browser/admin-overview-parity.mjs checks pending/empty states at
+  390/820/1024/1440px, including measured section positions, heights, fonts, colors
+  and radii within 1px. Equalized images/counts are test-only. The unchanged
+  reference is entered through its client-side prototype auth to avoid its own
+  mock-session SSR mismatch. Artifacts: /private/tmp/azarfaith-admin-parity.
+
 ## Remaining Reference Screens
 
 The audit confirms these actual reference screens still need faithful restoration:
 
-| Group             | Reference screens                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------ |
-| Admin             | Overview; org/campaign/user lists and record tabs; Activity; Settings; sidebar review/directory groups |
-| Public experience | `/story`, `/jos`, standalone `/map`, original long-form content page layouts                           |
+| Group             | Reference screens                                                            |
+| ----------------- | ---------------------------------------------------------------------------- |
+| Admin             | Org/campaign/user lists and record tabs; Activity; Settings                  |
+| Public experience | `/story`, `/jos`, standalone `/map`, original long-form content page layouts |
 
 Preserve existing additional management, receipt, callback, admin-login/profile,
 and payout routes without presenting them as designer-source screens.
@@ -281,6 +322,16 @@ closure, organizer messaging, richer map data, and approved editorial/legal data
 Those are not silently replaced by fake successes.
 
 ## Verification
+
+Admin overview follow-up: all 105 frontend Node tests, 17 overview browser cases,
+10 existing admin workflow cases and eight enforced source/live pending/empty
+layout comparisons passed. All measured section positions and heights match,
+not just style expressions. TypeScript, targeted ESLint, production client/SSR
+build and whitespace checks passed. The designer reference is unchanged. No
+backend edits, DB writes, real emails, uploads or payments were performed.
+Isolated QA servers were stopped; the user development server was untouched.
+This phase remains local and unpushed; directory/detail/activity/settings page
+bodies and remaining public screens are still separate restoration work.
 
 Creation/profile follow-up: all 99 frontend Node tests, 19 creation browser cases,
 28 profile/notification browser cases and 12 enforced source/live core layout

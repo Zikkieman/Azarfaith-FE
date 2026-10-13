@@ -18,7 +18,16 @@ import { safeNotificationLink } from "@/lib/profile";
 
 type InboxItem = UserNotification | AdminInboxPage["items"][number];
 
-export function NotificationMenu({ userId, admin = false }: { userId: string; admin?: boolean }) {
+export function NotificationMenu({
+  userId,
+  admin = false,
+  appearance,
+}: {
+  userId: string;
+  admin?: boolean;
+  appearance?: "designer-admin";
+}) {
+  const design = appearance === "designer-admin";
   const [open, setOpen] = useState(false);
   const client = useQueryClient();
   const queryKey = admin ? ["admin", "inbox", userId] : ["notifications", userId];
@@ -70,11 +79,24 @@ export function NotificationMenu({ userId, admin = false }: { userId: string; ad
         <button
           type="button"
           aria-label={`${label}${unread ? `, ${unread} unread` : ""}`}
-          className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-current/20"
+          className={
+            design
+              ? "relative grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-ink transition-colors hover:bg-panel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              : "relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-current/20"
+          }
         >
-          <Bell className="h-4 w-4" />
+          <Bell
+            className={design ? "h-[18px] w-[18px]" : "h-4 w-4"}
+            strokeWidth={design ? 1.75 : 2}
+          />
           {unread !== undefined && unread > 0 && (
-            <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[10px] leading-5 text-white">
+            <span
+              className={
+                design
+                  ? "absolute right-1.5 top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white"
+                  : "absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[10px] leading-5 text-white"
+              }
+            >
               {unread > 99 ? "99+" : unread}
             </span>
           )}
@@ -87,10 +109,24 @@ export function NotificationMenu({ userId, admin = false }: { userId: string; ad
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/10" />
-        <Dialog.Content className="fixed right-3 top-[72px] z-[61] flex max-h-[50dvh] w-[calc(100vw-24px)] max-w-[400px] flex-col overflow-hidden rounded-2xl border border-[#e9e6ef] bg-white text-[#130e30] shadow-xl">
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#efedf3] p-4">
+        <Dialog.Content
+          className={
+            design
+              ? "designer-app fixed right-4 top-16 z-[61] flex max-h-[50dvh] w-[min(380px,calc(100vw-32px))] flex-col overflow-hidden rounded-field border border-line-soft bg-paper font-gsf text-heading shadow-[0_24px_64px_-20px_rgba(19,14,48,0.3)] lg:right-[max(32px,calc((100vw-1640px)/2+32px))]"
+              : "fixed right-3 top-[72px] z-[61] flex max-h-[50dvh] w-[calc(100vw-24px)] max-w-[400px] flex-col overflow-hidden rounded-2xl border border-[#e9e6ef] bg-white text-[#130e30] shadow-xl"
+          }
+        >
+          <div
+            className={
+              design
+                ? "flex shrink-0 items-start justify-between gap-3 border-b border-line-soft px-4 py-3"
+                : "flex shrink-0 items-start justify-between gap-3 border-b border-[#efedf3] p-4"
+            }
+          >
             <div>
-              <Dialog.Title className="font-semibold">{label}</Dialog.Title>
+              <Dialog.Title className={design ? "text-sm font-semibold text-ink" : "font-semibold"}>
+                {label}
+              </Dialog.Title>
               <Dialog.Description className="mt-1 text-xs text-[#777283]">
                 {admin
                   ? "Submissions, registrations, payments and admin decisions. Read state is private to your admin account."
@@ -160,7 +196,11 @@ export function NotificationMenu({ userId, admin = false }: { userId: string; ad
                   {items.map((item) => (
                     <li
                       key={item.id}
-                      className={`rounded-xl border p-3 ${item.read ? "border-[#efedf3]" : "border-amber-200 bg-amber-50/50"}`}
+                      className={
+                        design
+                          ? `border-b border-line-soft p-3 last:border-0 ${item.read ? "" : "bg-brand/[0.03]"}`
+                          : `rounded-xl border p-3 ${item.read ? "border-[#efedf3]" : "border-amber-200 bg-amber-50/50"}`
+                      }
                     >
                       <Link
                         to={

@@ -352,6 +352,21 @@ try {
     { saveFailure: true },
   );
   await run(
+    "Empty creation exits without creating a draft",
+    async ({ page, requests }) => {
+      await page.goto(origin + "/register-org");
+      await page.getByRole("button", { name: "Save and exit", exact: true }).click();
+      await page.waitForURL(origin + "/dashboard");
+      assert.equal(saveCalls(requests).length, 0);
+
+      await page.goto(origin + "/create");
+      await page.getByRole("heading", { name: "Start from a template", exact: true }).waitFor();
+      await page.getByLabel("Close").click();
+      await page.waitForURL(origin + "/dashboard");
+      assert.equal(saveCalls(requests).length, 0);
+    },
+  );
+  await run(
     "Organization drafts resume, enforce words and submit real pending records",
     async ({ page, requests }) => {
       await page.goto(origin + "/register-org?draftId=draft-org");

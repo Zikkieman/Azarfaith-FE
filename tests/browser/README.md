@@ -14,6 +14,15 @@ Create `/private/tmp/azarfaith-qa` for screenshot output before running.
 
 Run each file with Node:
 
+- `tests/browser/admin-overview.mjs`: source overview at four widths, pending
+  deep-links and active navigation, real counts/checks, range/metric/CSV reporting,
+  empty/outage recovery, giving pause notice, search, admin profile/logout, inbox
+  read/pagination and guest/donor/expired-session gates. FE 18221/API 19000.
+- `tests/browser/admin-overview-parity.mjs`: eight pending/empty source/live
+  comparisons at 390/820/1024/1440px, including section heights and positions.
+  Source 18220; live FE 18221/API 19000. Fixture prototype auth is reference-only.
+  Uses `QA_REFERENCE_URL`, `QA_FE_URL`, `QA_API_URL` and `QA_ARTIFACTS` overrides.
+
 - `tests/browser/creation-restoration.mjs`: source organization wizard/campaign
   builder at 320/390/820/1440px, draft save/resume/failure, template preservation,
   words/links/upload validation, documents, saved payout reuse, rejected-org guards,

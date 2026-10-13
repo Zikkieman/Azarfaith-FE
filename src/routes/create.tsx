@@ -51,6 +51,7 @@ import {
   campaignPayload,
   campaignPayoutError,
   countWords,
+  hasCampaignDraftContent,
   type CampaignForm,
 } from "@/lib/creation";
 import { formatCheckoutInput } from "@/lib/checkout";
@@ -488,6 +489,11 @@ function CampaignEditor({ draft, userId }: { draft?: Campaign; userId: string })
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   const saveDraft = (exit: boolean) => {
     if (busy || savingLock.current) return;
+    if (!hasCampaignDraftContent(form)) {
+      toast.info("Add at least one detail before saving a campaign draft.");
+      if (exit) void navigate({ to: "/dashboard" });
+      return;
+    }
     if (need.trim()) {
       setNeedError("Add this need or clear the field before saving.");
       jump("needs");

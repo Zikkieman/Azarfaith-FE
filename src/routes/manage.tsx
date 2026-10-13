@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Link2, Plus } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpRight, Link2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
 import { AppShell, Container, PageHeader, Tag } from "@/components/app/AppShell";
@@ -13,7 +13,13 @@ import {
 } from "@/components/app/ManagementParts";
 import { PageSpinner } from "@/components/PageSpinner";
 import { useCreationSession } from "@/components/creation/useCreationSession";
-import { getProfile, listCampaignDrafts, listOrganizationDrafts } from "@/features/catalog/api";
+import {
+  deleteCampaignDraft,
+  deleteOrganizationDraft,
+  getProfile,
+  listCampaignDrafts,
+  listOrganizationDrafts,
+} from "@/features/catalog/api";
 import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/manage")({
@@ -208,13 +214,7 @@ function Workspace() {
                   <ul className="divide-y divide-line-soft">
                     {orgDrafts.data.map((draft) => (
                       <DraftRow key={draft.id} title={draft.name} savedAt={draft.draftSavedAt}>
-                        <Link
-                          to="/register-org"
-                          search={{ draftId: draft.id }}
-                          className={btn("secondary", "sm")}
-                        >
-                          Continue <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </Link>
+                        <DraftActions id={draft.id} kind="organization" />
                       </DraftRow>
                     ))}
                   </ul>
@@ -243,13 +243,7 @@ function Workspace() {
                   <ul className="divide-y divide-line-soft">
                     {campaignDrafts.data.map((draft) => (
                       <DraftRow key={draft.id} title={draft.title} savedAt={draft.draftSavedAt}>
-                        <Link
-                          to="/create"
-                          search={{ draftId: draft.id }}
-                          className={btn("secondary", "sm")}
-                        >
-                          Continue <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </Link>
+                        <DraftActions id={draft.id} kind="campaign" />
                       </DraftRow>
                     ))}
                   </ul>
@@ -260,6 +254,47 @@ function Workspace() {
         </ManagementPanel>
       </Container>
     </AppShell>
+  );
+}
+function DraftActions({ id, kind }: { id: string; kind: "organization" | "campaign" }) {
+  const queryClient = useQueryClient();
+  const label = kind === "organization" ? "organization" : "campaign";
+  const remove = useMutation({
+    mutationFn: () => (kind === "organization" ? deleteOrganizationDraft(id) : deleteCampaignDraft(id)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [kind === "organization" ? "organization-drafts" : "campaign-drafts"],
+      });
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success(`${label[0].toUpperCase()}${label.slice(1)} draft deleted.`);
+    },
+    onError: (error: Error) => toast.error(error.message || `Could not delete this ${label} draft.`),
+  });
+  const confirmDelete = () => {
+    if (window.confirm(`Delete this ${label} draft? This cannot be undone.`)) remove.mutate();
+  };
+  return (
+    <>
+      {kind === "organization" ? (
+        <Link to="/register-org" search={{ draftId: id }} className={btn("secondary", "sm")}>
+          Continue <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </Link>
+      ) : (
+        <Link to="/create" search={{ draftId: id }} className={btn("secondary", "sm")}>
+          Continue <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </Link>
+      )}
+      <button
+        type="button"
+        className={btn("secondary", "sm")}
+        onClick={confirmDelete}
+        disabled={remove.isPending}
+        aria-label={`Delete ${label} draft`}
+        title={`Delete ${label} draft`}
+      >
+        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+    </>
   );
 }
 function DraftRow({

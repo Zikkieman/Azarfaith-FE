@@ -6,3 +6,9 @@ export const AdminNavigationContext = createContext<{
 }>({ open: false, setOpen: () => {} });
 
 export const useSidebar = () => useContext(AdminNavigationContext);
+
+export const PaletteContext = createContext<{
+  paletteOpen: boolean;
+  setPaletteOpen: (value: boolean) => void;
+}>({ paletteOpen: false, setPaletteOpen: () => {} });
+export const usePalette = () => useContext(PaletteContext);

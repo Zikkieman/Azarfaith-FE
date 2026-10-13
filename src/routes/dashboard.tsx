@@ -14,11 +14,12 @@ import {
   MessageSquareHeart,
   Plus,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/app/Skeletons";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { getDashboard } from "@/features/catalog/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { deleteCampaignDraft, deleteOrganizationDraft, getDashboard } from "@/features/catalog/api";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchSession } from "@/features/auth/authSlice";
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/dashboard")({
 function Manage() {
   const authed = useRequireAuth();
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const userId = useAppSelector((state) => state.auth.user?.id);
   const [mounted, setMounted] = useState(false);
   const [organizationId, setOrganizationId] = useState<string>();
@@ -134,19 +136,31 @@ function Manage() {
                 <OrganizationSwitcher data={data} onSelect={setOrganizationId} />
               ) : null}
               {org ? (
-                <Link
-                  to={org.isDraft ? "/register-org" : "/org/$id"}
-                  params={{ id: org.id }}
-                  search={org.isDraft ? { draftId: org.id } : {}}
-                  className={btn("secondary")}
-                >
-                  {org.isDraft
-                    ? "Continue draft"
-                    : org.verificationStatus === "verified"
-                      ? "Public page"
-                      : "Preview"}
-                  <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} />
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to={org.isDraft ? "/register-org" : "/org/$id"}
+                    params={{ id: org.id }}
+                    search={org.isDraft ? { draftId: org.id } : {}}
+                    className={btn("secondary")}
+                  >
+                    {org.isDraft
+                      ? "Continue draft"
+                      : org.verificationStatus === "verified"
+                        ? "Public page"
+                        : "Preview"}
+                    <ArrowUpRight className="h-4 w-4" strokeWidth={1.75} />
+                  </Link>
+                  {org.isDraft ? (
+                    <DraftDeleteButton
+                      id={org.id}
+                      kind="organization"
+                      onDeleted={() => {
+                        setOrganizationId(undefined);
+                        void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+                      }}
+                    />
+                  ) : null}
+                </div>
               ) : null}
               <Link to="/create" className={btn("primary")}>
                 <Plus className="h-4 w-4" strokeWidth={2} /> New campaign
@@ -759,8 +773,54 @@ function CampaignRow({
         ) : (
           <p className="text-right text-[12px] text-muted-ink">Regular giving</p>
         )}
+        {c.isDraft ? (
+          <div className="mt-3 flex justify-end gap-2">
+            <Link to="/create" search={{ draftId: c.id }} className={btn("secondary", "sm")}>
+              Continue
+            </Link>
+            <DraftDeleteButton id={c.id} kind="campaign" />
+          </div>
+        ) : null}
       </div>
     </li>
+  );
+}
+
+function DraftDeleteButton({
+  id,
+  kind,
+  onDeleted,
+}: {
+  id: string;
+  kind: "organization" | "campaign";
+  onDeleted?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const label = kind === "organization" ? "organization" : "campaign";
+  const remove = useMutation({
+    mutationFn: () => (kind === "organization" ? deleteOrganizationDraft(id) : deleteCampaignDraft(id)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success(`${label[0].toUpperCase()}${label.slice(1)} draft deleted.`);
+      onDeleted?.();
+    },
+    onError: (error: Error) => toast.error(error.message || `Could not delete this ${label} draft.`),
+  });
+  const confirmDelete = () => {
+    if (window.confirm(`Delete this ${label} draft? This cannot be undone.`)) remove.mutate();
+  };
+  return (
+    <button
+      type="button"
+      className={btn("secondary", "sm")}
+      onClick={confirmDelete}
+      disabled={remove.isPending}
+      aria-label={`Delete ${label} draft`}
+      title={`Delete ${label} draft`}
+    >
+      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+    </button>
   );
 }
 

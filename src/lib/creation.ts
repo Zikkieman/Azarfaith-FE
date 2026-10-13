@@ -123,6 +123,21 @@ export function organizationPayload(form: OrgForm) {
     externalLinks: form.externalLinks.map((link) => normalizePublicLink(link) ?? link.trim()),
   };
 }
+export function hasOrganizationDraftContent(form: OrgForm) {
+  return Boolean(
+    form.name.trim() ||
+      form.tagline.trim() ||
+      form.otherCategoryLabel?.trim() ||
+      form.denomination.trim() ||
+      form.foundedYear.trim() ||
+      form.location.trim() ||
+      form.bio.trim() ||
+      form.category ||
+      form.photoUrls.length ||
+      form.externalLinks.length ||
+      form.registrationDocumentUrls.length,
+  );
+}
 export function organizationErrors(form: OrgForm) {
   const errors: Record<string, string> = {};
   if (form.name.trim().length < 2 || form.name.trim().length > 120)
@@ -203,6 +218,23 @@ export function campaignPayload(form: CampaignForm) {
     needs: ["ITEM", "VOLUNTEER", "PROFESSIONAL"].includes(form.type) ? form.needs : [],
     frequencies: form.mode === "ONGOING" ? form.frequencies : [],
   };
+}
+export function hasCampaignDraftContent(form: CampaignForm) {
+  return Boolean(
+    form.mode ||
+      form.type ||
+      form.title.trim() ||
+      form.story.trim() ||
+      form.faithCategory ||
+      form.organizationId ||
+      form.location.trim() ||
+      form.goalAmount.replaceAll(",", "").trim() ||
+      form.coverImageUrl.trim() ||
+      form.galleryImageUrls.length ||
+      form.needs.length ||
+      form.frequencies.length ||
+      form.urgency !== "MEDIUM",
+  );
 }
 export function campaignErrors(form: CampaignForm) {
   const errors: Record<string, string> = {};

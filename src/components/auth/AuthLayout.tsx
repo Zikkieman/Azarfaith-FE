@@ -5,7 +5,7 @@ import { AuthLogo } from "./AuthLogo";
 const photo =
   "https://images.unsplash.com/photo-1710093072218-0024b8391475?auto=format&fit=crop&w=1400&q=80";
 
-/** Original designer frame; only routing and the illustrative-content disclosure differ. */
+/** Original designer frame with the application auth routes wired in. */
 export function AuthLayout({
   prompt,
   linkLabel,
@@ -51,9 +51,6 @@ export function AuthLayout({
               event.currentTarget.style.opacity = "0";
             }}
           />
-          <span className="absolute left-6 top-6 rounded-full bg-paper px-3 py-1 text-xs text-muted-ink">
-            Illustrative design preview
-          </span>
           <div className="absolute inset-x-6 bottom-6 flex max-w-[400px] flex-col gap-2 rounded-card bg-paper p-5">
             <p className="flex items-center gap-2 text-[13px] text-muted-ink">
               Grace Harvest Orphanage, Jos{" "}
