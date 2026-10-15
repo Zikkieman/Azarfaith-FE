@@ -38,7 +38,15 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
     org.verificationStatus === "pending" || org.verificationStatus === "unverified";
   const verified = org.verificationStatus === "verified";
   const decision = useMutation({
-    mutationFn: (body: { status: "VERIFIED" | "UNVERIFIED"; reviewAction: "APPROVED" | "REJECTED"; reason?: string }) => apiFetch(`/admin/review/organizations/${org.id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
+    mutationFn: (body: {
+      status: "VERIFIED" | "UNVERIFIED";
+      reviewAction: "APPROVED" | "REJECTED";
+      reason?: string;
+    }) =>
+      apiFetch(`/admin/review/organizations/${org.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "organizations"] }),
@@ -46,7 +54,8 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
         queryClient.invalidateQueries({ queryKey: ["admin", "organization", org.id] }),
       ]);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update this organization."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update this organization."),
   });
 
   if (!reviewable && !verified) return null;
@@ -96,7 +105,17 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
           "We email the organization owner to let them know.",
         ]}
         confirmLabel="Verify organization"
-        onConfirm={() => decision.mutate({ status: "VERIFIED", reviewAction: "APPROVED" }, { onSuccess: () => { setVerifying(false); toast.success(`${org.name} is verified`); } })}
+        onConfirm={() =>
+          decision.mutate(
+            { status: "VERIFIED", reviewAction: "APPROVED" },
+            {
+              onSuccess: () => {
+                setVerifying(false);
+                toast.success(`${org.name} is verified`);
+              },
+            },
+          )
+        }
       />
       <AdminRejectDialog
         open={rejecting}
@@ -109,7 +128,19 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
         }
         reasons={rejectReasons.org}
         confirmLabel={verified ? "Revoke" : "Reject"}
-        onReject={(reason, notify) => decision.mutate({ status: "UNVERIFIED", reviewAction: "REJECTED", reason }, { onSuccess: () => { setRejecting(false); toast(`${org.name} ${verified ? "is no longer verified" : "was rejected"}${notify ? ". We've emailed them the reason" : ""}`); } })}
+        onReject={(reason, notify) =>
+          decision.mutate(
+            { status: "UNVERIFIED", reviewAction: "REJECTED", reason },
+            {
+              onSuccess: () => {
+                setRejecting(false);
+                toast(
+                  `${org.name} ${verified ? "is no longer verified" : "was rejected"}${notify ? ". We've emailed them the reason" : ""}`,
+                );
+              },
+            },
+          )
+        }
       />
     </>
   );
@@ -123,6 +154,14 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
     enabled: Boolean(org),
   });
   const record = details.data;
+  const documents = Array.isArray(record?.registrationDocuments)
+    ? record.registrationDocuments
+    : [];
+  const campaignCount = Array.isArray(record?.campaigns)
+    ? record.campaigns.length
+    : Array.isArray(org?.campaignIds)
+      ? org.campaignIds.length
+      : 0;
 
   return (
     <Sheet open={Boolean(org)} onOpenChange={(v) => !v && onClose()}>
@@ -144,7 +183,15 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
                 </SheetTitle>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-muted-ink">
                   <StatusBadge status={org.verificationStatus} />
-                  {record ? <span>Applied {new Date(record.submittedAt ?? record.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span> : null}
+                  {record ? (
+                    <span>
+                      Applied{" "}
+                      {new Date(record.submittedAt ?? record.createdAt).toLocaleDateString(
+                        "en-NG",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )}
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <button
@@ -161,12 +208,18 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
               <div className="flex flex-col gap-5">
                 <section className="flex flex-col gap-2.5">
                   <h3 className="text-[13px] font-medium text-subtle">Checks</h3>
-                  {details.isLoading ? <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">Loading checks...</p> : <ReviewChecklist entityType="organization" id={org.id} />}
+                  {details.isLoading ? (
+                    <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">
+                      Loading checks...
+                    </p>
+                  ) : (
+                    <ReviewChecklist entityType="organization" id={org.id} />
+                  )}
                 </section>
                 {record ? (
                   <section className="flex flex-col gap-2.5">
                     <h3 className="text-[13px] font-medium text-subtle">Documents</h3>
-                    <ReviewDocuments documents={record.registrationDocuments} />
+                    <ReviewDocuments documents={documents} />
                   </section>
                 ) : null}
                 <div className="-mx-1">
@@ -202,7 +255,7 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
                       {formatMoney(org.totalReceived)}
                     </Field>
                     <Field icon={Building2} label="Campaigns">
-                      {record?.campaigns.length ?? org.campaignIds.length}
+                      {campaignCount}
                     </Field>
                   </FieldGroup>
                 </div>

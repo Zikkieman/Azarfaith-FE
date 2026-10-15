@@ -40,26 +40,74 @@ export const Route = createFileRoute("/admin/orgs/")({
 
 type ReviewOrg = Org & { createdAt: string; registrationDocuments: string[] };
 type ApiOrganization = Omit<ReviewOrg, "videos">;
-const stateOf = (o: Org) => o.location.split(",").pop()!.replace("State", "").trim();
+const stateOf = (o: Org) =>
+  o.location.split(",").pop()?.replace("State", "").trim() || "Unspecified";
 
 function AdminOrgs() {
   const { view } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const organizations = useQuery({ queryKey: ["admin", "organizations"], queryFn: () => apiFetch<ApiOrganization[]>("/admin/review/organizations") });
+  const organizations = useQuery({
+    queryKey: ["admin", "organizations"],
+    queryFn: () => apiFetch<ApiOrganization[]>("/admin/review/organizations"),
+  });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterValue>({});
   const [open, setOpen] = useState<ReviewOrg | null>(null);
   const [bulkVerify, setBulkVerify] = useState<ReviewOrg[] | null>(null);
   const [bulkReject, setBulkReject] = useState<ReviewOrg[] | null>(null);
   const decision = useMutation({
-    mutationFn: async ({ organizations: selected, status, reason }: { organizations: ReviewOrg[]; status: "VERIFIED" | "UNVERIFIED"; reason?: string }) => Promise.all(selected.map((organization) => apiFetch(`/admin/review/organizations/${organization.id}/status`, { method: "PATCH", body: JSON.stringify({ status, reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED", ...(reason ? { reason } : {}) }) }))),
-    onSuccess: async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ["admin", "organizations"] }), queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] })]); },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update the selected organizations."),
+    mutationFn: async ({
+      organizations: selected,
+      status,
+      reason,
+    }: {
+      organizations: ReviewOrg[];
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
+      Promise.all(
+        selected.map((organization) =>
+          apiFetch(`/admin/review/organizations/${organization.id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              status,
+              reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+              ...(reason ? { reason } : {}),
+            }),
+          }),
+        ),
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "organizations"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+      ]);
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not update the selected organizations.",
+      ),
   });
+
+  // Hooks must run in the same order while the query changes from loading to ready.
+  const orgs: ReviewOrg[] = (organizations.data ?? []).map((organization) => ({
+    ...organization,
+    videos: [],
+  }));
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return orgs.filter(
+      (o) =>
+        (view === "all" || o.verificationStatus === view) &&
+        matches(filters, "category", o.category) &&
+        matches(filters, "state", stateOf(o)) &&
+        (!q || [o.name, o.location, o.denomination].some((x) => x.toLowerCase().includes(q))),
+    );
+  }, [orgs, view, filters, search]);
+
   if (organizations.isLoading) return <AdminListSkeleton label="Loading organizations" />;
   if (organizations.error) throw organizations.error;
-  const orgs: ReviewOrg[] = (organizations.data ?? []).map((organization) => ({ ...organization, videos: [] }));
 
   const fields: FilterField[] = [
     {
@@ -78,17 +126,6 @@ function AdminOrgs() {
 
   const count = (v: View) =>
     v === "all" ? orgs.length : orgs.filter((o) => o.verificationStatus === v).length;
-
-  const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return orgs.filter(
-      (o) =>
-        (view === "all" || o.verificationStatus === view) &&
-        matches(filters, "category", o.category) &&
-        matches(filters, "state", stateOf(o)) &&
-        (!q || [o.name, o.location, o.denomination].some((x) => x.toLowerCase().includes(q))),
-    );
-  }, [orgs, view, filters, search]);
 
   const reviewable = (o: Org) =>
     o.verificationStatus === "pending" || o.verificationStatus === "unverified";
@@ -134,11 +171,7 @@ function AdminOrgs() {
       header: "Applied",
       className: "hidden lg:table-cell",
       sortValue: (o) => o.createdAt,
-      cell: (o) => (
-        <span className="text-ink-soft">
-          {timeAgo(o.createdAt)}
-        </span>
-      ),
+      cell: (o) => <span className="text-ink-soft">{timeAgo(o.createdAt)}</span>,
     },
   ];
 
@@ -300,7 +333,16 @@ function AdminOrgs() {
         ]}
         confirmLabel="Verify all"
         onConfirm={() => {
-          if (bulkVerify) decision.mutate({ organizations: bulkVerify, status: "VERIFIED" }, { onSuccess: () => { setBulkVerify(null); toast.success(`${bulkVerify.length} organizations verified`); } });
+          if (bulkVerify)
+            decision.mutate(
+              { organizations: bulkVerify, status: "VERIFIED" },
+              {
+                onSuccess: () => {
+                  setBulkVerify(null);
+                  toast.success(`${bulkVerify.length} organizations verified`);
+                },
+              },
+            );
         }}
       />
       <AdminRejectDialog
@@ -310,7 +352,16 @@ function AdminOrgs() {
         description={bulkReject?.map((o) => o.name).join(", ")}
         reasons={rejectReasons.org}
         onReject={(reason) => {
-          if (bulkReject) decision.mutate({ organizations: bulkReject, status: "UNVERIFIED", reason }, { onSuccess: () => { setBulkReject(null); toast(`${bulkReject.length} rejected`); } });
+          if (bulkReject)
+            decision.mutate(
+              { organizations: bulkReject, status: "UNVERIFIED", reason },
+              {
+                onSuccess: () => {
+                  setBulkReject(null);
+                  toast(`${bulkReject.length} rejected`);
+                },
+              },
+            );
         }}
       />
     </AdminPage>
