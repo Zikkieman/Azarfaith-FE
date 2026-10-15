@@ -6,7 +6,7 @@ import { faces, words } from "./fruit-words";
  * Playful hero word: "See the ___." flicks through the fruits of giving, each in its own
  * typeface. To revert, replace <FruitCycler /> in HomeOpening with the word "fruit".
  */
-const TICK_MS = 220;
+const TICK_MS = 400;
 
 export function FruitCycler() {
   const reduce = useReducedMotion();
