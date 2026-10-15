@@ -4,3 +4,11 @@ export function safeRedirect(target: unknown, fallback = "/dashboard") {
     ? target
     : fallback;
 }
+
+/** Prevent an auth guard from treating the login screen itself as a return destination. */
+export function loginRedirect(target: unknown, fallback = "/dashboard") {
+  const destination = safeRedirect(target, fallback);
+  return destination === "/login" || destination.startsWith("/login?")
+    ? fallback
+    : destination;
+}
