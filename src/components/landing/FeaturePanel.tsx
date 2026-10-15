@@ -155,8 +155,6 @@ export function FeaturePanel() {
   const orgs = useApp((s) => s.orgs);
   const data: Data = { campaign: campaigns.find((c) => c.goal) ?? campaigns[0], orgs };
 
-  if (!data.campaign) return null;
-
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
@@ -169,6 +167,8 @@ export function FeaturePanel() {
     triggers.current.forEach((t) => t && io.observe(t));
     return () => io.disconnect();
   }, []);
+
+  if (!data.campaign) return null;
 
   const select = (i: number) => {
     const trigger = triggers.current[i];
