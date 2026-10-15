@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { BadgeCheck, Check, CircleDashed, CreditCard, LogOut, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ProfileSkeleton } from "@/components/app/Skeletons";
-import { pending, simulateNetwork } from "@/lib/api";
+import { apiFetch, pending } from "@/lib/api";
 import {
   AppShell,
   Container,
@@ -14,17 +15,20 @@ import {
 } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
 import { Switch } from "@/components/ui/switch";
-import { useApp } from "@/lib/store";
-import { me } from "@/lib/mock";
+import { RequireUser } from "@/components/auth/RequireUser";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/profile")({
-  loader: () => simulateNetwork(),
   pendingComponent: () => <ProfileSkeleton label="Loading your profile" />,
   ...pending,
   head: () => ({ meta: [{ title: "Profile and settings — AzarFaith" }] }),
-  component: Profile,
+  component: ProtectedProfile,
 });
+
+function ProtectedProfile() {
+  return <RequireUser><Profile /></RequireUser>;
+}
 
 const nav = [
   { id: "profile", label: "Profile" },
@@ -37,29 +41,33 @@ const nav = [
 /** Profile and settings (after Twenty's settings and Buildkite): one save per section. */
 function Profile() {
   const navigate = useNavigate();
-  const setAuthed = useApp((s) => s.setAuthed);
+  const { logout } = useAuth();
+  const profile = useQuery({ queryKey: ["profile"], queryFn: () => apiFetch<ProfileData>("/me/profile") });
+  const preferences = useQuery({ queryKey: ["notification-preferences"], queryFn: () => apiFetch<Preferences>("/me/notification-preferences") });
+  const paymentMethods = useQuery({ queryKey: ["payment-methods"], queryFn: () => apiFetch<PaymentMethod[]>("/me/payment-methods") });
+  if (profile.isLoading) return <ProfileSkeleton label="Loading your profile" />;
+  if (profile.error) throw profile.error;
+  if (!profile.data) return <ProfileSkeleton label="Loading your profile" />;
+  const user = profile.data;
   return (
     <AppShell>
       <Container className="py-8 md:py-12">
         <div className="flex flex-col gap-6 border-b border-line-soft pb-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <img src={me.avatar} alt="" className="h-16 w-16 rounded-full object-cover" />
+            <ProfileAvatar name={user.fullName} url={user.avatarUrl} />
             <div>
               <h1 className="font-display text-[clamp(26px,2.6vw,34px)] leading-tight tracking-[-0.02em] text-ink">
-                {me.name}
+                {user.fullName}
               </h1>
               <p className="text-sm text-muted-ink">
-                {me.location}, giving since {me.joined}
+                {user.city || "Nigeria"}, giving since {new Date(user.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
               </p>
             </div>
           </div>
           <button
             type="button"
             className={cn(btn("secondary", "sm"), "self-start sm:self-auto")}
-            onClick={() => {
-              setAuthed(false);
-              navigate({ to: "/" });
-            }}
+            onClick={() => { void logout().finally(() => navigate({ to: "/" })); }}
           >
             <LogOut className="h-4 w-4" strokeWidth={1.75} /> Log out
           </button>
@@ -84,9 +92,9 @@ function Profile() {
             </ul>
           </nav>
           <div className="flex max-w-[720px] flex-col gap-6">
-            <ProfileSection />
-            <NotificationsSection />
-            <PaymentSection />
+            <ProfileSection profile={user} />
+            <NotificationsSection preferences={preferences.data} />
+            <PaymentSection methods={paymentMethods.data ?? []} />
             <SecuritySection />
             <CloseAccount />
           </div>
@@ -94,6 +102,13 @@ function Profile() {
       </Container>
     </AppShell>
   );
+}
+
+function ProfileAvatar({ name, url }: { name: string; url: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const initials = name.split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "AF";
+  if (!url || failed) return <span className="grid h-16 w-16 place-items-center rounded-full bg-panel font-display text-xl text-ink">{initials}</span>;
+  return <img src={url} alt="" onError={() => setFailed(true)} className="h-16 w-16 rounded-full object-cover" />;
 }
 
 function Section({
@@ -173,31 +188,38 @@ function SaveFooter({
   );
 }
 
-function ProfileSection() {
-  const [first, ...rest] = me.name.split(" ");
+type ProfileData = { fullName: string; email: string; phone: string | null; city: string; avatarUrl: string | null; createdAt: string; verifications: string[] };
+type Preferences = { donationsReceived: boolean; campaignUpdates: boolean; comments: boolean; systemMessages: boolean };
+type PaymentMethod = { id: string; brand: string | null; last4: string | null; expMonth: number | null; expYear: number | null; isPreferred: boolean; active: boolean; linkedRecurringGiftCount: number };
+
+function ProfileSection({ profile }: { profile: ProfileData }) {
+  const queryClient = useQueryClient();
+  const [first, ...rest] = profile.fullName.split(" ");
   const initial = {
     first,
     last: rest.join(" "),
-    email: "tunde@azarfaith.com",
-    phone: "+234 803 000 0000",
-    city: me.location,
+    email: profile.email,
+    phone: profile.phone ?? "",
+    city: profile.city,
   };
   const [saved, setSaved] = useState(initial);
   const [d, setD] = useState(initial);
   const [justSaved, setJustSaved] = useState(false);
   const dirty = JSON.stringify(d) !== JSON.stringify(saved);
   const emailBad = !/^\S+@\S+\.\S+$/.test(d.email);
-  const field = (k: keyof typeof d, label: string, type = "text", wide = false) => (
+  const field = (k: keyof typeof d, label: string, type = "text", wide = false, readOnly = false) => (
     <label className={cn("flex flex-col gap-1.5", wide && "sm:col-span-2")}>
       <span className={labelClass}>{label}</span>
       <input
         type={type}
         value={d[k]}
+        readOnly={readOnly}
         onChange={(e) => {
+          if (readOnly) return;
           setJustSaved(false);
           setD({ ...d, [k]: e.target.value });
         }}
-        className={cn(inputClass, k === "email" && emailBad && "border-danger")}
+        className={cn(inputClass, readOnly && "cursor-not-allowed bg-panel text-muted-ink", k === "email" && emailBad && "border-danger")}
       />
       {k === "email" && emailBad ? <FieldError>Enter a valid email address.</FieldError> : null}
     </label>
@@ -213,23 +235,22 @@ function ProfileSection() {
           saved={justSaved}
           invalid={emailBad}
           onDiscard={() => setD(saved)}
-          onSave={() => {
-            setSaved(d);
-            setJustSaved(true);
-            toast.success("Profile saved");
-          }}
+          onSave={() => { void apiFetch<ProfileData>("/me/profile", { method: "PATCH", body: JSON.stringify({ fullName: `${d.first} ${d.last}`.trim(), phone: d.phone || null, city: d.city }) }).then(() => { setSaved(d); setJustSaved(true); void queryClient.invalidateQueries({ queryKey: ["profile"] }); toast.success("Profile saved"); }).catch((error) => toast.error(error instanceof Error ? error.message : "Could not save profile.")); }}
         />
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
         {field("first", "First name")}
         {field("last", "Last name")}
-        {field("email", "Email", "email")}
+        <div className="flex flex-col gap-1.5">
+          {field("email", "Email", "email", false, true)}
+          <p className="text-[12px] text-subtle">To change your sign-in email, use the email-change flow in Security.</p>
+        </div>
         {field("phone", "Phone", "tel")}
         {field("city", "Town or city", "text", true)}
       </div>
       <div className="flex flex-wrap gap-2">
-        {me.verifications.map((v) => (
+        {profile.verifications.map((v) => (
           <Tag key={v} tone="verified">
             <BadgeCheck className="h-3.5 w-3.5" strokeWidth={2} /> {v}
           </Tag>
@@ -264,13 +285,20 @@ const prefs = [
     body: "A monthly round-up of verified causes.",
     on: false,
   },
-];
+] as const;
 
-function NotificationsSection() {
-  const initial = Object.fromEntries(prefs.map((p) => [p.id, p.on])) as Record<string, boolean>;
+function NotificationsSection({ preferences }: { preferences?: Preferences }) {
+  const queryClient = useQueryClient();
+  const initial = { reminders: preferences?.donationsReceived ?? true, updates: preferences?.campaignUpdates ?? true, receipts: true, news: preferences?.systemMessages ?? true };
   const [saved, setSaved] = useState(initial);
   const [d, setD] = useState(initial);
   const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (!preferences) return;
+    const next = { reminders: preferences.donationsReceived, updates: preferences.campaignUpdates, receipts: true, news: preferences.systemMessages };
+    setSaved(next);
+    setD(next);
+  }, [preferences]);
   const dirty = JSON.stringify(d) !== JSON.stringify(saved);
   return (
     <Section
@@ -282,11 +310,7 @@ function NotificationsSection() {
           dirty={dirty}
           saved={justSaved}
           onDiscard={() => setD(saved)}
-          onSave={() => {
-            setSaved(d);
-            setJustSaved(true);
-            toast.success("Notification settings saved");
-          }}
+          onSave={() => { void apiFetch<Preferences>("/me/notification-preferences", { method: "PATCH", body: JSON.stringify({ donationsReceived: d.reminders, campaignUpdates: d.updates, comments: d.updates, systemMessages: d.news }) }).then(() => { setSaved(d); setJustSaved(true); void queryClient.invalidateQueries({ queryKey: ["notification-preferences"] }); toast.success("Notification settings saved"); }).catch((error) => toast.error(error instanceof Error ? error.message : "Could not save notification settings.")); }}
         />
       }
     >
@@ -320,17 +344,7 @@ function NotificationsSection() {
   );
 }
 
-type Card = { id: string; brand: string; last4: string; expires: string };
-
-function PaymentSection() {
-  const [cards, setCards] = useState<Card[]>([
-    { id: "c1", brand: "Visa", last4: "4242", expires: "08/28" },
-    { id: "c2", brand: "Mastercard", last4: "0019", expires: "02/27" },
-  ]);
-  const [preferred, setPreferred] = useState("c1");
-  const gifts = useApp(
-    (s) => s.recurringDonations.filter((g) => g.active && g.mode === "auto").length,
-  );
+function PaymentSection({ methods }: { methods: PaymentMethod[] }) {
   return (
     <Section
       id="payment"
@@ -338,8 +352,8 @@ function PaymentSection() {
       description="Cards you've saved through Paystack. We never see the full number."
     >
       <ul className="flex flex-col divide-y divide-line-soft rounded-field border border-line-soft">
-        {cards.map((c) => {
-          const isDefault = c.id === preferred;
+        {methods.filter((method) => method.active).map((c) => {
+          const isDefault = c.isPreferred;
           return (
             <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
               <span className="grid h-9 w-12 shrink-0 place-items-center rounded-[6px] border border-line-soft bg-panel">
@@ -347,50 +361,27 @@ function PaymentSection() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-ink">
-                  {c.brand} ending {c.last4}
+                  {c.brand ?? "Card"} ending {c.last4 ?? "••••"}
                   {isDefault ? <Tag>Default</Tag> : null}
                 </span>
                 <span className="block text-[13px] text-muted-ink">
-                  Expires {c.expires}
-                  {isDefault && gifts
-                    ? `, used for ${gifts} regular gift${gifts > 1 ? "s" : ""}`
+                  Expires {c.expMonth ?? "--"}/{c.expYear ? String(c.expYear).slice(-2) : "--"}
+                  {c.linkedRecurringGiftCount
+                    ? `, used for ${c.linkedRecurringGiftCount} regular gift${c.linkedRecurringGiftCount > 1 ? "s" : ""}`
                     : ""}
                 </span>
               </span>
               <span className="flex w-full items-center gap-4 pl-[60px] sm:w-auto sm:pl-0">
-                {!isDefault ? (
-                  <button
-                    type="button"
-                    onClick={() => setPreferred(c.id)}
-                    className={btn("quiet", "sm")}
-                  >
-                    Make default
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={isDefault}
-                  title={
-                    isDefault
-                      ? "Make another card the default before removing this one."
-                      : undefined
-                  }
-                  onClick={() => {
-                    setCards(cards.filter((x) => x.id !== c.id));
-                    toast(`${c.brand} ending ${c.last4} removed`);
-                  }}
-                  className="text-sm font-medium text-danger hover:underline disabled:cursor-not-allowed disabled:text-subtle disabled:no-underline"
-                >
-                  Remove
-                </button>
+                <span className="text-[13px] text-muted-ink">Managed securely by Paystack</span>
               </span>
             </li>
           );
         })}
       </ul>
+      {methods.filter((method) => method.active).length === 0 ? <p className="text-sm text-muted-ink">No reusable payment methods are saved yet.</p> : null}
       <button
         type="button"
-        onClick={() => toast("Paystack opens a secure window to add your card")}
+        onClick={() => toast("A card is saved automatically when you set up an eligible recurring gift.")}
         className={cn(btn("secondary", "sm"), "self-start")}
       >
         <Plus className="h-4 w-4" strokeWidth={2} /> Add a card
@@ -413,11 +404,7 @@ function SecuritySection() {
         <button
           type="button"
           disabled={!ready}
-          onClick={() => {
-            setCurrent("");
-            setNext("");
-            toast.success("Password changed");
-          }}
+          onClick={() => { void apiFetch("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword: current, newPassword: next }) }).then(() => { setCurrent(""); setNext(""); toast.success("Password changed"); }).catch((error) => toast.error(error instanceof Error ? error.message : "Could not change password.")); }}
           className={btn("primary", "sm")}
         >
           Change password
@@ -453,7 +440,7 @@ function SecuritySection() {
         </p>
         <button
           type="button"
-          onClick={() => toast("Signed out of your other devices")}
+          onClick={() => { void apiFetch("/auth/signout-other-devices", { method: "POST" }).then(() => toast.success("Signed out of your other devices")).catch((error) => toast.error(error instanceof Error ? error.message : "Could not sign out other devices.")); }}
           className={btn("secondary", "sm")}
         >
           Sign out other devices
@@ -465,7 +452,8 @@ function SecuritySection() {
 
 /** Closing waits until regular gifts are stopped, and says so (the Buildkite pattern). */
 function CloseAccount() {
-  const active = useApp((s) => s.recurringDonations.filter((g) => g.active).length);
+  const recurring = useQuery({ queryKey: ["recurring-gifts"], queryFn: () => apiFetch<Array<{ active: boolean }>>("/me/recurring-gifts") });
+  const active = recurring.data?.filter((gift) => gift.active).length ?? 0;
   return (
     <Section
       id="close"

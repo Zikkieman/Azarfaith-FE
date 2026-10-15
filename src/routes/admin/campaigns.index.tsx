@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   CheckCircle2,
@@ -11,10 +12,9 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "@/lib/store";
-import { categories, formatMoney, type Campaign } from "@/lib/mock";
+import { type Campaign } from "@/lib/domain";
 import { matches, rejectReasons, timeAgo, type FilterValue } from "@/lib/admin";
-import { pending, simulateNetwork } from "@/lib/api";
+import { apiFetch, pending } from "@/lib/api";
 import { btn } from "@/components/app/btn";
 import { AdminPage } from "@/components/admin/AdminLayout";
 import {
@@ -31,7 +31,6 @@ import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminListSkeleton } from "@/components/admin/AdminSkeletons";
 import { StatusBadge, UrgencyBadge } from "@/components/admin/AdminBadge";
 import { CampaignPanel } from "@/components/admin/CampaignReview";
-import { campaignChecks } from "@/components/admin/useAdmin";
 import { campaignTypeLabel } from "@/components/admin/labels";
 import { downloadCsv } from "@/components/admin/csv";
 
@@ -42,57 +41,117 @@ export const Route = createFileRoute("/admin/campaigns/")({
   validateSearch: (s: Record<string, unknown>): { view: View } => ({
     view: views.includes(s.view as View) ? (s.view as View) : "all",
   }),
-  loader: () => simulateNetwork(),
   pendingComponent: () => <AdminListSkeleton label="Loading campaigns" />,
   ...pending,
   head: () => ({ meta: [{ title: "Campaigns — AzarFaith admin" }] }),
   component: AdminCampaigns,
 });
 
-const fields: FilterField[] = [
-  {
-    key: "mode",
-    label: "Kind",
-    icon: Repeat2,
-    options: [
-      { value: "one-time", label: "One-time" },
-      { value: "ongoing", label: "Ongoing" },
-    ],
-  },
-  {
-    key: "type",
-    label: "Asking for",
-    icon: HandCoins,
-    options: Object.entries(campaignTypeLabel).map(([value, label]) => ({ value, label })),
-  },
-  {
-    key: "cause",
-    label: "Cause",
-    icon: Heart,
-    options: categories.map((c) => ({ value: c.label, label: c.label })),
-  },
-  {
-    key: "urgency",
-    label: "Urgency",
-    icon: Flame,
-    options: ["critical", "high", "medium", "low"].map((u) => ({
-      value: u,
-      label: u[0].toUpperCase() + u.slice(1),
-    })),
-  },
-];
+type ApiCampaign = Omit<Campaign, "gallery" | "currency" | "updates" | "comments" | "donations" | "raiser"> & {
+  raiser: Omit<Campaign["raiser"], "trustScore">;
+  organization?: { id: string; name: string } | null;
+};
+
+type ApiOrganization = { id: string; verificationStatus: Campaign["verificationStatus"] };
+
+const formatMoney = (amount: number) => `₦${amount.toLocaleString("en-NG")}`;
 
 function AdminCampaigns() {
   const { view } = Route.useSearch();
   const navigate = useNavigate();
-  const campaigns = useApp((s) => s.campaigns);
-  const orgs = useApp((s) => s.orgs);
-  const moderate = useApp((s) => s.moderateCampaign);
+  const queryClient = useQueryClient();
+  const campaignQuery = useQuery({
+    queryKey: ["admin", "campaigns"],
+    queryFn: () => apiFetch<ApiCampaign[]>("/admin/review/campaigns"),
+  });
+  const organizationQuery = useQuery({
+    queryKey: ["admin", "organizations"],
+    queryFn: () => apiFetch<ApiOrganization[]>("/admin/review/organizations"),
+  });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterValue>({});
   const [open, setOpen] = useState<Campaign | null>(null);
   const [bulkApprove, setBulkApprove] = useState<Campaign[] | null>(null);
   const [bulkReject, setBulkReject] = useState<Campaign[] | null>(null);
+  const decision = useMutation({
+    mutationFn: async ({ selected, status, reason }: { selected: Campaign[]; status: "VERIFIED" | "UNVERIFIED"; reason?: string }) =>
+      Promise.all(
+        selected.map((campaign) =>
+          apiFetch(`/admin/review/campaigns/${campaign.id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              status,
+              reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED",
+              ...(reason ? { reason } : {}),
+            }),
+          }),
+        ),
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+      ]);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the selected campaigns."),
+  });
+
+  if (campaignQuery.isLoading || organizationQuery.isLoading) {
+    return <AdminListSkeleton label="Loading campaigns" />;
+  }
+  if (campaignQuery.error) throw campaignQuery.error;
+  if (organizationQuery.error) throw organizationQuery.error;
+
+  const campaigns: Campaign[] = (campaignQuery.data ?? []).map((campaign) => ({
+    ...campaign,
+    raiser: { ...campaign.raiser, trustScore: 0 },
+    gallery: [],
+    currency: "NGN",
+    updates: [],
+    comments: [],
+    donations: [],
+  }));
+  const verifiedOrganizationIds = new Set(
+    (organizationQuery.data ?? [])
+      .filter((organization) => organization.verificationStatus === "verified")
+      .map((organization) => organization.id),
+  );
+
+  const fields: FilterField[] = [
+    {
+      key: "mode",
+      label: "Kind",
+      icon: Repeat2,
+      options: [
+        { value: "one-time", label: "One-time" },
+        { value: "ongoing", label: "Ongoing" },
+      ],
+    },
+    {
+      key: "type",
+      label: "Asking for",
+      icon: HandCoins,
+      options: Object.entries(campaignTypeLabel).map(([value, label]) => ({ value, label })),
+    },
+    {
+      key: "cause",
+      label: "Cause",
+      icon: Heart,
+      options: [...new Set(campaigns.map((campaign) => campaign.faithCategory))]
+        .sort()
+        .map((cause) => ({ value: cause, label: cause })),
+    },
+    {
+      key: "urgency",
+      label: "Urgency",
+      icon: Flame,
+      options: ["critical", "high", "medium", "low"].map((urgency) => ({
+        value: urgency,
+        label: urgency[0].toUpperCase() + urgency.slice(1),
+      })),
+    },
+  ];
 
   const count = (v: View) =>
     v === "all" ? campaigns.length : campaigns.filter((c) => c.verificationStatus === v).length;
@@ -112,10 +171,7 @@ function AdminCampaigns() {
 
   const reviewable = (c: Campaign) =>
     c.verificationStatus === "pending" || c.verificationStatus === "unverified";
-  const blocked = (c: Campaign) => {
-    const org = c.orgId ? orgs.find((o) => o.id === c.orgId) : undefined;
-    return campaignChecks(c, org).some((x) => x.blocking && !x.ok);
-  };
+  const blocked = (c: Campaign) => Boolean(c.orgId && !verifiedOrganizationIds.has(c.orgId));
 
   const columns: Column<Campaign>[] = [
     {
@@ -322,7 +378,7 @@ function AdminCampaigns() {
       />
 
       <CampaignPanel
-        campaign={open ? (campaigns.find((c) => c.id === open.id) ?? null) : null}
+        campaign={open ? (campaigns.find((campaign) => campaign.id === open.id) ?? null) : null}
         onClose={() => setOpen(null)}
       />
 
@@ -336,9 +392,11 @@ function AdminCampaigns() {
           "Each organizer gets an email.",
         ]}
         confirmLabel="Approve all"
-        onConfirm={() => {
-          bulkApprove?.forEach((c) => moderate(c.id, "verified"));
-          toast.success(`${bulkApprove?.length} campaigns approved`);
+        onConfirm={async () => {
+          if (!bulkApprove?.length) return;
+          await decision.mutateAsync({ selected: bulkApprove, status: "VERIFIED" });
+          setBulkApprove(null);
+          toast.success(`${bulkApprove.length} campaign${bulkApprove.length === 1 ? "" : "s"} approved`);
         }}
       />
       <AdminRejectDialog
@@ -347,9 +405,11 @@ function AdminCampaigns() {
         title={`Reject ${bulkReject?.length ?? 0} campaign${(bulkReject?.length ?? 0) > 1 ? "s" : ""}?`}
         description={bulkReject?.map((c) => c.title).join(", ")}
         reasons={rejectReasons.campaign}
-        onReject={(reason) => {
-          bulkReject?.forEach((c) => moderate(c.id, "rejected", reason));
-          toast(`${bulkReject?.length} rejected`);
+        onReject={async (reason) => {
+          if (!bulkReject?.length) return;
+          await decision.mutateAsync({ selected: bulkReject, status: "UNVERIFIED", reason });
+          setBulkReject(null);
+          toast.success(`${bulkReject.length} campaign${bulkReject.length === 1 ? "" : "s"} rejected`);
         }}
       />
     </AdminPage>

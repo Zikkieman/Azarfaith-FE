@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -11,7 +12,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { usePalette } from "./context";
 
@@ -29,12 +30,13 @@ type Hit = {
 /** ⌘K: jump to any organization, campaign, user or admin page from anywhere. */
 export function CommandPalette() {
   const { paletteOpen, setPaletteOpen } = usePalette();
-  const orgs = useApp((s) => s.orgs);
-  const campaigns = useApp((s) => s.campaigns);
-  const users = useApp((s) => s.users);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
+  const enabled = paletteOpen && q.trim().length > 0;
+  const orgs = useQuery({ queryKey: ["admin", "palette", "organizations"], queryFn: () => apiFetch<PaletteOrganization[]>("/admin/review/organizations"), enabled });
+  const campaigns = useQuery({ queryKey: ["admin", "palette", "campaigns"], queryFn: () => apiFetch<PaletteCampaign[]>("/admin/review/campaigns"), enabled });
+  const users = useQuery({ queryKey: ["admin", "palette", "users"], queryFn: () => apiFetch<PaletteUser[]>("/admin/review/users"), enabled });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,7 +77,7 @@ export function CommandPalette() {
     }
     const has = (...xs: string[]) => xs.some((x) => x.toLowerCase().includes(t));
     return [
-      ...orgs
+      ...(orgs.data ?? [])
         .filter((o) => has(o.name, o.location, o.denomination))
         .slice(0, 4)
         .map<Hit>((o) => ({
@@ -86,7 +88,7 @@ export function CommandPalette() {
           image: o.photos[0],
           go: () => navigate({ to: "/admin/orgs/$id", params: { id: o.id } }),
         })),
-      ...campaigns
+      ...(campaigns.data ?? [])
         .filter((c) => has(c.title, c.raiser.name, c.location))
         .slice(0, 4)
         .map<Hit>((c) => ({
@@ -97,7 +99,7 @@ export function CommandPalette() {
           image: c.cover,
           go: () => navigate({ to: "/admin/campaigns/$id", params: { id: c.id } }),
         })),
-      ...users
+      ...(users.data ?? [])
         .filter((u) => has(u.name, u.email, u.phone))
         .slice(0, 4)
         .map<Hit>((u) => ({
@@ -110,7 +112,7 @@ export function CommandPalette() {
           go: () => navigate({ to: "/admin/users/$id", params: { id: u.id } }),
         })),
     ];
-  }, [q, orgs, campaigns, users, navigate]);
+  }, [q, orgs.data, campaigns.data, users.data, navigate]);
 
   const pick = (h: Hit) => {
     setPaletteOpen(false);
@@ -234,6 +236,10 @@ export function CommandPalette() {
     </Dialog>
   );
 }
+
+type PaletteOrganization = { id: string; name: string; location: string; denomination: string; photos: string[] };
+type PaletteCampaign = { id: string; title: string; location: string; cover: string; raiser: { name: string } };
+type PaletteUser = { id: string; name: string; email: string; phone: string; avatar: string };
 
 function Kbd({ children }: { children: string }) {
   return (

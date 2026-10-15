@@ -1,4 +1,4 @@
-import type { UserRole } from "@/lib/mock";
+import type { UserRole } from "@/lib/domain";
 
 export const roleLabel: Record<UserRole, string> = {
   donor: "Giver",

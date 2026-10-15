@@ -8,7 +8,6 @@ import {
   type MotionValue,
 } from "motion/react";
 import { BadgeCheck, CheckCircle2, ChevronLeft, Search } from "lucide-react";
-import { stats } from "@/components/map/data";
 import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +80,9 @@ const PRESSED = ["", "2", "5", "0", "0", "0"];
 
 function GiveScreen({ active }: { active: boolean }) {
   const reduce = useReducedMotion();
+  const campaign = useApp(
+    (state) => state.campaigns.find((item) => item.verificationStatus === "verified") ?? state.campaigns[0],
+  );
   const [n, setN] = useState(TYPED.length - 1);
 
   // Types the amount in, one key at a time, each time this screen comes up.
@@ -101,7 +103,7 @@ function GiveScreen({ active }: { active: boolean }) {
     <div className="flex flex-col gap-5">
       <ScreenHeader title="Give" />
       <p className="flex items-center justify-center gap-1.5 text-[13px] text-muted-ink">
-        Grace Harvest Orphanage
+        {campaign?.title ?? "A verified cause"}
         <BadgeCheck className="h-3.5 w-3.5 text-[#00B67A]" strokeWidth={2} />
       </p>
       <p className="py-4 text-center font-display text-[clamp(40px,4vw,54px)] leading-none tracking-[-0.04em] text-ink">
@@ -146,7 +148,13 @@ function GiveScreen({ active }: { active: boolean }) {
 }
 
 function ReceiptScreen() {
-  const update = stats.PL?.featured;
+  const campaign = useApp(
+    (state) => state.campaigns.find((item) => item.verificationStatus === "verified") ?? state.campaigns[0],
+  );
+  const org = useApp((state) =>
+    campaign?.orgId ? state.orgs.find((item) => item.id === campaign.orgId) : undefined,
+  );
+  const update = campaign?.updates[0];
   return (
     <div className="flex flex-col gap-4">
       <ScreenHeader title="Giving history" />
@@ -155,15 +163,14 @@ function ReceiptScreen() {
           <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2} /> Receipt sent
         </span>
         <span className="text-[15px] font-semibold text-heading">
-          ₦25,000 to Grace Harvest Orphanage
+          {campaign ? `₦25,000 to ${org?.name ?? campaign.title}` : "Your gift receipt will appear here"}
         </span>
         <span className="text-[12px] text-muted-ink">Monthly, next on 1 November</span>
       </div>
-      {update ? (
+      {update?.body ? (
         <div className="flex flex-col gap-2.5">
           <span className="text-[12px] font-medium text-muted-ink">Latest update</span>
-          <img src={update.photo} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
-          <span className="text-[15px] leading-[21px] text-heading">{update.text}</span>
+          <span className="text-[15px] leading-[21px] text-heading">{update.body}</span>
         </div>
       ) : null}
     </div>

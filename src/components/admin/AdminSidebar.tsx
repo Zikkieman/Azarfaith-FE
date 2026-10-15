@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
@@ -15,8 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import logoMark from "@/assets/signup/logo-mark.svg";
-import { useApp } from "@/lib/store";
-import { me } from "@/lib/mock";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -44,15 +45,13 @@ export function AdminSidebar() {
   const location = useRouterState({ select: (s) => s.location });
   const navigate = useNavigate();
   const { setPaletteOpen } = usePalette();
-  const setAuthed = useApp((s) => s.setAuthed);
-  const setAdminRole = useApp((s) => s.setAdminRole);
-  const pendingOrgs = useApp(
-    (s) => s.orgs.filter((o) => o.verificationStatus === "pending").length,
-  );
-  const pendingCampaigns = useApp(
-    (s) => s.campaigns.filter((c) => c.verificationStatus === "pending").length,
-  );
-  const suspended = useApp((s) => s.users.filter((u) => u.status === "suspended").length);
+  const { user, logout } = useAuth();
+  const organizations = useQuery({ queryKey: ["admin", "organizations", "pending"], queryFn: () => apiFetch<unknown[]>("/admin/review/organizations?status=PENDING") });
+  const campaigns = useQuery({ queryKey: ["admin", "campaigns", "pending"], queryFn: () => apiFetch<unknown[]>("/admin/review/campaigns?status=PENDING") });
+  const users = useQuery({ queryKey: ["admin", "users"], queryFn: () => apiFetch<Array<{ status: string }>>("/admin/review/users") });
+  const pendingOrgs = organizations.data?.length ?? 0;
+  const pendingCampaigns = campaigns.data?.length ?? 0;
+  const suspended = users.data?.filter((item) => item.status === "suspended").length ?? 0;
 
   const groups: { label?: string; items: Item[] }[] = [
     { items: [{ label: "Overview", icon: Home, to: "/admin" }] },
@@ -182,9 +181,9 @@ export function AdminSidebar() {
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left outline-none transition-colors hover:bg-paper/70 focus-visible:ring-2 focus-visible:ring-ink">
-            <img src={me.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-brand/15 text-[11px] font-semibold text-brand-ink">{user?.fullName.slice(0, 1).toUpperCase() ?? "A"}</span>}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-ink">{me.name}</span>
+              <span className="block truncate text-[13px] font-medium text-ink">{user?.fullName ?? "Administrator"}</span>
               <span className="block text-[12px] text-muted-ink">Platform admin</span>
             </span>
             <ChevronsUpDown className="h-3.5 w-3.5 text-muted-ink" strokeWidth={2} />
@@ -203,9 +202,8 @@ export function AdminSidebar() {
             <DropdownMenuSeparator className="bg-line-soft" />
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2 rounded-[8px] px-3 py-2 text-sm focus:bg-panel"
-              onSelect={() => {
-                setAdminRole(null);
-                setAuthed(false);
+              onSelect={async () => {
+                await logout();
                 navigate({ to: "/" });
               }}
             >

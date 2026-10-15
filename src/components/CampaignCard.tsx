@@ -6,7 +6,7 @@ import { Segments } from "@/components/app/Segments";
 import { Tag } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
-import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/mock";
+import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 /** Latest word from the field in one quiet line: the newest update, or the newest gift. */

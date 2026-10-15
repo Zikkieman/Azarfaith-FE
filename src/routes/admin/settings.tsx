@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "@/lib/store";
-import type { PlatformSettings } from "@/lib/mock";
-import { pending, simulateNetwork } from "@/lib/api";
+import type { PlatformSettings } from "@/lib/domain";
+import { apiFetch, pending } from "@/lib/api";
 import { btn } from "@/components/app/btn";
 import { FieldError, inputClass, labelClass } from "@/components/app/AppShell";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +14,6 @@ import { AdminDetailSkeleton } from "@/components/admin/AdminSkeletons";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/settings")({
-  loader: () => simulateNetwork(),
   pendingComponent: () => <AdminDetailSkeleton label="Loading settings" />,
   ...pending,
   head: () => ({ meta: [{ title: "Settings — AzarFaith admin" }] }),
@@ -246,17 +245,38 @@ function Section({
     errors: Partial<Record<keyof PlatformSettings, string>>,
   ) => ReactNode;
 }) {
-  const saved = useApp((s) => s.platformSettings);
-  const update = useApp((s) => s.updatePlatformSettings);
-  const [draft, setDraft] = useState<PlatformSettings>(saved);
+  const queryClient = useQueryClient();
+  const settings = useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: () => apiFetch<PlatformSettings>("/admin/review/settings"),
+  });
+  const update = useMutation({
+    mutationFn: (data: Partial<PlatformSettings>) =>
+      apiFetch<PlatformSettings>("/admin/review/settings", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (next) => queryClient.setQueryData(["admin", "settings"], next),
+  });
+  const saved = settings.data;
+  const [draft, setDraft] = useState<PlatformSettings | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (saved) setDraft((current) => current ?? saved);
+  }, [saved]);
+  if (settings.error) {
+    return <section id={id} className="rounded-card border border-danger/20 bg-danger/[0.04] px-5 py-4 text-sm text-danger">Could not load {title.toLowerCase()} settings.</section>;
+  }
+  if (settings.isLoading || !saved || !draft) {
+    return <section id={id} className="h-48 animate-pulse rounded-card border border-line-soft bg-panel/30" />;
+  }
   const dirty = keys.some((k) => draft[k] !== saved[k]);
   const errors = validate ? validate(draft) : {};
   const invalid = Object.keys(errors).length > 0;
 
   const set = <K extends keyof PlatformSettings>(k: K, v: PlatformSettings[K]) => {
     setJustSaved(false);
-    setDraft((d) => ({ ...d, [k]: v }));
+    setDraft((current) => (current ? { ...current, [k]: v } as PlatformSettings : current));
   };
 
   return (
@@ -284,10 +304,14 @@ function Section({
           type="button"
           disabled={!dirty || invalid}
           className={btn("primary", "sm")}
-          onClick={() => {
-            update(Object.fromEntries(keys.map((k) => [k, draft[k]])) as Partial<PlatformSettings>);
-            setJustSaved(true);
-            toast.success(`${title} saved`);
+          onClick={async () => {
+            try {
+              await update.mutateAsync(Object.fromEntries(keys.map((k) => [k, draft[k]])) as Partial<PlatformSettings>);
+              setJustSaved(true);
+              toast.success(`${title} saved`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : `Could not save ${title.toLowerCase()}.`);
+            }
           }}
         >
           Save {title.toLowerCase()}
@@ -372,10 +396,24 @@ function Toggle({
 
 /** Stop all payments in an emergency. Typing PAUSE makes it impossible to do by accident. */
 function DangerZone() {
-  const paused = useApp((s) => s.givingPaused);
-  const setPaused = useApp((s) => s.setGivingPaused);
+  const queryClient = useQueryClient();
+  const giving = useQuery({
+    queryKey: ["admin", "giving-control"],
+    queryFn: () => apiFetch<{ givingPaused: boolean }>("/admin/review/giving-control"),
+  });
+  const setPaused = useMutation({
+    mutationFn: (givingPaused: boolean) =>
+      apiFetch("/admin/review/giving-control", {
+        method: "PATCH",
+        body: JSON.stringify({ givingPaused }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "giving-control"] }),
+  });
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
+  if (giving.isLoading) return <section id="danger" className="h-32 animate-pulse rounded-card border border-line-soft bg-panel/30" />;
+  if (giving.error) return <section id="danger" className="rounded-card border border-danger/20 bg-danger/[0.04] px-5 py-4 text-sm text-danger">Could not load giving controls.</section>;
+  const paused = giving.data?.givingPaused ?? false;
 
   return (
     <section id="danger" className="scroll-mt-20 rounded-card border border-danger/25">
@@ -394,9 +432,13 @@ function DangerZone() {
           <button
             type="button"
             className={btn("primary", "sm")}
-            onClick={() => {
-              setPaused(false);
-              toast.success("Giving resumed");
+            onClick={async () => {
+              try {
+                await setPaused.mutateAsync(false);
+                toast.success("Giving resumed");
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Could not resume giving.");
+              }
             }}
           >
             Resume giving
@@ -427,10 +469,14 @@ function DangerZone() {
         confirmLabel="Pause giving"
         variant="destructive"
         confirmDisabled={typed !== "PAUSE"}
-        onConfirm={() => {
-          setPaused(true);
-          setTyped("");
-          toast("Giving is paused across AzarFaith");
+        onConfirm={async () => {
+          try {
+            await setPaused.mutateAsync(true);
+            setTyped("");
+            toast("Giving is paused across AzarFaith");
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Could not pause giving.");
+          }
         }}
       >
         <label className="flex flex-col gap-1.5">

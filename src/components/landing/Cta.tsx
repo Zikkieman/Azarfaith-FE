@@ -17,6 +17,7 @@ export function Cta() {
 
         <Link
           to="/signup"
+          search={{}}
           className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-[22px] py-3 font-gsf text-base leading-5 tracking-[-0.02em] text-ink-contrast transition-opacity hover:opacity-90"
         >
           Start giving

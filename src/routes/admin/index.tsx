@@ -1,20 +1,19 @@
 import { useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeCheck, CheckCircle2 } from "lucide-react";
-import { useApp } from "@/lib/store";
-import { formatCompactMoney, formatMoney } from "@/lib/mock";
-import { orgFiles, timeAgo } from "@/lib/admin";
-import { pending, simulateNetwork } from "@/lib/api";
+import { type AuditAction, timeAgo } from "@/lib/admin";
+import { apiFetch, pending } from "@/lib/api";
 import { btn } from "@/components/app/btn";
 import { AdminPage } from "@/components/admin/AdminLayout";
 import { AdminColumnChart } from "@/components/admin/AdminBarChart";
 import { AdminDashboardSkeleton } from "@/components/admin/AdminSkeletons";
-import { CheckMeter, Timeline } from "@/components/admin/AdminParts";
+import { Timeline } from "@/components/admin/AdminParts";
 import { Segmented } from "@/components/admin/AdminFilterBar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin/")({
-  loader: () => simulateNetwork(),
   pendingComponent: AdminDashboardSkeleton,
   ...pending,
   head: () => ({ meta: [{ title: "Overview — AzarFaith admin" }] }),
@@ -22,48 +21,41 @@ export const Route = createFileRoute("/admin/")({
 });
 
 type Range = "7d" | "30d";
-
-const series: Record<Range, { label: string; value: number }[]> = {
-  "7d": [
-    { label: "Mon", value: 245000 },
-    { label: "Tue", value: 180000 },
-    { label: "Wed", value: 320000 },
-    { label: "Thu", value: 195000 },
-    { label: "Fri", value: 410000 },
-    { label: "Sat", value: 280000 },
-    { label: "Sun", value: 150000 },
-  ],
-  "30d": [
-    { label: "Sep 12", value: 1420000 },
-    { label: "Sep 19", value: 1690000 },
-    { label: "Sep 26", value: 1310000 },
-    { label: "Oct 3", value: 1780000 },
-  ],
+type OrganizationQueueItem = { id: string; name: string; category: string; photos: string[]; createdAt: string };
+type CampaignQueueItem = { id: string; title: string; cover: string; createdAt: string; raiser: { name: string } };
+type Dashboard = { recentActivity: Array<{ id: string; type: string; title: string; description: string; createdAt: string; link: string }> };
+type Analytics = {
+  current: { given: number; gifts: number; users: number; organizations: number };
+  change: Partial<Record<"given" | "gifts" | "users" | "organizations", number | null>>;
+  series: Array<{ date: string; given: number }>;
 };
-
-const strip: Record<Range, { label: string; value: string; delta?: string; up?: boolean }[]> = {
-  "7d": [
-    { label: "Given", value: "₦1,780,000", delta: "12%", up: true },
-    { label: "Gifts", value: "214", delta: "8%", up: true },
-    { label: "New givers", value: "3" },
-    { label: "New organizations", value: "1" },
-  ],
-  "30d": [
-    { label: "Given", value: "₦6,200,000", delta: "18%", up: true },
-    { label: "Gifts", value: "903", delta: "4%", up: false },
-    { label: "New givers", value: "11" },
-    { label: "New organizations", value: "2" },
-  ],
-};
+const formatMoney = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount);
+const formatCompactMoney = (amount: number) => new Intl.NumberFormat("en-NG", { notation: "compact", style: "currency", currency: "NGN", maximumFractionDigits: 1 }).format(amount);
+const activityAction = (type: string): AuditAction => ({ org_registered: "org_registered", campaign_submitted: "campaign_submitted" }[type] as AuditAction | undefined) ?? "settings_updated";
 
 function AdminOverview() {
-  const orgs = useApp((s) => s.orgs);
-  const campaigns = useApp((s) => s.campaigns);
-  const log = useApp((s) => s.auditLog);
+  const { user } = useAuth();
   const [range, setRange] = useState<Range>("7d");
-
-  const waitingOrgs = orgs.filter((o) => o.verificationStatus === "pending");
-  const waitingCampaigns = campaigns.filter((c) => c.verificationStatus === "pending");
+  const organizations = useQuery({ queryKey: ["admin", "organizations", "pending"], queryFn: () => apiFetch<OrganizationQueueItem[]>("/admin/review/organizations?status=PENDING") });
+  const campaigns = useQuery({ queryKey: ["admin", "campaigns", "pending"], queryFn: () => apiFetch<CampaignQueueItem[]>("/admin/review/campaigns?status=PENDING") });
+  const dashboard = useQuery({ queryKey: ["admin", "dashboard"], queryFn: () => apiFetch<Dashboard>("/admin/review/dashboard") });
+  const analytics = useQuery({ queryKey: ["admin", "analytics", range], queryFn: () => apiFetch<Analytics>(`/admin/review/analytics?range=${range}`) });
+  if (organizations.isLoading || campaigns.isLoading || dashboard.isLoading || analytics.isLoading) return <AdminDashboardSkeleton />;
+  if (organizations.error) throw organizations.error;
+  if (campaigns.error) throw campaigns.error;
+  if (dashboard.error) throw dashboard.error;
+  if (analytics.error) throw analytics.error;
+  const waitingOrgs = organizations.data ?? [];
+  const waitingCampaigns = campaigns.data ?? [];
+  const current = analytics.data?.current ?? { given: 0, gifts: 0, users: 0, organizations: 0 };
+  const changes = analytics.data?.change ?? {};
+  const series = (analytics.data?.series ?? []).map((item) => ({ label: new Date(`${item.date}T00:00:00Z`).toLocaleDateString("en-NG", { weekday: range === "7d" ? "short" : undefined, day: range === "30d" ? "numeric" : undefined, month: range === "30d" ? "short" : undefined }), value: item.given }));
+  const strip = [
+    { label: "Given", value: formatMoney(current.given), delta: changes.given },
+    { label: "Gifts", value: current.gifts.toLocaleString(), delta: changes.gifts },
+    { label: "New givers", value: current.users.toLocaleString(), delta: changes.users },
+    { label: "New organizations", value: current.organizations.toLocaleString(), delta: changes.organizations },
+  ];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const today = new Date().toLocaleDateString("en-NG", {
@@ -75,7 +67,7 @@ function AdminOverview() {
 
   return (
     <AdminPage
-      title={`${greeting}, Tunde`}
+      title={`${greeting}, ${user?.fullName.split(" ")[0] ?? "Administrator"}`}
       lead={
         <>
           {today}.{" "}
@@ -98,15 +90,7 @@ function AdminOverview() {
               key={o.id}
               image={o.photos[0]}
               title={o.name}
-              meta={
-                <span className="flex items-center gap-2">
-                  Applied {orgFiles[o.id] ? timeAgo(orgFiles[o.id].submittedAt) : "recently"}
-                  <span aria-hidden className="hidden sm:inline">
-                    ·
-                  </span>
-                  <CheckMeter orgId={o.id} />
-                </span>
-              }
+              meta={`Applied ${timeAgo(o.createdAt)} · ${o.category}`}
               to="/admin/orgs/$id"
               id={o.id}
             />
@@ -144,7 +128,7 @@ function AdminOverview() {
           />
         </div>
         <dl className="grid grid-cols-2 overflow-hidden rounded-card border border-line-soft lg:grid-cols-4">
-          {strip[range].map((s, i) => (
+          {strip.map((s, i) => (
             <div
               key={s.label}
               className={cn(
@@ -159,15 +143,15 @@ function AdminOverview() {
                 <span className="font-display text-[22px] leading-none tracking-[-0.02em] text-ink sm:text-[26px]">
                   {s.value}
                 </span>
-                {s.delta ? (
+                {s.delta !== null && s.delta !== undefined ? (
                   <span
                     className={cn(
                       "rounded-[6px] px-1.5 py-0.5 text-[12px] font-medium",
-                      s.up ? "bg-verified/10 text-verified-ink" : "bg-danger/10 text-danger",
+                      s.delta >= 0 ? "bg-verified/10 text-verified-ink" : "bg-danger/10 text-danger",
                     )}
                   >
-                    {s.up ? "+" : "−"}
-                    {s.delta}
+                    {s.delta >= 0 ? "+" : "−"}
+                    {Math.abs(s.delta)}%
                   </span>
                 ) : null}
               </dd>
@@ -177,18 +161,18 @@ function AdminOverview() {
         <div className="rounded-card border border-line-soft p-5 sm:p-6">
           <div className="flex items-baseline justify-between gap-4 pb-2">
             <p className="text-sm font-medium text-ink">
-              {range === "7d" ? "Gifts each day" : "Gifts each week"}
+              Gifts each day
             </p>
             <p className="text-[13px] text-muted-ink">
-              {formatMoney(series[range].reduce((n, d) => n + d.value, 0))} in total
+              {formatMoney(series.reduce((n, d) => n + d.value, 0))} in total
             </p>
           </div>
           <AdminColumnChart
             key={range}
-            data={series[range]}
+            data={series}
             format={formatCompactMoney}
             label={
-              range === "7d" ? "Naira given each day this week" : "Naira given each week this month"
+              range === "7d" ? "Naira given each day this week" : "Naira given each day this month"
             }
           />
         </div>
@@ -205,7 +189,14 @@ function AdminOverview() {
           </Link>
         </div>
         <div className="rounded-card border border-line-soft p-5 sm:p-6">
-          <Timeline entries={log.slice(0, 6)} showTarget />
+          <Timeline entries={(dashboard.data?.recentActivity ?? []).slice(0, 6).map((entry) => ({
+            id: entry.id,
+            actor: "AzarFaith",
+            action: activityAction(entry.type),
+            target: { kind: entry.type === "org_registered" ? "org" : entry.type === "campaign_submitted" ? "campaign" : "platform", name: entry.title },
+            detail: entry.description,
+            at: entry.createdAt,
+          }))} showTarget />
         </div>
       </section>
     </AdminPage>
@@ -268,7 +259,7 @@ function QueueRow({
   to,
   id,
 }: {
-  image: string;
+  image?: string;
   title: string;
   meta: ReactNode;
   to: string;
@@ -276,7 +267,7 @@ function QueueRow({
 }) {
   return (
     <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
-      <img src={image} alt="" className="h-9 w-9 shrink-0 rounded-[8px] object-cover" />
+      {image ? <img src={image} alt="" className="h-9 w-9 shrink-0 rounded-[8px] object-cover" /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-panel text-[12px] font-semibold text-muted-ink">{title.slice(0, 1).toUpperCase()}</span>}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-ink">{title}</p>
         <div className="truncate text-[12px] text-muted-ink">{meta}</div>

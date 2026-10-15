@@ -9,6 +9,8 @@ export function Campaigns() {
   const campaigns = useApp((s) => s.campaigns);
   const featured = campaigns.filter((c) => c.verificationStatus === "verified").slice(0, 3);
 
+  if (featured.length === 0) return null;
+
   return (
     <section className="mx-auto flex w-full max-w-[1728px] flex-col px-6 py-20 sm:px-10 md:py-[clamp(96px,9vw,156px)] lg:px-[clamp(40px,8.2vw,141px)]">
       <Reveal className="flex flex-col gap-6">

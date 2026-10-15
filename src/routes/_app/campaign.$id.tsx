@@ -7,6 +7,7 @@ import { Segments } from "@/components/app/Segments";
 import { GiveBox } from "@/components/app/GiveBox";
 import { CampaignDetailSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
+import { useCampaign } from "@/lib/catalog";
 import {
   AppShell,
   BackLink,
@@ -20,22 +21,14 @@ import {
 } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
-import {
-  campaigns as campaignSeed,
-  formatCompactMoney,
-  formatMoney,
-  type Campaign,
-} from "@/lib/mock";
+import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/campaign/$id")({
   loader: () => simulateNetwork(),
   pendingComponent: CampaignDetailSkeleton,
   ...pending,
-  head: ({ params }) => {
-    const c = campaignSeed.find((x) => x.id === params.id);
-    return { meta: [{ title: c ? `${c.title} — AzarFaith` : "Campaign — AzarFaith" }] };
-  },
+  head: () => ({ meta: [{ title: "Campaign — AzarFaith" }] }),
   component: CampaignDetail,
 });
 
@@ -56,11 +49,13 @@ function share(campaign: Campaign) {
 function CampaignDetail() {
   const { id } = Route.useParams();
   const router = useRouter();
-  const campaigns = useApp((s) => s.campaigns);
   const orgs = useApp((s) => s.orgs);
   const [allUpdates, setAllUpdates] = useState(false);
+  const campaignQuery = useCampaign(id);
 
-  const campaign = campaigns.find((c) => c.id === id);
+  if (campaignQuery.isLoading) return <CampaignDetailSkeleton />;
+  if (campaignQuery.error) throw campaignQuery.error;
+  const campaign = campaignQuery.data;
   if (!campaign) throw notFound();
 
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;

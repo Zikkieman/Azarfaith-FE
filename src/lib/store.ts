@@ -1,12 +1,5 @@
 import { create } from "zustand";
-import { SESSION_COOKIE, writeSession } from "./session";
 import {
-  campaigns as campaignSeed,
-  orgs as orgSeed,
-  myRecurringDonations as recurringDonationsSeed,
-  users as usersSeed,
-  platformSettings as settingsSeed,
-  adminNotifications as notificationsSeed,
   type Campaign,
   type Org,
   type RecurringDonation,
@@ -14,11 +7,8 @@ import {
   type PlatformSettings,
   type AdminNotification,
   type UserRole,
-} from "./mock";
+} from "./domain";
 import {
-  auditSeed,
-  checkSeed,
-  noteSeed,
   type AuditAction,
   type AuditEntry,
   type CheckKey,
@@ -46,12 +36,14 @@ type OrgDraft = {
   name?: string;
   tagline?: string;
   category?: Org["category"];
+  otherCategoryLabel?: string;
   denomination?: string;
   location?: string;
   founded?: string;
   bio?: string;
   photos?: string[];
   videos?: string[];
+  registrationDocuments?: string[];
 };
 
 type State = {
@@ -115,14 +107,11 @@ const entry = (action: AuditAction, target: AuditEntry["target"], detail?: strin
 });
 
 export const useApp = create<State>((set) => ({
-  // Mirrors the prototype session cookie (lib/session.ts). Always false on the server.
-  authed: typeof document !== "undefined" && document.cookie.includes(`${SESSION_COOKIE}=1`),
-  setAuthed: (v) => {
-    writeSession(v);
-    set({ authed: v });
-  },
+  // AuthProvider derives this from the HttpOnly cookie-backed API session.
+  authed: false,
+  setAuthed: (v) => set({ authed: v }),
 
-  campaigns: campaignSeed,
+  campaigns: [],
   addCampaign: (c) => set((s) => ({ campaigns: [c, ...s.campaigns] })),
   donate: (id, amount, donor, note) =>
     set((s) => ({
@@ -144,7 +133,7 @@ export const useApp = create<State>((set) => ({
   setDraft: (d) => set((s) => ({ draft: { ...s.draft, ...d } })),
   resetDraft: () => set({ draft: {} }),
 
-  orgs: orgSeed,
+  orgs: [],
   addOrg: (o) => set((s) => ({ orgs: [o, ...s.orgs], myOrgId: o.id })),
   myOrgId: null,
   setMyOrgId: (id) => set({ myOrgId: id }),
@@ -152,7 +141,7 @@ export const useApp = create<State>((set) => ({
   setOrgDraft: (d) => set((s) => ({ orgDraft: { ...s.orgDraft, ...d } })),
   resetOrgDraft: () => set({ orgDraft: {} }),
 
-  recurringDonations: recurringDonationsSeed,
+  recurringDonations: [],
   addRecurringDonation: (r) => set((s) => ({ recurringDonations: [r, ...s.recurringDonations] })),
   updateRecurringDonation: (id, patch) =>
     set((s) => ({
@@ -166,11 +155,23 @@ export const useApp = create<State>((set) => ({
     })),
 
   // ─── Admin ───
-  adminRole: "platform_admin",
+  adminRole: null,
   setAdminRole: (role) => set({ adminRole: role }),
-  users: usersSeed,
-  platformSettings: settingsSeed,
-  adminNotifications: notificationsSeed,
+  users: [],
+  platformSettings: {
+    platformFeePercent: 0,
+    minDonation: 0,
+    maxDonation: 0,
+    maxTipAmount: 0,
+    campaignExpiryDays: 0,
+    autoApproveVerifiedOrgs: false,
+    requirePhoneForCampaigns: false,
+    reapplicationDays: 0,
+    emailNotifications: false,
+    smsNotifications: false,
+    adminNotificationEmail: "",
+  },
+  adminNotifications: [],
 
   verifyOrg: (id, status, notes) =>
     set((s) => {
@@ -271,9 +272,9 @@ export const useApp = create<State>((set) => ({
       ],
     })),
 
-  auditLog: auditSeed,
+  auditLog: [],
 
-  notes: noteSeed,
+  notes: {},
   addNote: (recordId, body) =>
     set((s) => ({
       notes: {
@@ -290,7 +291,7 @@ export const useApp = create<State>((set) => ({
       },
     })),
 
-  checks: checkSeed,
+  checks: {},
   setCheck: (orgId, key, value, detail) =>
     set((s) => {
       const org = s.orgs.find((o) => o.id === orgId);

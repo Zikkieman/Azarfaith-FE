@@ -10,9 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useApp } from "@/lib/store";
 import { useScrollDirection } from "@/lib/motion";
-import { me } from "@/lib/mock";
+import { useAuth } from "@/lib/auth";
 
 const navLinks = [
   { label: "Discover", to: "/discover" },
@@ -29,16 +28,16 @@ export function AppNav({ active }: { active?: string }) {
   const hideOnScroll = useScrollDirection();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const setAuthed = useApp((s) => s.setAuthed);
-  const adminRole = useApp((s) => s.adminRole);
+  const { user, logout } = useAuth();
 
   const fromPath = navLinks.find((l) => path === l.to || path.startsWith(`${l.to}/`))?.label;
   const current = active ?? fromPath ?? (path === "/" ? "Discover" : "");
 
   const signOut = () => {
-    setAuthed(false);
+    void logout().finally(() => {
+      navigate({ to: "/" });
+    });
     setMenuOpen(false);
-    navigate({ to: "/" });
   };
 
   return (
@@ -79,7 +78,7 @@ export function AppNav({ active }: { active?: string }) {
             <DropdownMenu>
               <DropdownMenuTrigger className="hidden cursor-pointer items-center gap-2.5 px-2.5 py-2.5 text-left outline-none lg:flex">
                 <span className="font-gsf text-base font-bold leading-[35px] text-white">
-                  {me.name}
+                  {user?.fullName ?? "Your account"}
                 </span>
                 <img src={iconChevron} alt="" className="h-6 w-6" />
               </DropdownMenuTrigger>
@@ -88,8 +87,8 @@ export function AppNav({ active }: { active?: string }) {
                 className="w-60 rounded-field border border-line-soft bg-paper p-1.5 shadow-none"
               >
                 <div className="px-3 pb-2 pt-1.5">
-                  <p className="font-gsf text-sm font-semibold text-ink">{me.name}</p>
-                  <p className="font-gsf text-[13px] text-muted-ink">{me.location}</p>
+                  <p className="font-gsf text-sm font-semibold text-ink">{user?.fullName ?? "Your account"}</p>
+                  <p className="font-gsf text-[13px] text-muted-ink">{user?.email ?? ""}</p>
                 </div>
                 <DropdownMenuSeparator className="bg-line-soft" />
                 <DropdownMenuItem asChild className={menuItemClass}>
@@ -107,7 +106,7 @@ export function AppNav({ active }: { active?: string }) {
                     <Building2 className="h-4 w-4" strokeWidth={1.5} /> Register your org
                   </Link>
                 </DropdownMenuItem>
-                {adminRole === "platform_admin" ? (
+                {user?.role === "platform_admin" ? (
                   <DropdownMenuItem asChild className={menuItemClass}>
                     <Link to="/admin">
                       <Shield className="h-4 w-4" strokeWidth={1.5} /> Admin

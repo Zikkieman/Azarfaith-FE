@@ -1,66 +1,37 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, ArrowRight, BadgeCheck } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";
 import { TrustReceipt } from "./TrustReceipt";
+import { formatCompactMoney } from "@/lib/domain";
 import { reducedMotion } from "@/lib/motion";
+import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
-
-const photo = (id: string) =>
-  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=900&q=80`;
 
 type Card =
   | { kind: "quote"; tone: "orange" | "ink" | "paper"; quote: string; name: string; role: string }
   | { kind: "photo"; src: string; figure: string; label: string; name: string; role: string };
 
-/* Sample voices for the prototype — swap for real, consented testimonials before launch. */
-const cards: Card[] = [
+const principles: Card[] = [
   {
     kind: "quote",
     tone: "orange",
-    quote:
-      "AzarFaith made giving simple and transparent. We reached more supporters in a year than in the five before it.",
-    name: "Adaeze Nwosu",
-    role: "Pastor, Living Seed Chapel",
-  },
-  {
-    kind: "photo",
-    src: photo("1694286068611-d0c24cbc2cd5"),
-    figure: "₦8.75M",
-    label: "received for Sunday meals under the bridge",
-    name: "Church Under The Bridge",
-    role: "Lagos Island",
+    quote: "Give to a verified cause, see the fee before you pay, and keep the record of your support.",
+    name: "AzarFaith",
+    role: "Giving, made accountable",
   },
   {
     kind: "quote",
     tone: "ink",
-    quote:
-      "I give to my home church from Houston every month, and for the first time I can see exactly what it pays for.",
-    name: "Chidinma Okoro",
-    role: "Monthly giver",
-  },
-  {
-    kind: "photo",
-    src: photo("1509099927777-1b8a87bc3b21"),
-    figure: "20 beds",
-    label: "funded by 89 givers, with every receipt posted",
-    name: "Grace Harvest Orphanage",
-    role: "Jos, Plateau State",
+    quote: "Campaign updates help you follow the work your support makes possible.",
+    name: "AzarFaith",
+    role: "Built for transparent giving",
   },
   {
     kind: "quote",
     tone: "paper",
-    quote:
-      "Monthly support means we plan the next village visit instead of waiting to see what comes in.",
-    name: "Kolade Akinwale",
-    role: "Missionary, North-Central Nigeria",
-  },
-  {
-    kind: "photo",
-    src: photo("1604072424771-7300bc5de457"),
-    figure: "847",
-    label: "supporters behind missionaries in the North",
-    name: "ECWA Mission Board",
-    role: "Kaduna",
+    quote: "Support can be a single gift or a recurring commitment to work you trust.",
+    name: "AzarFaith",
+    role: "Support that fits your rhythm",
   },
 ];
 
@@ -120,6 +91,26 @@ function PhotoCard({ c }: { c: Extract<Card, { kind: "photo" }> }) {
 export function Testimonial() {
   const track = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
+  const campaigns = useApp((state) => state.campaigns);
+  const orgs = useApp((state) => state.orgs);
+  const cards = useMemo<Card[]>(() => {
+    const orgById = new Map(orgs.map((org) => [org.id, org]));
+    const liveCampaigns = campaigns
+      .filter((campaign) => campaign.verificationStatus === "verified" && campaign.cover)
+      .slice(0, 3)
+      .map<Card>((campaign) => {
+        const org = campaign.orgId ? orgById.get(campaign.orgId) : undefined;
+        return {
+          kind: "photo",
+          src: campaign.cover,
+          figure: formatCompactMoney(campaign.raised),
+          label: campaign.title,
+          name: org?.name ?? campaign.raiser.name,
+          role: campaign.location || org?.location || "Nigeria",
+        };
+      });
+    return [...principles.slice(0, 1), ...liveCampaigns, ...principles.slice(1)];
+  }, [campaigns, orgs]);
 
   useEffect(() => {
     const el = track.current;
@@ -162,10 +153,10 @@ export function Testimonial() {
               id="voices"
               className="font-display text-[clamp(32px,3.2vw,56px)] leading-[1.08] tracking-[-0.03em] text-ink"
             >
-              In their own words
+              Giving you can follow
             </h2>
             <p className="font-gsf text-lg leading-[1.55] tracking-[-0.03em] text-ink-soft">
-              Pastors, missionaries and givers on what changed when every gift could be followed.
+              Published causes appear here as they are approved. Every campaign can show its progress and updates.
             </p>
           </div>
           <div className="hidden gap-2 sm:flex">
@@ -190,7 +181,7 @@ export function Testimonial() {
 
       <ul
         ref={track}
-        aria-label="Stories from churches and givers"
+        aria-label="Published causes and AzarFaith giving principles"
         className="relative mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-px-6 px-6 pb-2 [scrollbar-width:none] sm:scroll-px-10 sm:px-10 lg:scroll-px-[clamp(40px,6vw,141px)] lg:px-[clamp(40px,6vw,141px)] xl:scroll-px-[max(clamp(40px,6vw,141px),calc((100vw_-_1446px)/2_+_clamp(40px,6vw,141px)))] xl:px-[max(clamp(40px,6vw,141px),calc((100vw_-_1446px)/2_+_clamp(40px,6vw,141px)))] [&::-webkit-scrollbar]:hidden"
       >
         {cards.map((c, i) => (

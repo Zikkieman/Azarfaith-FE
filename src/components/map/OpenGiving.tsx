@@ -7,12 +7,12 @@ import { Footer } from "@/components/landing/Footer";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Cta } from "@/components/landing/Cta";
 import { CountUp, Reveal } from "@/components/motion/Reveal";
-import { campaignLayers } from "@/components/story/layers";
-import { formatCompactMoney, formatMoney } from "@/lib/mock";
+import { useCampaignLayers } from "@/components/story/layers";
+import { formatCompactMoney, formatMoney, type Campaign, type Org, type OrgCategory } from "@/lib/domain";
 import { reducedMotion } from "@/lib/motion";
+import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { VIEW, dots, project, stateAt, states, type Dot } from "./nigeria";
-import { feed, orgCount, stats, totals, type Cause } from "./data";
 
 const stateName = Object.fromEntries(states.map((s) => [s.id, s.name]));
 const dotsByState = dots.reduce<Record<string, Dot[]>>((acc, d) => {
@@ -20,7 +20,89 @@ const dotsByState = dots.reduce<Record<string, Dot[]>>((acc, d) => {
   return acc;
 }, {});
 
-type Filter = Cause | "all";
+type Cause = "church" | "mission" | "orphanage" | "school" | "other";
+type FeaturedCause = { org: string; place: string; text: string; photo: string; to: string };
+type StateStats = {
+  orgs: Record<Cause, number>;
+  raised: number;
+  featured?: FeaturedCause;
+};
+type LiveFeedItem = { state: string; amount: number; title: string };
+
+const emptyOrgs = (): Record<Cause, number> => ({
+  church: 0,
+  mission: 0,
+  orphanage: 0,
+  school: 0,
+  other: 0,
+});
+
+const mapCause = (category: OrgCategory): Cause =>
+  category === "church" || category === "mission" || category === "orphanage" || category === "school"
+    ? category
+    : "other";
+
+function stateIdForLocation(location: string) {
+  const value = location.toLocaleLowerCase();
+  if (value.includes("abuja") || value.includes("fct") || value.includes("federal capital territory")) {
+    return "FC";
+  }
+  return states.find((state) => value.includes(state.name.toLocaleLowerCase()))?.id;
+}
+
+function getLiveMapData(orgs: Org[], campaigns: Campaign[]) {
+  const verifiedOrgs = orgs.filter((org) => org.verificationStatus === "verified");
+  const orgById = new Map(verifiedOrgs.map((org) => [org.id, org]));
+  const stats: Record<string, StateStats> = {};
+
+  for (const org of verifiedOrgs) {
+    const stateId = stateIdForLocation(org.location);
+    if (!stateId) continue;
+    const entry = (stats[stateId] ??= { orgs: emptyOrgs(), raised: 0 });
+    entry.orgs[mapCause(org.category)] += 1;
+    if (!entry.featured && org.photos[0]) {
+      entry.featured = {
+        org: org.name,
+        place: org.location,
+        text: org.tagline || "View this verified organization.",
+        photo: org.photos[0],
+        to: `/org/${org.id}`,
+      };
+    }
+  }
+
+  for (const campaign of campaigns.filter((item) => item.verificationStatus === "verified")) {
+    const parentOrg = campaign.orgId ? orgById.get(campaign.orgId) : undefined;
+    const stateId = stateIdForLocation(campaign.location || parentOrg?.location || "");
+    if (!stateId) continue;
+    const entry = (stats[stateId] ??= { orgs: emptyOrgs(), raised: 0 });
+    entry.raised += campaign.raised;
+    if (campaign.cover && (!entry.featured || entry.featured.to.startsWith("/org/"))) {
+      entry.featured = {
+        org: parentOrg?.name ?? campaign.raiser.name,
+        place: campaign.location || parentOrg?.location || stateName[stateId],
+        text: campaign.title,
+        photo: campaign.cover,
+        to: `/campaign/${campaign.id}`,
+      };
+    }
+  }
+
+  const feed = Object.entries(stats)
+    .filter(([, value]) => value.raised > 0 && value.featured)
+    .sort(([, a], [, b]) => b.raised - a.raised)
+    .map(([state, value]) => ({ state, amount: value.raised, title: value.featured!.text }));
+  const totals = {
+    raised: Object.values(stats).reduce((sum, state) => sum + state.raised, 0),
+    orgs: verifiedOrgs.length,
+    campaigns: campaigns.filter((item) => item.verificationStatus === "verified").length,
+  };
+
+  return { stats, feed, totals };
+}
+
+const orgCount = (state: StateStats | undefined) =>
+  state ? Object.values(state.orgs).reduce((sum, count) => sum + count, 0) : 0;
 
 /** One state's dots. Memoised so hovering a state repaints only the states that change. */
 const StateDots = memo(function StateDots({
@@ -47,14 +129,14 @@ const StateDots = memo(function StateDots({
 });
 
 function NigeriaMap({
-  filter,
+  stats,
   selected,
   hovered,
   pulse,
   onHover,
   onSelect,
 }: {
-  filter: Filter;
+  stats: Record<string, StateStats>;
   selected: string | null;
   hovered: string | null;
   pulse: { id: number; state: string } | null;
@@ -62,8 +144,8 @@ function NigeriaMap({
   onSelect: (s: string) => void;
 }) {
   const max = useMemo(
-    () => Math.max(...Object.values(stats).map((s) => orgCount(s, filter))),
-    [filter],
+    () => Math.max(1, ...Object.values(stats).map(orgCount)),
+    [stats],
   );
   const stateFrom = (e: React.PointerEvent | React.MouseEvent) => {
     const svg = e.currentTarget as SVGSVGElement;
@@ -90,7 +172,7 @@ function NigeriaMap({
       }}
     >
       {states.map(({ id }) => {
-        const n = orgCount(stats[id], filter);
+        const n = orgCount(stats[id]);
         const isSel = selected === id;
         const isHov = hovered === id;
         const fill = isSel || isHov ? "#130E30" : n > 0 ? "#FE5102" : "var(--af-line)";
@@ -139,13 +221,13 @@ function StatePicker({ selected, onChange }: { selected: string; onChange: (id: 
 }
 
 /** One state's week in three beats: how much, the latest proof, and where to go next. */
-function StatePanel({ id }: { id: string }) {
+function StatePanel({ id, stats }: { id: string; stats: Record<string, StateStats> }) {
   const s = stats[id];
   if (!s) {
     return (
       <p className="text-[15px] leading-[23px] text-ink-soft">
         No verified organizations in {stateName[id]} yet. If you lead a church or ministry here,{" "}
-        <Link to="/signup" className="font-semibold text-ink underline underline-offset-2">
+        <Link to="/signup" search={{}} className="font-semibold text-ink underline underline-offset-2">
           register it
         </Link>
         .
@@ -156,14 +238,14 @@ function StatePanel({ id }: { id: string }) {
     <div key={id} className="state-in flex flex-col gap-7">
       <div className="flex flex-col gap-2">
         <p className="font-display text-[clamp(48px,4.6vw,76px)] leading-[0.95] tracking-[-0.04em] text-ink">
-          {formatCompactMoney(s.givenWeek)}
+          {formatCompactMoney(s.raised)}
         </p>
         <p className="text-[15px] leading-[23px] text-ink-soft">
-          given this week to {orgCount(s, "all")} verified organizations
+          raised across {orgCount(s)} verified organizations
         </p>
       </div>
       {s.featured ? (
-        <Link to={s.featured.to ?? "/discover"} className="group flex flex-col gap-3">
+        <Link to={s.featured.to} className="group flex flex-col gap-3">
           <span className="block aspect-[16/10] overflow-hidden rounded-2xl bg-[#F1EFEA]">
             <img
               src={s.featured.photo}
@@ -197,22 +279,27 @@ function StatePanel({ id }: { id: string }) {
   );
 }
 
-function useFeed(onGift: (state: string) => void) {
+function useFeed(feed: LiveFeedItem[], onGift: (state: string) => void) {
   const [head, setHead] = useState(0);
   useEffect(() => {
-    if (reducedMotion()) return;
+    if (reducedMotion() || feed.length < 2) return;
     const t = window.setInterval(() => {
       if (document.visibilityState === "visible") setHead((h) => (h + 1) % feed.length);
     }, 2800);
     return () => window.clearInterval(t);
-  }, []);
-  useEffect(() => onGift(feed[head].state), [head, onGift]);
+  }, [feed.length]);
+  useEffect(() => {
+    if (feed[head]) onGift(feed[head].state);
+  }, [feed, head, onGift]);
   return head;
 }
 
 /** The newest gift, swapping in as the next one lands. */
-function LiveTicker({ head }: { head: number }) {
+function LiveTicker({ feed, head }: { feed: LiveFeedItem[]; head: number }) {
   const g = feed[head];
+  if (!g) {
+    return <p className="font-gsf text-[14px] text-muted-ink">Published campaigns will appear here as giving begins.</p>;
+  }
   return (
     <p className="flex items-center gap-2.5 font-gsf text-[14px]">
       <span className="relative flex h-2 w-2 shrink-0">
@@ -220,15 +307,13 @@ function LiveTicker({ head }: { head: number }) {
         <span className="relative h-2 w-2 rounded-full bg-[#FE5102]" />
       </span>
       <span key={head} className="feed-in min-w-0 flex-1 truncate text-heading">
-        <span className="font-semibold">{formatMoney(g.amount)}</span> to {g.place}
+        <span className="font-semibold">{formatMoney(g.amount)}</span> raised for {g.title}
       </span>
       <span className="shrink-0 text-[12px] text-muted-ink">just now</span>
     </p>
   );
 }
 
-/** States the section walks through as the visitor scrolls. */
-const TOUR = ["PL", "FC", "RI"];
 /** Scroll distance (svh) each toured state holds the stage for on desktop. */
 const STEP_SVH = 22;
 const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
@@ -246,7 +331,14 @@ export function OpenGivingSection({
   className?: string;
 }) {
   const Heading = heading;
-  const [selected, setSelected] = useState<string>(TOUR[0]);
+  const orgs = useApp((state) => state.orgs);
+  const campaigns = useApp((state) => state.campaigns);
+  const { stats, feed, totals } = useMemo(() => getLiveMapData(orgs, campaigns), [campaigns, orgs]);
+  const tour = useMemo(() => {
+    const populated = Object.keys(stats).sort((a, b) => orgCount(stats[b]) - orgCount(stats[a]));
+    return populated.slice(0, 3).length ? populated.slice(0, 3) : ["FC", "LA", "PL"];
+  }, [stats]);
+  const [selected, setSelected] = useState<string>("FC");
   const [hovered, setHovered] = useState<string | null>(null);
   const [pulse, setPulse] = useState<{ id: number; state: string } | null>(null);
   const [step, setStep] = useState(0);
@@ -258,16 +350,20 @@ export function OpenGivingSection({
     let n = 0;
     return (state: string) => setPulse({ id: ++n, state });
   }, []);
-  const head = useFeed(onGift);
+  const head = useFeed(feed, onGift);
+
+  useEffect(() => {
+    if (!tour.includes(selected)) setSelected(tour[0]);
+  }, [selected, tour]);
 
   const { scrollYProgress } = useScroll({ target: pinRef, offset: ["start start", "end end"] });
   useMotionValueEvent(scrollYProgress, "change", (v) => {
     if (!isDesktop()) return;
-    const i = Math.min(TOUR.length - 1, Math.max(0, Math.floor(v * TOUR.length)));
+    const i = Math.min(tour.length - 1, Math.max(0, Math.floor(v * tour.length)));
     if (i === stepRef.current) return;
     stepRef.current = i;
     setStep(i);
-    setSelected(TOUR[i]);
+    setSelected(tour[i]);
   });
 
   useEffect(() => {
@@ -275,14 +371,14 @@ export function OpenGivingSection({
       (entries) => {
         if (isDesktop()) return;
         for (const e of entries) {
-          if (e.isIntersecting) setSelected((e.target as HTMLElement).dataset.state ?? TOUR[0]);
+          if (e.isIntersecting) setSelected((e.target as HTMLElement).dataset.state ?? tour[0]);
         }
       },
       { rootMargin: "-62% 0px -36% 0px" },
     );
     storyRefs.current.forEach((el) => el && io.observe(el));
     return () => io.disconnect();
-  }, []);
+  }, [tour]);
 
   const jump = (i: number) => {
     const el = pinRef.current;
@@ -290,7 +386,7 @@ export function OpenGivingSection({
     const top = el.getBoundingClientRect().top + window.scrollY;
     const range = el.offsetHeight - window.innerHeight;
     window.scrollTo({
-      top: top + (range * (i + 0.5)) / TOUR.length,
+      top: top + (range * (i + 0.5)) / tour.length,
       behavior: reducedMotion() ? "auto" : "smooth",
     });
   };
@@ -312,23 +408,23 @@ export function OpenGivingSection({
           </Heading>
           <p className="max-w-[620px] text-pretty text-lg leading-[1.6] tracking-[-0.02em] text-ink-soft">
             <strong className="font-semibold text-ink">
-              <CountUp value={formatCompactMoney(totals.givenWeek)} />
+              <CountUp value={formatCompactMoney(totals.raised)} />
             </strong>{" "}
-            given this week to{" "}
+            raised across{" "}
             <strong className="font-semibold text-ink">
               <CountUp value={`${totals.orgs}`} />
             </strong>{" "}
-            verified organizations, with{" "}
+            verified organizations and{" "}
             <strong className="font-semibold text-ink">
-              <CountUp value={`${totals.receipts}`} />
+              <CountUp value={`${totals.campaigns}`} />
             </strong>{" "}
-            receipts posted. Every gift comes back with proof.
+            published campaigns. Every gift comes back with proof.
           </p>
         </div>
 
         <div
           ref={pinRef}
-          style={{ "--tour": `${TOUR.length * STEP_SVH}svh` } as CSSProperties}
+          style={{ "--tour": `${tour.length * STEP_SVH}svh` } as CSSProperties}
           className="lg:h-[calc(100svh+var(--tour))]"
         >
           <div className="flex flex-col gap-6 lg:sticky lg:top-0 lg:h-svh lg:justify-center lg:py-6">
@@ -336,7 +432,7 @@ export function OpenGivingSection({
               <div className="sticky top-0 z-10 -mx-6 bg-paper px-6 py-3 sm:-mx-10 sm:px-10 lg:static lg:col-start-2 lg:row-start-1 lg:m-0 lg:w-full lg:max-w-[calc((100svh-210px)*1.232+64px)] lg:justify-self-center lg:bg-transparent lg:p-0">
                 <div className="relative rounded-3xl bg-panel p-4 sm:p-8">
                   <NigeriaMap
-                    filter="all"
+                    stats={stats}
                     selected={selected}
                     hovered={hovered}
                     pulse={pulse}
@@ -345,18 +441,18 @@ export function OpenGivingSection({
                   />
                   {hovered && hovered !== selected ? (
                     <p className="pointer-events-none absolute left-6 top-6 rounded-full bg-ink px-3 py-1 text-[13px] font-medium text-ink-contrast">
-                      {stateName[hovered]} · {orgCount(stats[hovered], "all")} organizations
+                      {stateName[hovered]} · {orgCount(stats[hovered])} organizations
                     </p>
                   ) : null}
                   <div className="mt-3 border-t border-line-soft pt-3 sm:mt-5 sm:pt-4">
-                    <LiveTicker head={head} />
+                    <LiveTicker feed={feed} head={head} />
                   </div>
                 </div>
               </div>
 
               <div className="hidden min-w-0 flex-col gap-8 lg:col-start-1 lg:row-start-1 lg:flex lg:self-center">
                 <div className="-my-2 flex gap-1.5">
-                  {TOUR.map((id, i) => (
+                  {tour.map((id, i) => (
                     <button
                       key={id}
                       type="button"
@@ -375,11 +471,11 @@ export function OpenGivingSection({
                   ))}
                 </div>
                 <StatePicker selected={selected} onChange={setSelected} />
-                <StatePanel id={selected} />
+                <StatePanel id={selected} stats={stats} />
               </div>
 
               <div className="flex flex-col lg:hidden">
-                {TOUR.map((id, i) => (
+                {tour.map((id, i) => (
                   <div
                     key={id}
                     ref={(el) => {
@@ -392,14 +488,14 @@ export function OpenGivingSection({
                       What&rsquo;s happening in{" "}
                       <span className="text-[#FE5102]">{stateName[id]}</span>
                     </p>
-                    <StatePanel id={id} />
+                    <StatePanel id={id} stats={stats} />
                   </div>
                 ))}
               </div>
             </div>
 
             <p className="text-center text-[12px] text-subtle">
-              Prototype: figures are sample data. Gifts are shown without names or exact locations.
+              Figures reflect published campaigns and verified organizations. Donor identities are never shown.
             </p>
           </div>
         </div>
@@ -431,7 +527,7 @@ export function OpenGiving() {
               </p>
             </Reveal>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {campaignLayers(hover, setHover).map((l) => (
+              {useCampaignLayers(hover, setHover).map((l) => (
                 <div key={l.id} className="h-[200px]">
                   {l.node}
                 </div>

@@ -21,7 +21,7 @@ import {
   PipelineStage,
   UpdateCard,
 } from "./pieces";
-import { campaignLayers } from "./layers";
+import { useCampaignLayers } from "./layers";
 
 /* ─── Timeline ────────────────────────────────────────────────────────────
    One scroll progress value p ∈ [0, 1] drives every element on the stage.
@@ -617,7 +617,7 @@ export function Stage() {
   const markBackO = useTransform(p, [0.91, 0.95], [0, 1]);
   const markBackS = useTransform(p, [0.91, 0.95], [0.6, 1], EASE);
 
-  const layers = campaignLayers(hoverKey, setHoverKey);
+  const layers = useCampaignLayers(hoverKey, setHoverKey);
 
   return (
     <div ref={ref} className="relative h-[1000vh] max-md:h-[880vh]">
@@ -656,6 +656,7 @@ export function Stage() {
           <div className="flex flex-wrap justify-center gap-3 pt-1">
             <Link
               to="/signup"
+              search={{}}
               className="press inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast hover:opacity-90"
             >
               Start giving
@@ -746,6 +747,7 @@ export function Stage() {
             <UpdateCard />
             <Link
               to="/signup"
+              search={{}}
               className="press inline-flex items-center rounded-full border-2 border-[#130E30] bg-[#130E30] px-6 py-3 font-gsf text-base font-medium text-[#EFF2E5] hover:opacity-90"
             >
               Start with AzarFaith

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { BadgeCheck, Building2, Download, MapPin, ShieldX } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "@/lib/store";
-import { formatMoney, type Org } from "@/lib/mock";
-import { matches, orgFiles, rejectReasons, timeAgo, type FilterValue } from "@/lib/admin";
-import { pending, simulateNetwork } from "@/lib/api";
+import { formatMoney, type Org } from "@/lib/domain";
+import { matches, rejectReasons, timeAgo, type FilterValue } from "@/lib/admin";
+import { apiFetch, pending } from "@/lib/api";
 import { btn } from "@/components/app/btn";
 import { AdminPage } from "@/components/admin/AdminLayout";
 import {
@@ -21,7 +21,6 @@ import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { AdminRejectDialog } from "@/components/admin/AdminRejectDialog";
 import { AdminListSkeleton } from "@/components/admin/AdminSkeletons";
 import { StatusBadge } from "@/components/admin/AdminBadge";
-import { CheckMeter } from "@/components/admin/AdminParts";
 import { OrgPanel } from "@/components/admin/OrgReview";
 import { orgCategoryLabel } from "@/components/admin/labels";
 import { downloadCsv } from "@/components/admin/csv";
@@ -33,26 +32,34 @@ export const Route = createFileRoute("/admin/orgs/")({
   validateSearch: (s: Record<string, unknown>): { view: View } => ({
     view: views.includes(s.view as View) ? (s.view as View) : "all",
   }),
-  loader: () => simulateNetwork(),
   pendingComponent: () => <AdminListSkeleton label="Loading organizations" />,
   ...pending,
   head: () => ({ meta: [{ title: "Organizations — AzarFaith admin" }] }),
   component: AdminOrgs,
 });
 
+type ReviewOrg = Org & { createdAt: string; registrationDocuments: string[] };
+type ApiOrganization = Omit<ReviewOrg, "videos">;
 const stateOf = (o: Org) => o.location.split(",").pop()!.replace("State", "").trim();
 
 function AdminOrgs() {
   const { view } = Route.useSearch();
   const navigate = useNavigate();
-  const orgs = useApp((s) => s.orgs);
-  const checks = useApp((s) => s.checks);
-  const verifyOrg = useApp((s) => s.verifyOrg);
+  const queryClient = useQueryClient();
+  const organizations = useQuery({ queryKey: ["admin", "organizations"], queryFn: () => apiFetch<ApiOrganization[]>("/admin/review/organizations") });
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterValue>({});
-  const [open, setOpen] = useState<Org | null>(null);
-  const [bulkVerify, setBulkVerify] = useState<Org[] | null>(null);
-  const [bulkReject, setBulkReject] = useState<Org[] | null>(null);
+  const [open, setOpen] = useState<ReviewOrg | null>(null);
+  const [bulkVerify, setBulkVerify] = useState<ReviewOrg[] | null>(null);
+  const [bulkReject, setBulkReject] = useState<ReviewOrg[] | null>(null);
+  const decision = useMutation({
+    mutationFn: async ({ organizations: selected, status, reason }: { organizations: ReviewOrg[]; status: "VERIFIED" | "UNVERIFIED"; reason?: string }) => Promise.all(selected.map((organization) => apiFetch(`/admin/review/organizations/${organization.id}/status`, { method: "PATCH", body: JSON.stringify({ status, reviewAction: status === "VERIFIED" ? "APPROVED" : "REJECTED", ...(reason ? { reason } : {}) }) }))),
+    onSuccess: async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ["admin", "organizations"] }), queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] })]); },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update the selected organizations."),
+  });
+  if (organizations.isLoading) return <AdminListSkeleton label="Loading organizations" />;
+  if (organizations.error) throw organizations.error;
+  const orgs: ReviewOrg[] = (organizations.data ?? []).map((organization) => ({ ...organization, videos: [] }));
 
   const fields: FilterField[] = [
     {
@@ -83,11 +90,10 @@ function AdminOrgs() {
     );
   }, [orgs, view, filters, search]);
 
-  const ready = (o: Org) => Object.values(checks[o.id] ?? {}).every((c) => c === "passed");
   const reviewable = (o: Org) =>
     o.verificationStatus === "pending" || o.verificationStatus === "unverified";
 
-  const columns: Column<Org>[] = [
+  const columns: Column<ReviewOrg>[] = [
     {
       key: "name",
       header: "Organization",
@@ -105,7 +111,6 @@ function AdminOrgs() {
       ),
     },
     { key: "status", header: "Status", cell: (o) => <StatusBadge status={o.verificationStatus} /> },
-    { key: "checks", header: "Checks", cell: (o) => <CheckMeter orgId={o.id} /> },
     {
       key: "category",
       header: "Category",
@@ -128,18 +133,17 @@ function AdminOrgs() {
       key: "applied",
       header: "Applied",
       className: "hidden lg:table-cell",
-      sortValue: (o) => orgFiles[o.id]?.submittedAt ?? "",
+      sortValue: (o) => o.createdAt,
       cell: (o) => (
         <span className="text-ink-soft">
-          {orgFiles[o.id] ? timeAgo(orgFiles[o.id].submittedAt) : "—"}
+          {timeAgo(o.createdAt)}
         </span>
       ),
     },
   ];
 
-  const bulk = (selected: Org[]): BulkAction[] => {
+  const bulk = (selected: ReviewOrg[]): BulkAction[] => {
     const canReview = selected.filter(reviewable);
-    const notReady = canReview.filter((o) => !ready(o));
     return [
       ...(canReview.length
         ? [
@@ -147,9 +151,6 @@ function AdminOrgs() {
               label: "Verify",
               icon: BadgeCheck,
               onSelect: () => setBulkVerify(canReview),
-              disabledReason: notReady.length
-                ? `${notReady.length} of ${canReview.length} still have checks to finish`
-                : undefined,
             },
             {
               label: "Reject",
@@ -244,7 +245,6 @@ function AdminOrgs() {
               <p className="truncate text-sm font-medium text-ink">{o.name}</p>
               <p className="mt-1 flex items-center gap-2">
                 <StatusBadge status={o.verificationStatus} />
-                <CheckMeter orgId={o.id} />
               </p>
             </div>
           </div>
@@ -300,8 +300,7 @@ function AdminOrgs() {
         ]}
         confirmLabel="Verify all"
         onConfirm={() => {
-          bulkVerify?.forEach((o) => verifyOrg(o.id, "verified"));
-          toast.success(`${bulkVerify?.length} organizations verified`);
+          if (bulkVerify) decision.mutate({ organizations: bulkVerify, status: "VERIFIED" }, { onSuccess: () => { setBulkVerify(null); toast.success(`${bulkVerify.length} organizations verified`); } });
         }}
       />
       <AdminRejectDialog
@@ -311,8 +310,7 @@ function AdminOrgs() {
         description={bulkReject?.map((o) => o.name).join(", ")}
         reasons={rejectReasons.org}
         onReject={(reason) => {
-          bulkReject?.forEach((o) => verifyOrg(o.id, "rejected", reason));
-          toast(`${bulkReject?.length} rejected`);
+          if (bulkReject) decision.mutate({ organizations: bulkReject, status: "UNVERIFIED", reason }, { onSuccess: () => { setBulkReject(null); toast(`${bulkReject.length} rejected`); } });
         }}
       />
     </AdminPage>

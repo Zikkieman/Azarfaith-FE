@@ -19,7 +19,10 @@ import { btn } from "@/components/app/btn";
 import { FieldError, inputClass, labelClass } from "@/components/app/AppShell";
 import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/lib/store";
-import { formatMoney, me } from "@/lib/mock";
+import { formatMoney } from "@/lib/domain";
+import { apiFetch } from "@/lib/api";
+import { useCampaign } from "@/lib/catalog";
+import { useAuth } from "@/lib/auth";
 import {
   PLATFORM_FEE,
   everyLabel,
@@ -57,12 +60,13 @@ const freqHint: Record<Frequency, string> = {
 function Checkout() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
-  const campaigns = useApp((s) => s.campaigns);
   const orgs = useApp((s) => s.orgs);
-  const donate = useApp((s) => s.donate);
-  const addRecurring = useApp((s) => s.addRecurringDonation);
+  const { user } = useAuth();
+  const campaignQuery = useCampaign(id);
 
-  const campaign = campaigns.find((c) => c.id === id);
+  if (campaignQuery.isLoading) return <div className="min-h-screen bg-paper" aria-busy="true" />;
+  if (campaignQuery.error) throw campaignQuery.error;
+  const campaign = campaignQuery.data;
   if (!campaign) throw notFound();
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;
   const freqs = frequenciesFor(campaign);
@@ -75,13 +79,13 @@ function Checkout() {
   const [amount, setAmount] = useState(presets.includes(startAmount) ? startAmount : presets[1]);
   const [custom, setCustom] = useState(presets.includes(startAmount) ? "" : String(startAmount));
   const [tip, setTip] = useState(0);
-  const [name, setName] = useState(me.name);
+  const [name, setName] = useState(user?.fullName ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
   const [anonymous, setAnonymous] = useState(false);
   const [note, setNote] = useState("");
-  const [method, setMethod] = useState<"saved" | "card" | "bank">("saved");
+  const [method, setMethod] = useState<"saved" | "card" | "bank">("card");
   const [mode, setMode] = useState<"auto" | "pledge">("auto");
   const [processing, setProcessing] = useState(false);
-  const [receipt, setReceipt] = useState<string | null>(null);
 
   const gift = custom ? Number(custom) || 0 : amount;
   const fee = Math.round(gift * PLATFORM_FEE);
@@ -90,51 +94,38 @@ function Checkout() {
   const nextDate = recurring ? skipDate(new Date().toISOString().slice(0, 10), freq) : "";
   const invalid = gift < 100;
 
-  const submit = () => {
+  const submit = async () => {
     if (invalid) return;
+    if (!user && (!name.trim() || !email.trim())) {
+      toast.error("Enter your name and email to receive your donation receipt.");
+      return;
+    }
+    if (recurring && !user) {
+      toast.error("Log in before setting up a recurring gift.");
+      return;
+    }
     setProcessing(true);
-    setTimeout(() => {
-      donate(campaign.id, gift, anonymous ? "Anonymous" : name || "A giver", note || undefined);
-      if (recurring) {
-        addRecurring({
-          id: Math.random().toString(36).slice(2),
-          donorId: "me",
-          targetId: campaign.id,
-          targetName: campaign.title,
-          targetCover: campaign.cover,
+    try {
+      const result = await apiFetch<{ authorizationUrl: string }>(`/campaigns/${campaign.id}/donations`, {
+        method: "POST",
+        body: JSON.stringify({
           amount: gift,
-          frequency: freq,
-          mode: method === "bank" ? "pledge" : mode,
-          nextDate,
-          active: true,
-          startedAt: new Date().toISOString().slice(0, 10),
-          method:
-            method === "saved" ? "Visa ending 4242" : method === "card" ? "Card" : "Bank transfer",
-        });
-      }
+          paymentMethod: method === "bank" ? "BANK_TRANSFER" : "CARD",
+          frequency: recurring ? freq.toUpperCase() : undefined,
+          recurringMode: recurring ? (method === "bank" ? "PLEDGE" : mode.toUpperCase()) : undefined,
+          autoChargeConsent: recurring && method !== "bank" && mode === "auto",
+          donorName: name.trim() || undefined,
+          donorEmail: email.trim() || undefined,
+          isAnonymous: anonymous,
+          note: note.trim() || undefined,
+          tipAmount: tip,
+        }),
+      });
+      window.location.assign(result.authorizationUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start your donation.");
       setProcessing(false);
-      setReceipt(`AF-${Math.floor(24000 + Math.random() * 900)}`);
-    }, 1300);
-  };
-
-  if (receipt) {
-    return (
-      <Done
-        receipt={receipt}
-        campaignId={campaign.id}
-        title={campaign.title}
-        to={org?.name ?? campaign.raiser.name}
-        gift={gift}
-        fee={fee}
-        tip={tip}
-        recurring={
-          recurring
-            ? `${formatMoney(gift)} ${everyLabel[freq as Exclude<Frequency, "once">]}, next on ${shortDate(nextDate)}`
-            : null
-        }
-        method={method === "bank" ? "Bank transfer" : "Visa ending 4242"}
-      />
-    );
+    }
   }
 
   const cta = (
@@ -292,6 +283,18 @@ function Checkout() {
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+              ) : null}
+              {!user ? (
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Email for your receipt</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     className={inputClass}
                   />
                 </label>

@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -20,12 +21,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/app/Skeletons";
-import { pending, simulateNetwork } from "@/lib/api";
+import { apiFetch, pending, simulateNetwork } from "@/lib/api";
 import { AppShell, Container, Tag } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
 import { Segments } from "@/components/app/Segments";
 import { useApp } from "@/lib/store";
-import { formatCompactMoney, formatMoney, me, type Campaign, type Org } from "@/lib/mock";
+import { RequireUser } from "@/components/auth/RequireUser";
+import { formatCompactMoney, formatMoney, type Campaign, type Org } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -33,10 +35,27 @@ export const Route = createFileRoute("/_app/dashboard")({
   pendingComponent: DashboardSkeleton,
   ...pending,
   head: () => ({ meta: [{ title: "Manage — AzarFaith" }] }),
-  component: Manage,
+  component: ProtectedManage,
 });
 
-const SAMPLE_ORG = "o1";
+function ProtectedManage() {
+  return <RequireUser><Manage /></RequireUser>;
+}
+
+type DashboardData = {
+  fullName: string;
+  selectedOrganization: { id: string; name: string; location: string; cover: string | null; verificationStatus: Org["verificationStatus"] } | null;
+  overview: { totalReceived: number; givers: number };
+  campaigns: Array<{ id: string; title: string; cover: string | null; goal: number | null; mode: string; verificationStatus: Campaign["verificationStatus"]; raised: number; givers: number; galleryCount: number; lastUpdateAt: string | null }>;
+};
+
+function toOrg(value: NonNullable<DashboardData["selectedOrganization"]>): Org {
+  return { id: value.id, name: value.name, tagline: "", category: "other", location: value.location, denomination: "", founded: "", bio: "", photos: value.cover ? [value.cover] : [], videos: [], campaignIds: [], verificationStatus: value.verificationStatus, totalReceived: 0, supporters: 0 };
+}
+
+function toCampaign(value: DashboardData["campaigns"][number], orgId: string): Campaign {
+  return { id: value.id, orgId, mode: value.mode === "ongoing" ? "ongoing" : "one-time", type: "money", title: value.title, story: "", faithCategory: "Community Development", raiser: { name: "", avatar: value.cover ?? "", location: "Nigeria", trustScore: 0 }, cover: value.cover ?? "", gallery: Array.from({ length: value.galleryCount }, () => value.cover ?? ""), goal: value.goal ?? undefined, raised: value.raised, donors: value.givers, currency: "NGN", location: "", urgency: "low", createdAt: "", verificationStatus: value.verificationStatus, updates: value.lastUpdateAt ? [{ id: "latest", date: value.lastUpdateAt, title: "", body: "" }] : [], comments: [], donations: [] };
+}
 
 /**
  * Manage. Before there's an organization it's a quick-start guide (after Optimal Workshop);
@@ -45,9 +64,25 @@ const SAMPLE_ORG = "o1";
 function Manage() {
   const myOrgId = useApp((s) => s.myOrgId);
   const setMyOrgId = useApp((s) => s.setMyOrgId);
+  const dashboard = useQuery({ queryKey: ["my-dashboard"], queryFn: () => apiFetch<DashboardData>("/me/dashboard") });
+  useEffect(() => {
+    if (!dashboard.data?.selectedOrganization) return;
+    const org = {
+      ...toOrg(dashboard.data.selectedOrganization),
+      totalReceived: dashboard.data.overview.totalReceived,
+      supporters: dashboard.data.overview.givers,
+    };
+    useApp.setState({ orgs: [org], campaigns: dashboard.data.campaigns.map((campaign) => toCampaign(campaign, org.id)) });
+    setMyOrgId(org.id);
+  }, [dashboard.data, setMyOrgId]);
   const org = useApp((s) => (myOrgId ? s.orgs.find((o) => o.id === myOrgId) : undefined));
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  if (dashboard.isLoading) return <DashboardSkeleton />;
+  if (dashboard.error) throw dashboard.error;
+  const data = dashboard.data;
+  if (!data) return <DashboardSkeleton />;
 
   return (
     <AppShell>
@@ -55,7 +90,7 @@ function Manage() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h1 className="font-display text-[clamp(28px,2.8vw,40px)] leading-[1.1] tracking-[-0.03em] text-ink">
-              {greeting}, {me.name.split(" ")[0]}
+              {greeting}, {data.fullName.split(" ")[0]}
             </h1>
             <p className="mt-1 text-[15px] text-ink-soft">
               {org
@@ -76,19 +111,6 @@ function Manage() {
         </div>
 
         {org ? <OrgDesk org={org} /> : <QuickStart />}
-
-        <p className="rounded-field border border-dashed border-line-input px-4 py-3 text-[13px] text-muted-ink">
-          Prototype:{" "}
-          <button
-            type="button"
-            className="font-medium text-ink underline underline-offset-2"
-            onClick={() => setMyOrgId(org ? null : SAMPLE_ORG)}
-          >
-            {org
-              ? "see this page as someone without an organization"
-              : "see this page as ECWA Mission Board, a verified organization"}
-          </button>
-        </p>
       </Container>
     </AppShell>
   );

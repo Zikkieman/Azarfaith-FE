@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   Building2,
   Calendar,
   Church,
-  Landmark,
   Mail,
   MapPin,
   Phone,
@@ -13,41 +13,41 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "@/lib/store";
-import { formatMoney, type Org } from "@/lib/mock";
-import { orgFiles, rejectReasons, timeAgo } from "@/lib/admin";
+import { formatMoney, type Org } from "@/lib/domain";
+import { rejectReasons } from "@/lib/admin";
 import { btn } from "@/components/app/btn";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { AdminConfirmDialog } from "./AdminConfirmDialog";
 import { AdminRejectDialog } from "./AdminRejectDialog";
 import { StatusBadge } from "./AdminBadge";
-import { CheckList, DocumentList, Field, FieldGroup, RiskSignals } from "./AdminParts";
+import { Field, FieldGroup } from "./AdminParts";
 import { orgCategoryLabel } from "./labels";
-import { orgRisks, useCheckSummary } from "./useAdmin";
+import { apiFetch } from "@/lib/api";
+import { ReviewChecklist, ReviewDocuments } from "./LiveReviewRecords";
 
 /**
  * Verify / reject / revoke for one organization, with the dialogs. Verify stays disabled until
  * every check has passed and says what's missing (the Buildkite "why can't I" pattern).
  */
 export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" }) {
-  const verifyOrg = useApp((s) => s.verifyOrg);
-  const live = useApp(
-    (s) =>
-      s.campaigns.filter((c) => c.orgId === org.id && c.verificationStatus === "verified").length,
-  );
-  const { ready, passed, total, failed } = useCheckSummary(org.id);
+  const queryClient = useQueryClient();
   const [verifying, setVerifying] = useState(false);
   const [rejecting, setRejecting] = useState(false);
-  const file = orgFiles[org.id];
   const reviewable =
     org.verificationStatus === "pending" || org.verificationStatus === "unverified";
   const verified = org.verificationStatus === "verified";
-  const blocked = !ready
-    ? failed.length
-      ? `${failed[0].label} failed. Fix it or reject.`
-      : `${total - passed} of ${total} checks still waiting.`
-    : undefined;
+  const decision = useMutation({
+    mutationFn: (body: { status: "VERIFIED" | "UNVERIFIED"; reviewAction: "APPROVED" | "REJECTED"; reason?: string }) => apiFetch(`/admin/review/organizations/${org.id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "organizations"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "organization", org.id] }),
+      ]);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update this organization."),
+  });
 
   if (!reviewable && !verified) return null;
 
@@ -65,8 +65,7 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
             </button>
             <button
               type="button"
-              disabled={Boolean(blocked)}
-              title={blocked}
+              disabled={decision.isPending}
               className={btn("primary", size === "sm" ? "sm" : "md")}
               onClick={() => setVerifying(true)}
             >
@@ -86,9 +85,6 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
           </button>
         )}
       </div>
-      {reviewable && blocked && size === "md" ? (
-        <p className="w-full text-[12px] text-muted-ink sm:w-auto sm:text-right">{blocked}</p>
-      ) : null}
 
       <AdminConfirmDialog
         open={verifying}
@@ -97,15 +93,10 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
         consequences={[
           "Their profile and every campaign get the green verified tick.",
           "They can receive gifts and request payouts.",
-          file
-            ? `We email ${file.contactName} at ${file.email} to let them know.`
-            : "We email them to let them know.",
+          "We email the organization owner to let them know.",
         ]}
         confirmLabel="Verify organization"
-        onConfirm={() => {
-          verifyOrg(org.id, "verified");
-          toast.success(`${org.name} is verified`);
-        }}
+        onConfirm={() => decision.mutate({ status: "VERIFIED", reviewAction: "APPROVED" }, { onSuccess: () => { setVerifying(false); toast.success(`${org.name} is verified`); } })}
       />
       <AdminRejectDialog
         open={rejecting}
@@ -118,17 +109,7 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
         }
         reasons={rejectReasons.org}
         confirmLabel={verified ? "Revoke" : "Reject"}
-        consequences={
-          verified && live > 0
-            ? [`${live} live campaign${live > 1 ? "s" : ""} will stop taking gifts.`]
-            : undefined
-        }
-        onReject={(reason, notify) => {
-          verifyOrg(org.id, "rejected", reason);
-          toast(
-            `${org.name} ${verified ? "is no longer verified" : "was rejected"}${notify ? ". We've emailed them the reason" : ""}`,
-          );
-        }}
+        onReject={(reason, notify) => decision.mutate({ status: "UNVERIFIED", reviewAction: "REJECTED", reason }, { onSuccess: () => { setRejecting(false); toast(`${org.name} ${verified ? "is no longer verified" : "was rejected"}${notify ? ". We've emailed them the reason" : ""}`); } })}
       />
     </>
   );
@@ -136,10 +117,12 @@ export function OrgActions({ org, size = "md" }: { org: Org; size?: "sm" | "md" 
 
 /** Row click on the organizations list opens this (after Modash's profile side panel). */
 export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => void }) {
-  const checks = useApp((s) => (org ? s.checks[org.id] : undefined));
-  const allCampaigns = useApp((s) => s.campaigns);
-  const campaigns = org ? allCampaigns.filter((c) => c.orgId === org.id) : [];
-  const file = org ? orgFiles[org.id] : undefined;
+  const details = useQuery({
+    queryKey: ["admin", "organization", org?.id],
+    queryFn: () => apiFetch<OrgPanelDetail>(`/admin/review/organizations/${org!.id}`),
+    enabled: Boolean(org),
+  });
+  const record = details.data;
 
   return (
     <Sheet open={Boolean(org)} onOpenChange={(v) => !v && onClose()}>
@@ -161,7 +144,7 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
                 </SheetTitle>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-muted-ink">
                   <StatusBadge status={org.verificationStatus} />
-                  {file ? <span>Applied {timeAgo(file.submittedAt)}</span> : null}
+                  {record ? <span>Applied {new Date(record.submittedAt ?? record.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}</span> : null}
                 </p>
               </div>
               <button
@@ -176,52 +159,34 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
 
             <div className="flex-1 overflow-y-auto px-5 py-5">
               <div className="flex flex-col gap-5">
-                <RiskSignals items={orgRisks(org, checks)} />
                 <section className="flex flex-col gap-2.5">
                   <h3 className="text-[13px] font-medium text-subtle">Checks</h3>
-                  <CheckList orgId={org.id} />
+                  {details.isLoading ? <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">Loading checks...</p> : <ReviewChecklist entityType="organization" id={org.id} />}
                 </section>
-                {file ? (
+                {record ? (
                   <section className="flex flex-col gap-2.5">
                     <h3 className="text-[13px] font-medium text-subtle">Documents</h3>
-                    <DocumentList documents={file.documents} />
+                    <ReviewDocuments documents={record.registrationDocuments} />
                   </section>
                 ) : null}
                 <div className="-mx-1">
                   <FieldGroup title="Contact">
-                    {file ? (
+                    {record ? (
                       <>
                         <Field icon={User} label="Contact">
-                          {file.contactName}
+                          {record.owner.fullName}
                         </Field>
-                        <Field icon={Mail} label="Email" copy={file.email}>
-                          {file.email}
+                        <Field icon={Mail} label="Email" copy={record.owner.email}>
+                          {record.owner.email}
                         </Field>
-                        <Field icon={Phone} label="Phone" copy={file.phone}>
-                          {file.phone}
+                        <Field icon={Phone} label="Phone" copy={record.owner.phone || undefined}>
+                          {record.owner.phone || "—"}
                         </Field>
                       </>
                     ) : null}
                     <Field icon={MapPin} label="Location">
                       {org.location}
                     </Field>
-                  </FieldGroup>
-                  <FieldGroup title="Payout">
-                    {file ? (
-                      <>
-                        <Field icon={Landmark} label="Bank">
-                          {file.bank}
-                        </Field>
-                        <Field icon={User} label="Account name">
-                          <span className={cn(file.accountName !== org.name && "text-danger")}>
-                            {file.accountName}
-                          </span>
-                        </Field>
-                        <Field icon={Landmark} label="Account">
-                          •••• {file.accountEnding}
-                        </Field>
-                      </>
-                    ) : null}
                   </FieldGroup>
                   <FieldGroup title="Organization" defaultOpen={false}>
                     <Field icon={Building2} label="Category">
@@ -233,11 +198,11 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
                     <Field icon={Calendar} label="Founded">
                       {org.founded}
                     </Field>
-                    <Field icon={Landmark} label="Received">
+                    <Field icon={Building2} label="Received">
                       {formatMoney(org.totalReceived)}
                     </Field>
                     <Field icon={Building2} label="Campaigns">
-                      {campaigns.length}
+                      {record?.campaigns.length ?? org.campaignIds.length}
                     </Field>
                   </FieldGroup>
                 </div>
@@ -260,3 +225,11 @@ export function OrgPanel({ org, onClose }: { org: Org | null; onClose: () => voi
     </Sheet>
   );
 }
+
+type OrgPanelDetail = {
+  createdAt: string;
+  submittedAt: string | null;
+  owner: { fullName: string; email: string; phone: string };
+  registrationDocuments: string[];
+  campaigns: Array<{ id: string }>;
+};

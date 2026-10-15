@@ -4,7 +4,7 @@ import { BadgeCheck, Building2, CalendarClock, MapPin, ReceiptText, Repeat2 } fr
 import { CampaignCard } from "@/components/CampaignCard";
 import { Photo } from "@/components/app/Photo";
 import { useApp } from "@/lib/store";
-import { formatMoney, type Campaign, type Org } from "@/lib/mock";
+import { formatMoney, type Campaign, type Org } from "@/lib/domain";
 
 type Data = { campaign: Campaign; orgs: Org[] };
 type Feature = {
@@ -89,28 +89,20 @@ const features: Feature[] = [
     body: "Every gift, receipt and update sits in one giving history, so givers always know where their money went.",
     cta: { label: "See my giving", to: "/my-giving" },
     photo: (d) => d.orgs[1]?.photos[0] ?? d.campaign.cover,
-    card: () => (
+    card: (d) => (
       <ul className={`${cardShell} flex flex-col divide-y divide-line-soft py-2`}>
-        {[
-          { name: "ECWA Missionaries in Borno", meta: "Monthly · next on 1 Nov", amt: 25000 },
-          { name: "Church Under The Bridge", meta: "Weekly · next on Sunday", amt: 10000 },
-          { name: "Grace Harvest bunk beds", meta: "One-time · receipt sent", amt: 50000 },
-        ].map((g) => (
-          <li key={g.name} className="flex items-center gap-3 py-3">
+        {d.orgs.slice(0, 3).map((org) => (
+          <li key={org.id} className="flex items-center gap-3 py-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-panel text-ink-soft">
-              {g.meta.startsWith("One") ? (
-                <ReceiptText className="h-4 w-4" strokeWidth={1.5} />
-              ) : (
-                <Repeat2 className="h-4 w-4" strokeWidth={1.5} />
-              )}
+              <ReceiptText className="h-4 w-4" strokeWidth={1.5} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-semibold text-heading">
-                {g.name}
+                {org.name}
               </span>
-              <span className="text-[13px] text-muted-ink">{g.meta}</span>
+              <span className="text-[13px] text-muted-ink">Verified organization</span>
             </span>
-            <span className="text-[15px] font-semibold text-heading">{formatMoney(g.amt)}</span>
+            <span className="text-[15px] font-semibold text-heading">{formatMoney(org.totalReceived)}</span>
           </li>
         ))}
       </ul>
@@ -121,26 +113,26 @@ const features: Feature[] = [
     body: "Gifts land in your verified account on a clear schedule, with a 2.5% platform fee and nothing hidden.",
     cta: { label: "About payouts", to: "/payouts" },
     photo: (d) => d.campaign.gallery[2] ?? d.campaign.cover,
-    card: () => (
+    card: (d) => (
       <div className={`${cardShell} flex flex-col gap-4`}>
         <div className="flex items-center justify-between">
-          <span className="text-[13px] text-muted-ink">Next payout</span>
+          <span className="text-[13px] text-muted-ink">Payouts</span>
           <span className="flex items-center gap-1.5 text-[13px] text-muted-ink">
-            <CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} /> Friday
+            <CalendarClock className="h-3.5 w-3.5" strokeWidth={1.5} /> Review required
           </span>
         </div>
-        <p className="font-display text-[34px] leading-none text-heading">₦1,794,000</p>
+        <p className="font-display text-[25px] leading-none text-heading">Released to verified accounts</p>
         <div className="flex items-center gap-2.5 rounded-lg bg-panel px-3 py-2.5 text-sm text-ink-soft">
-          <Building2 className="h-4 w-4" strokeWidth={1.5} /> Verified account ending 4821
+          <Building2 className="h-4 w-4" strokeWidth={1.5} /> Account details are protected
         </div>
         <dl className="flex flex-col gap-1.5 border-t border-line-soft pt-3 text-[13px] text-muted-ink">
           <div className="flex justify-between">
-            <dt>Gifts this week</dt>
-            <dd>₦1,840,000</dd>
+            <dt>Campaign raised</dt>
+            <dd>{formatMoney(d.campaign.raised)}</dd>
           </div>
           <div className="flex justify-between">
             <dt>Platform fee (2.5%)</dt>
-            <dd>−₦46,000</dd>
+            <dd>Shown before payment</dd>
           </div>
         </dl>
       </div>
@@ -162,6 +154,8 @@ export function FeaturePanel() {
   const campaigns = useApp((s) => s.campaigns);
   const orgs = useApp((s) => s.orgs);
   const data: Data = { campaign: campaigns.find((c) => c.goal) ?? campaigns[0], orgs };
+
+  if (!data.campaign) return null;
 
   useEffect(() => {
     const io = new IntersectionObserver(

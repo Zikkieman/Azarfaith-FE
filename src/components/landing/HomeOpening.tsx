@@ -14,7 +14,6 @@ import { CampaignCard } from "@/components/CampaignCard";
 import { FruitCycler } from "./FruitCycler";
 
 const EASE = { ease: easeInOut };
-const CAMPAIGN_ID = "gfc5";
 
 function HeroCopy() {
   return (
@@ -32,6 +31,7 @@ function HeroCopy() {
       <div className="flex flex-wrap justify-center gap-3 pt-1">
         <Link
           to="/signup"
+          search={{}}
           className="press inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast hover:opacity-90"
         >
           Start giving
@@ -48,7 +48,9 @@ function HeroCopy() {
 }
 
 function CampaignShowcase() {
-  const c = useApp((s) => s.campaigns.find((x) => x.id === CAMPAIGN_ID));
+  const c = useApp(
+    (s) => s.campaigns.find((campaign) => campaign.verificationStatus === "verified") ?? s.campaigns[0],
+  );
   if (!c) return null;
   return (
     <div className="w-[min(440px,88vw)]">
@@ -67,6 +69,7 @@ function Finale() {
       <CampaignShowcase />
       <Link
         to="/signup"
+        search={{}}
         className="press inline-flex items-center rounded-full border-2 border-[#130E30] bg-[#130E30] px-6 py-3 font-gsf text-base font-medium text-[#EFF2E5] hover:opacity-90"
       >
         Start with AzarFaith

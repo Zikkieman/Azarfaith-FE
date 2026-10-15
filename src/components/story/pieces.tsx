@@ -1,6 +1,8 @@
 import { BadgeCheck, Check } from "lucide-react";
+import logoMark from "@/assets/signup/logo-mark.svg";
+import { useApp } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { giverPriorities, pipeline, update, verifiedOrg, type Priority } from "./data";
+import { giverPriorities, pipeline, type Priority } from "./data";
 
 export function AppealCard({
   source,
@@ -48,16 +50,21 @@ export function CheckNode({ label, done }: { label: string; done: boolean }) {
 }
 
 export function OrgCard({ verified }: { verified: boolean }) {
+  const org = useApp(
+    (state) => state.orgs.find((item) => item.verificationStatus === "verified"),
+  );
+  const name = org?.name ?? "Verified organization";
+  const place = org?.location ?? "Nigeria";
   return (
     <div className="flex w-[300px] items-center gap-4 rounded-2xl border border-line-soft bg-paper p-4 max-sm:w-[250px]">
-      <img
-        src={verifiedOrg.photo}
-        alt=""
-        className="h-16 w-16 shrink-0 rounded-xl object-cover max-sm:h-12 max-sm:w-12"
-      />
+      {org?.photos[0] ? (
+        <img src={org.photos[0]} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover max-sm:h-12 max-sm:w-12" />
+      ) : (
+        <img src={logoMark} alt="" className="h-16 w-16 shrink-0 rounded-xl bg-[#FE5102] p-3 max-sm:h-12 max-sm:w-12" />
+      )}
       <div className="min-w-0">
-        <p className="truncate font-gsf text-base font-semibold text-heading">{verifiedOrg.name}</p>
-        <p className="text-[13px] text-muted-ink">{verifiedOrg.place}</p>
+        <p className="truncate font-gsf text-base font-semibold text-heading">{name}</p>
+        <p className="text-[13px] text-muted-ink">{place}</p>
         <p
           className={cn(
             "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold transition-colors duration-500",
@@ -188,15 +195,21 @@ export function PipelineStage({
 }
 
 export function UpdateCard() {
+  const campaign = useApp(
+    (state) => state.campaigns.find((item) => item.verificationStatus === "verified"),
+  );
+  const update = campaign?.updates[0];
   return (
     <article className="w-[min(440px,88vw)] overflow-hidden rounded-2xl border border-[#130E30]/10 bg-white">
-      <img src={update.photo} alt="" className="aspect-[16/9] w-full object-cover" />
+      {campaign?.cover ? <img src={campaign.cover} alt="" className="aspect-[16/9] w-full object-cover" /> : null}
       <div className="flex flex-col gap-2 p-5">
         <p className="flex items-center gap-1.5 font-gsf text-[13px] text-[#667085]">
           <BadgeCheck className="h-4 w-4 text-[#00B67A]" strokeWidth={1.5} />
-          {update.org} · {update.date}
+          {campaign?.title ?? "Campaign update"} · {update?.date ?? "Coming soon"}
         </p>
-        <p className="font-gsf text-[17px] leading-[24px] text-[#130E30]">{update.text}</p>
+        <p className="font-gsf text-[17px] leading-[24px] text-[#130E30]">
+          {update?.body ?? "Campaign updates are shared by organizers after a cause is published."}
+        </p>
       </div>
     </article>
   );

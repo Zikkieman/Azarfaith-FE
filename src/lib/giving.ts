@@ -1,4 +1,4 @@
-import type { Campaign, Category } from "./mock";
+import type { Campaign, Category } from "./domain";
 
 /** Preset gift amounts, smallest first. Shared by the campaign give box and the checkout. */
 export const presets = [5000, 10000, 25000, 50000];
@@ -90,73 +90,6 @@ export type PastGift = {
   kind: Frequency;
   receipt: string;
 };
-
-/** The signed-in giver's history (mock). Newest first. */
-export const myGifts: PastGift[] = [
-  {
-    id: "g1",
-    date: "2026-10-01",
-    campaignId: "gfc1",
-    title: "Support ECWA Missionaries in Borno",
-    amount: 25000,
-    kind: "monthly",
-    receipt: "AF-24118",
-  },
-  {
-    id: "g2",
-    date: "2026-10-05",
-    campaignId: "gfc2",
-    title: "Keep the Church Under The Bridge Running",
-    amount: 10000,
-    kind: "weekly",
-    receipt: "AF-24203",
-  },
-  {
-    id: "g3",
-    date: "2026-09-28",
-    campaignId: "gfc2",
-    title: "Keep the Church Under The Bridge Running",
-    amount: 10000,
-    kind: "weekly",
-    receipt: "AF-23987",
-  },
-  {
-    id: "g4",
-    date: "2026-09-14",
-    campaignId: "gfc5",
-    title: "Grace Harvest needs 20 bunk beds for new children",
-    amount: 50000,
-    kind: "once",
-    receipt: "AF-23511",
-  },
-  {
-    id: "g5",
-    date: "2026-09-01",
-    campaignId: "gfc1",
-    title: "Support ECWA Missionaries in Borno",
-    amount: 25000,
-    kind: "monthly",
-    receipt: "AF-23140",
-  },
-  {
-    id: "g6",
-    date: "2026-08-19",
-    campaignId: "gfc4",
-    title: "Build a permanent worship hall for ECWA Kano",
-    amount: 100000,
-    kind: "once",
-    receipt: "AF-22604",
-  },
-  {
-    id: "g7",
-    date: "2026-08-01",
-    campaignId: "gfc1",
-    title: "Support ECWA Missionaries in Borno",
-    amount: 25000,
-    kind: "monthly",
-    receipt: "AF-22088",
-  },
-].sort((a, b) => b.date.localeCompare(a.date)) as PastGift[];
 
 export const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });

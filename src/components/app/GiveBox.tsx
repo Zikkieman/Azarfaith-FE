@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
-import { formatMoney, type Campaign } from "@/lib/mock";
+import { formatMoney, type Campaign } from "@/lib/domain";
 import {
   everyLabel,
   frequenciesFor,

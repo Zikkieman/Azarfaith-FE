@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -21,16 +22,27 @@ import { Photo } from "@/components/app/Photo";
 import { Segments } from "@/components/app/Segments";
 import { DiscoverSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
+import { getCampaigns, getOrganizations } from "@/lib/catalog";
 import { AppShell, Container, EmptyState, VerifiedBadge } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
 import { CampaignCard } from "@/components/CampaignCard";
-import { useApp } from "@/lib/store";
-import { categories, formatCompactMoney, type Campaign, type Category, type Org } from "@/lib/mock";
+import { campaignCategories, formatCompactMoney, type Campaign, type Category, type Org } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 const views = ["all", "urgent", "nearly", "regular", "new", "orgs"] as const;
 type View = (typeof views)[number];
 type Sort = "urgent" | "nearly" | "newest" | "givers";
+
+const faithCategoryApiValue: Record<Category, string> = {
+  "Church Building": "CHURCH_BUILDING",
+  "Missions & Outreach": "MISSIONS_OUTREACH",
+  Orphanage: "ORPHANAGE",
+  Education: "EDUCATION",
+  "Food & Relief": "FOOD_RELIEF",
+  "Medical Mission": "MEDICAL_MISSION",
+  Emergency: "EMERGENCY",
+  "Community Development": "COMMUNITY_DEVELOPMENT",
+};
 
 export const Route = createFileRoute("/_app/discover")({
   validateSearch: (s: Record<string, unknown>): { view?: View; cause?: string; q?: string } => ({
@@ -66,17 +78,40 @@ const quick: { value: View; label: string; icon: LucideIcon }[] = [
 function Discover() {
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const allCampaigns = useApp((s) => s.campaigns);
-  const orgs = useApp((s) => s.orgs);
   const [sort, setSort] = useState<Sort>("urgent");
   const view = search.view ?? "all";
   const cause = search.cause;
   const q = (search.q ?? "").trim().toLowerCase();
+  const campaignQuery = useQuery({
+    queryKey: ["discover-campaigns", view, cause, q, sort],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: "1",
+        pageSize: "24",
+        view: view === "orgs" ? "all" : view,
+        sort,
+      });
+      if (cause && faithCategoryApiValue[cause as Category]) {
+        params.set("faithCategory", faithCategoryApiValue[cause as Category]);
+      }
+      if (q) params.set("search", q);
+      return getCampaigns(`?${params.toString()}`);
+    },
+    enabled: view !== "orgs" && typeof window !== "undefined",
+  });
+  const organizationQuery = useQuery({
+    queryKey: ["discover-organizations", q],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: "1", pageSize: "24" });
+      if (q) params.set("search", q);
+      return getOrganizations(`?${params.toString()}`);
+    },
+    enabled: typeof window !== "undefined",
+  });
+  const allCampaigns = campaignQuery.data?.items ?? [];
+  const orgs = organizationQuery.data?.items ?? [];
 
-  const campaigns = useMemo(
-    () => allCampaigns.filter((c) => c.verificationStatus !== "rejected"),
-    [allCampaigns],
-  );
+  const campaigns = allCampaigns;
   const set = (patch: Partial<typeof search>) =>
     navigate({ to: "/discover", search: { ...search, ...patch }, replace: true });
   const clear = () => navigate({ to: "/discover", search: {}, replace: true });
@@ -259,7 +294,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
 function CauseTabs({ value, onChange }: { value?: string; onChange: (c?: string) => void }) {
   const items: { label: string; value?: Category; icon: LucideIcon }[] = [
     { label: "All causes", icon: LayoutGrid },
-    ...categories.map((c) => ({ label: c.label, value: c.label, icon: c.icon })),
+    ...campaignCategories.map((label) => ({ label, value: label, icon: Flame })),
   ];
   return (
     <div

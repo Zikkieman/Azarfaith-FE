@@ -12,6 +12,8 @@ import {
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { btnPrimary, btnSecondary } from "@/components/app/btn";
+import { AuthProvider } from "@/lib/auth";
+import { PublicCatalogProvider } from "@/lib/public-catalog";
 
 function StatusScreen({
   code,
@@ -112,8 +114,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       {
         rel: "icon",
-        type: "image/svg+xml",
-        href: "/favicon.svg",
+        type: "image/png",
+        href: "/BG_Less.png",
       },
       {
         rel: "stylesheet",
@@ -155,8 +157,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster position="top-center" richColors closeButton />
+      <AuthProvider>
+        <PublicCatalogProvider>
+          <Outlet />
+        </PublicCatalogProvider>
+        <Toaster position="top-center" richColors closeButton />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

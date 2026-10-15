@@ -1,21 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { JosEssay } from "@/components/essay/JosEssay";
+import { Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/jos")({
   head: () => ({
     meta: [
-      { title: "One month in Jos — AzarFaith" },
+      { title: "How giving works — AzarFaith" },
       {
         name: "description",
         content:
-          "Forty-seven children, twenty-seven beds. A month with Grace Harvest Orphanage, followed week by week from the first appeal to the first night.",
+          "Learn how AzarFaith helps givers find verified causes and follow campaign updates.",
       },
-      { property: "og:title", content: "One month in Jos" },
+      { property: "og:title", content: "How giving works" },
       {
         property: "og:description",
-        content: "How 47 children got their own beds, followed week by week on AzarFaith.",
+        content: "Find verified causes, give with confidence, and follow campaign updates.",
       },
     ],
   }),
-  component: JosEssay,
+  component: () => <Navigate to="/story" />,
 });

@@ -1,29 +1,30 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useApp } from "@/lib/store";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader, type Crumb, type Pager } from "./AdminHeader";
 import { CommandPalette } from "./CommandPalette";
 import { PaletteContext, SidebarContext } from "./context";
+import { useAuth } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 
 /** Admin frame: light sidebar beside white pages, a drawer on phones, ⌘K everywhere. */
 export function AdminLayout() {
-  const authed = useApp((s) => s.authed);
-  const adminRole = useApp((s) => s.adminRole);
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
-    if (!authed || adminRole !== "platform_admin") navigate({ to: "/login" });
-  }, [authed, adminRole, navigate]);
+    if (!loading && user?.role !== "platform_admin") navigate({ to: "/login" });
+  }, [loading, user?.role, navigate]);
 
   useEffect(() => setOpen(false), [path]);
 
-  if (!authed || adminRole !== "platform_admin") return null;
+  if (loading || user?.role !== "platform_admin") return null;
 
   return (
     <SidebarContext.Provider value={{ open, setOpen }}>
@@ -76,7 +77,12 @@ export function AdminPage({
   /** Pin the actions to the bottom of the screen on phones, so review pages never scroll back up. */
   dock?: boolean;
 }) {
-  const paused = useApp((s) => s.givingPaused);
+  const givingControl = useQuery({
+    queryKey: ["admin", "giving-control"],
+    queryFn: () => apiFetch<{ givingPaused: boolean }>("/admin/review/giving-control"),
+    retry: false,
+  });
+  const paused = givingControl.data?.givingPaused ?? false;
   return (
     <>
       <AdminHeader crumbs={crumbs} pager={pager} />

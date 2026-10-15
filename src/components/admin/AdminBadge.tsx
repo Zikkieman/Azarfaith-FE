@@ -1,5 +1,5 @@
 import { Tag } from "@/components/app/AppShell";
-import type { UserRole, UserStatus } from "@/lib/mock";
+import type { UserRole, UserStatus } from "@/lib/domain";
 import { roleLabel } from "./labels";
 
 type Verification = "verified" | "pending" | "unverified" | "rejected";

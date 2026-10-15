@@ -180,6 +180,7 @@ function Statement({
       <motion.div style={{ opacity: ctaO, y: ctaY }}>
         <Link
           to="/signup"
+          search={{}}
           className="press inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast hover:opacity-90"
         >
           Start giving

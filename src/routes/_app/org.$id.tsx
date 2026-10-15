@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Photo } from "@/components/app/Photo";
 import { ProfileSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
+import { useOrganization } from "@/lib/catalog";
 import {
   AppShell,
   Container,
@@ -17,18 +18,14 @@ import {
 import { btn } from "@/components/app/btn";
 import { GiveBox } from "@/components/app/GiveBox";
 import { CampaignCard } from "@/components/CampaignCard";
-import { useApp } from "@/lib/store";
-import { formatCompactMoney, formatMoney, orgs as orgSeed, type Campaign } from "@/lib/mock";
+import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/org/$id")({
   loader: () => simulateNetwork(),
   pendingComponent: () => <ProfileSkeleton label="Loading organization" />,
   ...pending,
-  head: ({ params }) => {
-    const org = orgSeed.find((o) => o.id === params.id);
-    return { meta: [{ title: org ? `${org.name} — AzarFaith` : "Organization — AzarFaith" }] };
-  },
+  head: () => ({ meta: [{ title: "Organization — AzarFaith" }] }),
   component: OrgProfile,
 });
 
@@ -53,15 +50,14 @@ const tiers = [
 function OrgProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const orgs = useApp((s) => s.orgs);
-  const allCampaigns = useApp((s) => s.campaigns);
+  const organizationQuery = useOrganization(id);
 
-  const org = orgs.find((o) => o.id === id);
+  if (organizationQuery.isLoading) return <ProfileSkeleton label="Loading organization" />;
+  if (organizationQuery.error) throw organizationQuery.error;
+  const org = organizationQuery.data?.organization;
   if (!org) throw notFound();
 
-  const campaigns = allCampaigns.filter(
-    (c) => org.campaignIds.includes(c.id) || c.orgId === org.id,
-  );
+  const campaigns = organizationQuery.data?.campaigns ?? [];
   const main: Campaign | undefined = campaigns.find((c) => c.mode === "ongoing") ?? campaigns[0];
   const ongoing = campaigns.find((c) => c.mode === "ongoing");
   const givers = campaigns

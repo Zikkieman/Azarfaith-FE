@@ -104,6 +104,7 @@ export function SiteNav({ revealOnScroll = false }: { revealOnScroll?: boolean }
               </Link>
               <Link
                 to="/signup"
+                search={{}}
                 className="press hidden rounded-full border-2 border-white bg-white px-5 py-2 font-gsf text-[15px] font-semibold text-black transition-opacity hover:opacity-90 sm:inline-flex"
               >
                 Get started
@@ -160,6 +161,7 @@ export function SiteNav({ revealOnScroll = false }: { revealOnScroll?: boolean }
                 </Link>
                 <Link
                   to="/signup"
+                  search={{}}
                   className="flex-1 rounded-full border-2 border-white bg-white py-3 text-center font-gsf text-base font-semibold text-black"
                 >
                   Get started

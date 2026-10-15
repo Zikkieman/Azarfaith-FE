@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowUpRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import { useApp } from "@/lib/store";
-import { formatMoney, type Campaign } from "@/lib/mock";
+import { formatMoney, type Campaign } from "@/lib/domain";
 import { rejectReasons, timeAgo } from "@/lib/admin";
 import { btn } from "@/components/app/btn";
 import { Segments } from "@/components/app/Segments";
@@ -13,6 +13,8 @@ import { AdminConfirmDialog } from "./AdminConfirmDialog";
 import { AdminRejectDialog } from "./AdminRejectDialog";
 import { StatusBadge, UrgencyBadge } from "./AdminBadge";
 import { campaignChecks, type AutoCheck } from "./useAdmin";
+import { apiFetch } from "@/lib/api";
+import { ReviewChecklist } from "./LiveReviewRecords";
 
 /** The automatic checks as a list: green tick, or an amber flag with what to ask for. */
 export function AutoCheckList({ checks }: { checks: AutoCheck[] }) {
@@ -58,17 +60,24 @@ export function CampaignActions({
   campaign: Campaign;
   size?: "sm" | "md";
 }) {
-  const moderate = useApp((s) => s.moderateCampaign);
-  const org = useApp((s) =>
-    campaign.orgId ? s.orgs.find((o) => o.id === campaign.orgId) : undefined,
-  );
+  const queryClient = useQueryClient();
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const reviewable =
     campaign.verificationStatus === "pending" || campaign.verificationStatus === "unverified";
   if (!reviewable) return null;
-  const blocker = campaignChecks(campaign, org).find((c) => c.blocking && !c.ok);
   const s = size === "sm" ? "sm" : "md";
+  const decision = useMutation({
+    mutationFn: (body: { status: "VERIFIED" | "UNVERIFIED"; reviewAction: "APPROVED" | "REJECTED"; reason?: string }) => apiFetch(`/admin/review/campaigns/${campaign.id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "campaign", campaign.id] }),
+      ]);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update this campaign."),
+  });
 
   return (
     <>
@@ -78,18 +87,13 @@ export function CampaignActions({
         </button>
         <button
           type="button"
-          disabled={Boolean(blocker)}
-          title={blocker?.detail}
+          disabled={decision.isPending}
           className={btn("primary", s)}
           onClick={() => setApproving(true)}
         >
           Approve
         </button>
       </div>
-      {blocker && size === "md" ? (
-        <p className="text-[12px] text-muted-ink">{blocker.detail}</p>
-      ) : null}
-
       <AdminConfirmDialog
         open={approving}
         onOpenChange={setApproving}
@@ -101,10 +105,7 @@ export function CampaignActions({
           `${campaign.raiser.name} gets an email to say it's live.`,
         ]}
         confirmLabel="Approve and publish"
-        onConfirm={() => {
-          moderate(campaign.id, "verified");
-          toast.success("Campaign approved and live");
-        }}
+        onConfirm={() => decision.mutate({ status: "VERIFIED", reviewAction: "APPROVED" }, { onSuccess: () => { setApproving(false); toast.success("Campaign approved and live"); } })}
       />
       <AdminRejectDialog
         open={rejecting}
@@ -112,10 +113,7 @@ export function CampaignActions({
         title="Reject this campaign?"
         description="The organizer can fix it and submit again."
         reasons={rejectReasons.campaign}
-        onReject={(reason, notify) => {
-          moderate(campaign.id, "rejected", reason);
-          toast(`Campaign rejected${notify ? ". We've emailed the organizer" : ""}`);
-        }}
+        onReject={(reason, notify) => decision.mutate({ status: "UNVERIFIED", reviewAction: "REJECTED", reason }, { onSuccess: () => { setRejecting(false); toast(`Campaign rejected${notify ? ". We've emailed the organizer" : ""}`); } })}
       />
     </>
   );
@@ -129,9 +127,12 @@ export function CampaignPanel({
   campaign: Campaign | null;
   onClose: () => void;
 }) {
-  const org = useApp((s) =>
-    campaign?.orgId ? s.orgs.find((o) => o.id === campaign.orgId) : undefined,
-  );
+  const details = useQuery({
+    queryKey: ["admin", "campaign", campaign?.id],
+    queryFn: () => apiFetch<{ organization: { id: string; name: string; verificationStatus: Campaign["verificationStatus"] } | null }>(`/admin/review/campaigns/${campaign!.id}`),
+    enabled: Boolean(campaign),
+  });
+  const org = details.data?.organization;
   const pct = campaign?.goal
     ? Math.min(100, Math.round((campaign.raised / campaign.goal) * 100))
     : null;
@@ -174,7 +175,11 @@ export function CampaignPanel({
                 />
                 <section className="flex flex-col gap-2.5">
                   <h3 className="text-[13px] font-medium text-subtle">Checks</h3>
-                  <AutoCheckList checks={campaignChecks(campaign, org)} />
+                  {details.isLoading ? (
+                    <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">Loading checks...</p>
+                  ) : (
+                    <ReviewChecklist entityType="campaign" id={campaign.id} />
+                  )}
                 </section>
                 <section className="flex flex-col gap-1.5">
                   <h3 className="text-[13px] font-medium text-subtle">Story</h3>

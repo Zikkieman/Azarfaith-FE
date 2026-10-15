@@ -47,13 +47,13 @@ export function AuthLayout({
           <img src={photo} alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-x-6 bottom-6 flex max-w-[400px] flex-col gap-2 rounded-card bg-paper p-5">
             <p className="flex items-center gap-2 text-[13px] text-muted-ink">
-              Grace Harvest Orphanage, Jos <VerifiedBadge label={null} />
+              Verified causes on AzarFaith <VerifiedBadge label={null} />
             </p>
             <p className="font-display text-[20px] leading-[1.3] tracking-[-0.01em] text-ink">
-              All 20 bunk beds delivered and assembled.
+              Follow the work your giving supports.
             </p>
             <p className="text-[13px] text-muted-ink">
-              An update sent to every giver who made it happen.
+              Campaign organizers can share updates with everyone who gave.
             </p>
           </div>
         </div>

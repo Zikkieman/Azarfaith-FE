@@ -1,9 +1,11 @@
 export function OtpInputs({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex h-16 w-full max-w-[312px] items-center gap-3">
@@ -15,6 +17,7 @@ export function OtpInputs({
           maxLength={1}
           inputMode="numeric"
           autoFocus={i === 0}
+          disabled={disabled}
           onChange={(e) => {
             const char = e.target.value.replace(/\D/g, "").slice(-1);
             const next = [...value];

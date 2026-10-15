@@ -28,13 +28,20 @@ import { FieldError, Tag, inputClass, labelClass } from "@/components/app/AppShe
 import { btn } from "@/components/app/btn";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApp } from "@/lib/store";
-import { categories, formatMoney, me, type Campaign, type Category } from "@/lib/mock";
+import { RequireUser } from "@/components/auth/RequireUser";
+import { campaignCategories, formatMoney, type Campaign, type Category } from "@/lib/domain";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/create")({
   head: () => ({ meta: [{ title: "New campaign — AzarFaith" }] }),
-  component: CreateCampaign,
+  component: ProtectedCreateCampaign,
 });
+
+function ProtectedCreateCampaign() {
+  return <RequireUser><CreateCampaign /></RequireUser>;
+}
 
 type Draft = ReturnType<typeof useApp.getState>["draft"];
 
@@ -115,19 +122,12 @@ const types = [
   { v: "emergency", label: "Emergency relief" },
 ] as const;
 
-const samplePhotos = [
-  "1609532587710-b00027c0594b",
-  "1604072366376-63d46248927e",
-  "1521493959102-bdd6677fdd81",
-  "1509099927777-1b8a87bc3b21",
-  "1553775927-a071d5a6a39a",
-].map((id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=80`);
-
 type Requirement = { key: string; label: string; ok: boolean; required: boolean; target: string };
 
 function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
   const story = d.story ?? "";
   const filled = story && !story.includes("[");
+  const words = story.trim().split(/\s+/).filter(Boolean).length;
   return [
     {
       key: "kind",
@@ -153,7 +153,7 @@ function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
     {
       key: "story",
       label: "Tell the story",
-      ok: story.trim().length >= 120 && Boolean(filled),
+      ok: words >= 100 && words <= 200 && Boolean(filled),
       required: true,
       target: "story",
     },
@@ -209,6 +209,7 @@ function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
  */
 function CreateCampaign() {
   const nav = useNavigate();
+  const { user } = useAuth();
   const draft = useApp((s) => s.draft);
   const setDraft = useApp((s) => s.setDraft);
   const resetDraft = useApp((s) => s.resetDraft);
@@ -220,6 +221,10 @@ function CreateCampaign() {
   const [done, setDone] = useState<Campaign | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<"cover" | "gallery">("cover");
+  const uploadInput = useRef<HTMLInputElement>(null);
   const first = useRef(true);
 
   const org = draft.orgId ? orgs.find((o) => o.id === draft.orgId) : undefined;
@@ -250,7 +255,52 @@ function CreateCampaign() {
   const jump = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const submit = () => {
+  const payload = () => ({
+    mode: draft.mode?.replace("-", "_").toUpperCase(), type: draft.type?.toUpperCase(),
+    title: draft.title?.trim(), story: draft.story?.trim(),
+    faithCategory: draft.faithCategory?.toUpperCase().replaceAll(" & ", "_").replaceAll(" ", "_"),
+    organizationId: draft.orgId || undefined, location: draft.location?.trim(),
+    goalAmount: draft.mode === "one-time" && draft.type === "money" ? draft.goal : undefined,
+    urgency: draft.urgency?.toUpperCase(), coverImageUrl: draft.cover || undefined,
+    galleryImageUrls: draft.gallery?.filter(Boolean), needs: draft.needs?.filter(Boolean),
+    frequencies: draft.frequencies?.map((frequency) => frequency.toUpperCase()),
+  });
+
+  const saveDraft = async () => {
+    const value = payload();
+    if (!Object.values(value).some((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))) return;
+    setSaved("saving");
+    try {
+      const savedDraft = await apiFetch<{ id: string }>(draftId ? `/campaigns/${draftId}/draft` : "/campaigns/drafts", { method: draftId ? "PATCH" : "POST", body: JSON.stringify(value) });
+      setDraftId(savedDraft.id);
+      setSaved("saved");
+      toast.success("Draft saved");
+    } catch (error) {
+      setSaved("saved");
+      toast.error(error instanceof Error ? error.message : "Could not save your draft.");
+    }
+  };
+
+  const upload = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return toast.error("Each image must be 5 MB or smaller.");
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("folder", uploadTarget === "cover" ? "campaign-cover" : "campaign-gallery");
+      const uploaded = await apiFetch<{ url: string }>("/media/upload", { method: "POST", body: form });
+      if (uploadTarget === "cover") setDraft({ cover: uploaded.url });
+      else setDraft({ gallery: [...(draft.gallery ?? []), uploaded.url].slice(0, 8) });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not upload this image.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submit = async () => {
     if (missing.length) {
       setShowErrors(true);
       jump(missing[0].target);
@@ -258,36 +308,15 @@ function CreateCampaign() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      const campaign: Campaign = {
-        id: `gfc${Math.random().toString(36).slice(2)}`,
-        mode: draft.mode!,
-        type: draft.type ?? "money",
-        title: draft.title!,
-        story: draft.story!,
-        faithCategory: draft.faithCategory!,
-        orgId: draft.orgId,
-        raiser: { name: me.name, avatar: me.avatar, location: draft.location!, trustScore: 86 },
-        cover: draft.cover ?? placeholderCover,
-        gallery: draft.gallery ?? [],
-        goal: draft.mode === "ongoing" ? undefined : draft.goal,
-        raised: 0,
-        donors: 0,
-        currency: "NGN",
-        location: draft.location!,
-        urgency: draft.urgency ?? "medium",
-        createdAt: new Date().toISOString().split("T")[0],
-        verificationStatus: "pending",
-        updates: [],
-        comments: [],
-        donations: [],
-        frequencies: draft.mode === "ongoing" ? (draft.frequencies ?? ["monthly"]) : undefined,
-      };
-      addCampaign(campaign);
-      setSubmitting(false);
+    try {
+      const campaign = await apiFetch<Campaign>(draftId ? `/campaigns/${draftId}/submit` : "/campaigns", { method: "POST", body: JSON.stringify(draftId ? undefined : payload()) });
       setDone(campaign);
       resetDraft();
-    }, 900);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not submit your campaign.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (done)
@@ -517,7 +546,7 @@ function CreateCampaign() {
                   onChange={(v) =>
                     setDraft({ faithCategory: (v || undefined) as Category | undefined })
                   }
-                  options={categories.map((c) => ({ value: c.label, label: c.label }))}
+                  options={campaignCategories.map((label) => ({ value: label, label }))}
                   placeholder="Choose"
                   error={err("cause") && !draft.faithCategory}
                 />
@@ -561,13 +590,11 @@ function CreateCampaign() {
                     ? "Replace the [bracketed] parts with your own words."
                     : "Numbers help: “20 bunk beds at ₦60,000 each” beats “beds for the children”."}
                 </span>
-                <span className="shrink-0 text-[12px] text-subtle">
-                  {(draft.story ?? "").length} characters
-                </span>
+                <span className="shrink-0 text-[12px] text-subtle">{(draft.story ?? "").trim().split(/\s+/).filter(Boolean).length} / 100–200 words</span>
               </div>
               {err("story") ? (
                 <FieldError>
-                  Write at least a few sentences and fill in every bracketed part.
+                  Write 100–200 words and fill in every bracketed part.
                 </FieldError>
               ) : null}
             </Section>
@@ -577,11 +604,12 @@ function CreateCampaign() {
               title="Photos"
               note="Real photos of the people and the place. No stock images."
             >
+              <input ref={uploadInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { void upload(event.target.files); event.target.value = ""; }} />
               <PhotoTile
                 label="Cover photo"
                 src={draft.cover}
                 tall
-                onAdd={() => setDraft({ cover: samplePhotos[0] })}
+                onAdd={() => { setUploadTarget("cover"); uploadInput.current?.click(); }}
                 onRemove={() => setDraft({ cover: undefined })}
               />
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -598,18 +626,11 @@ function CreateCampaign() {
                 {(draft.gallery?.length ?? 0) < 4 ? (
                   <PhotoTile
                     label="Add"
-                    onAdd={() => {
-                      const next = samplePhotos.find(
-                        (p) => p !== draft.cover && !(draft.gallery ?? []).includes(p),
-                      );
-                      if (next) setDraft({ gallery: [...(draft.gallery ?? []), next] });
-                    }}
+                    onAdd={() => { setUploadTarget("gallery"); uploadInput.current?.click(); }}
                   />
                 ) : null}
               </div>
-              <p className="text-[12px] text-subtle">
-                Prototype: adding a photo picks a sample image.
-              </p>
+              <p className="text-[12px] text-subtle">{uploading ? "Uploading image…" : "JPEG, PNG or WebP. Up to 5 MB each."}</p>
             </Section>
 
             <Section
@@ -732,7 +753,7 @@ function CreateCampaign() {
             <div className="flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                onClick={() => toast("Draft saved. Find it in Manage")}
+                onClick={() => { void saveDraft(); }}
                 className={btn("secondary")}
               >
                 Save draft
@@ -751,7 +772,7 @@ function CreateCampaign() {
 
         <aside className="hidden border-l border-line-soft bg-panel/40 lg:block">
           <div className="sticky top-14 max-h-[calc(100vh-56px)] overflow-y-auto p-6">
-            <Preview draft={draft} orgName={org?.name} />
+            <Preview draft={draft} orgName={org?.name} raiser={user ? { name: user.fullName, avatar: user.avatarUrl ?? "" } : undefined} />
           </div>
         </aside>
       </div>
@@ -759,7 +780,7 @@ function CreateCampaign() {
       <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
         <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-card p-5">
           <SheetTitle className="sr-only">Preview</SheetTitle>
-          <Preview draft={draft} orgName={org?.name} />
+          <Preview draft={draft} orgName={org?.name} raiser={user ? { name: user.fullName, avatar: user.avatarUrl ?? "" } : undefined} />
         </SheetContent>
       </Sheet>
     </div>
@@ -950,9 +971,9 @@ function previewOf(d: Draft): Campaign {
     type: d.type ?? "money",
     title: d.title?.trim() || "Your campaign title",
     story: d.story ?? "",
-    faithCategory: d.faithCategory ?? categories[0].label,
+    faithCategory: d.faithCategory ?? campaignCategories[0],
     orgId: d.orgId,
-    raiser: { name: me.name, avatar: me.avatar, location: d.location ?? "", trustScore: 0 },
+    raiser: { name: "You", avatar: "", location: d.location ?? "", trustScore: 0 },
     cover: d.cover ?? placeholderCover,
     gallery: d.gallery ?? [],
     goal: d.mode !== "ongoing" && d.goal ? d.goal : undefined,
@@ -972,7 +993,7 @@ function previewOf(d: Draft): Campaign {
 }
 
 /** Live preview with two views: the card in Discover, and the top of the campaign page. */
-function Preview({ draft, orgName }: { draft: Draft; orgName?: string }) {
+function Preview({ draft, orgName, raiser }: { draft: Draft; orgName?: string; raiser?: { name: string; avatar: string } }) {
   const [view, setView] = useState<"page" | "card">("page");
   const c = useMemo(() => previewOf(draft), [draft]);
   return (
@@ -1004,8 +1025,8 @@ function Preview({ draft, orgName }: { draft: Draft; orgName?: string }) {
             <img src={c.cover} alt="" className="aspect-[16/10] w-full object-cover" />
             <div className="flex flex-col gap-3 p-4">
               <p className="flex items-center gap-1.5 text-[12px] text-muted-ink">
-                <img src={me.avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
-                {me.name}
+                {raiser?.avatar ? <img src={raiser.avatar} alt="" className="h-4 w-4 rounded-full object-cover" /> : null}
+                {raiser?.name ?? "You"}
                 {orgName ? ` for ${orgName}` : ""}
               </p>
               <p className="font-display text-[19px] leading-[1.2] text-ink">{c.title}</p>

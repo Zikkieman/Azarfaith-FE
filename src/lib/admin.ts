@@ -1,7 +1,4 @@
-/**
- * Admin-only data that the public app doesn't need: verification checks, contact and payout details
- * for each organization, internal notes and the audit log. Mock values stand in for the API.
- */
+/** Shared admin presentation types and utilities. Review data comes from the API. */
 
 export type CheckState = "passed" | "failed" | "waiting";
 export type CheckKey = "registration" | "payout" | "leadership" | "address";
@@ -33,93 +30,6 @@ export const checkDefs: { key: CheckKey; label: string; hint: string; failHint: 
   },
 ];
 
-const allPassed: Record<CheckKey, CheckState> = {
-  registration: "passed",
-  payout: "passed",
-  leadership: "passed",
-  address: "passed",
-};
-
-export const checkSeed: Record<string, Record<CheckKey, CheckState>> = {
-  o1: allPassed,
-  o2: allPassed,
-  o3: allPassed,
-  o4: { registration: "passed", payout: "failed", leadership: "waiting", address: "passed" },
-  o5: { registration: "waiting", payout: "waiting", leadership: "waiting", address: "waiting" },
-};
-
-export type OrgFile = {
-  submittedAt: string;
-  contactName: string;
-  email: string;
-  phone: string;
-  bank: string;
-  accountName: string;
-  accountEnding: string;
-  rcNumber: string;
-  documents: { name: string; size: string }[];
-};
-
-const docs = (...names: string[]) =>
-  names.map((name, i) => ({ name, size: `${(180 + i * 74) % 900}KB` }));
-
-export const orgFiles: Record<string, OrgFile> = {
-  o1: {
-    submittedAt: "2024-02-11",
-    contactName: "Rev. Daniel Yakubu",
-    email: "missions@ecwa.org",
-    phone: "+234 803 412 7765",
-    bank: "First Bank",
-    accountName: "ECWA Mission Board",
-    accountEnding: "4821",
-    rcNumber: "CAC/IT/4417",
-    documents: docs("CAC certificate.pdf", "Board resolution.pdf"),
-  },
-  o2: {
-    submittedAt: "2024-03-02",
-    contactName: "Pastor Emeka Nwosu",
-    email: "emeka@churchunderthebridge.org",
-    phone: "+234 806 220 1193",
-    bank: "GTBank",
-    accountName: "Church Under The Bridge Lagos",
-    accountEnding: "0937",
-    rcNumber: "CAC/IT/90314",
-    documents: docs("CAC certificate.pdf", "Trustee IDs.pdf"),
-  },
-  o3: {
-    submittedAt: "2024-04-05",
-    contactName: "Grace Adekunle",
-    email: "grace@graceharvest.org",
-    phone: "+234 809 776 0042",
-    bank: "Access Bank",
-    accountName: "Grace Harvest Orphanage",
-    accountEnding: "5510",
-    rcNumber: "CAC/IT/71182",
-    documents: docs("CAC certificate.pdf", "Social welfare licence.pdf", "Board resolution.pdf"),
-  },
-  o4: {
-    submittedAt: "2026-10-07",
-    contactName: "Kolade Akinwale",
-    email: "kolade@capros.org",
-    phone: "+234 802 118 6630",
-    bank: "Zenith Bank",
-    accountName: "Kolade Akinwale",
-    accountEnding: "7724",
-    rcNumber: "CAC/IT/30566",
-    documents: docs("CAC certificate.pdf", "Missions charter.pdf"),
-  },
-  o5: {
-    submittedAt: "2026-09-24",
-    contactName: "Mrs. Funmi Ade",
-    email: "office@lifegateacademy.edu.ng",
-    phone: "+234 805 990 1427",
-    bank: "UBA",
-    accountName: "Lifegate Christian Academy",
-    accountEnding: "3306",
-    rcNumber: "Not provided",
-    documents: [],
-  },
-};
 
 export type AuditAction =
   | "org_registered"
@@ -148,68 +58,6 @@ export type AuditEntry = {
 };
 
 export type Note = { id: string; author: string; body: string; at: string };
-
-const daysAgo = (d: number, h = 10) => {
-  const t = new Date();
-  t.setDate(t.getDate() - d);
-  t.setHours(h, 12, 0, 0);
-  return t.toISOString();
-};
-
-export const auditSeed: AuditEntry[] = [
-  {
-    id: "l1",
-    actor: "CAPROS Nigeria",
-    action: "org_registered",
-    target: { kind: "org", id: "o4", name: "CAPROS Nigeria" },
-    at: daysAgo(2, 9),
-  },
-  {
-    id: "l2",
-    actor: "Tunde Adebayo",
-    action: "check_updated",
-    target: { kind: "org", id: "o4", name: "CAPROS Nigeria" },
-    detail: "Payout account failed: the account is in a personal name.",
-    at: daysAgo(1, 15),
-  },
-  {
-    id: "l3",
-    actor: "Plateau Relief Network",
-    action: "campaign_submitted",
-    target: {
-      kind: "campaign",
-      id: "gfc6",
-      name: "Emergency food for displaced Christians in Mangu",
-    },
-    at: daysAgo(2, 11),
-  },
-  {
-    id: "l4",
-    actor: "Tunde Adebayo",
-    action: "user_suspended",
-    target: { kind: "user", id: "u7", name: "David Ogundimu" },
-    detail: "Reported for suspicious donation patterns.",
-    at: daysAgo(14, 16),
-  },
-  {
-    id: "l5",
-    actor: "Tunde Adebayo",
-    action: "org_verified",
-    target: { kind: "org", id: "o3", name: "Grace Harvest Orphanage" },
-    at: daysAgo(30, 13),
-  },
-];
-
-export const noteSeed: Record<string, Note[]> = {
-  o4: [
-    {
-      id: "n1",
-      author: "Tunde Adebayo",
-      body: "Called Kolade. He says the ministry account is being opened at Zenith; asked them to resubmit once it's in CAPROS's name.",
-      at: daysAgo(1, 16),
-    },
-  ],
-};
 
 export const rejectReasons = {
   org: [

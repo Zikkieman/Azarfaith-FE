@@ -1,7 +1,8 @@
 import { Fragment, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell, ChevronDown, ChevronRight, ChevronUp, Menu } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSidebar } from "./context";
@@ -118,9 +119,18 @@ function StepButton({
 }
 
 function Notifications() {
-  const notifications = useApp((s) => s.adminNotifications);
-  const markAllRead = useApp((s) => s.markAllNotificationsRead);
-  const unread = notifications.filter((n) => !n.read).length;
+  const queryClient = useQueryClient();
+  const inbox = useQuery({
+    queryKey: ["admin", "inbox"],
+    queryFn: () => apiFetch<AdminInbox>("/admin/review/notifications/inbox?page=1&pageSize=20"),
+    refetchInterval: 60_000,
+  });
+  const markAllRead = useMutation({
+    mutationFn: (through: string) => apiFetch("/admin/review/notifications/read-all", { method: "PATCH", body: JSON.stringify({ through }) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "inbox"] }),
+  });
+  const notifications = inbox.data?.items ?? [];
+  const unread = inbox.data?.unreadCount ?? 0;
 
   return (
     <Popover>
@@ -145,7 +155,7 @@ function Notifications() {
           {unread > 0 ? (
             <button
               type="button"
-              onClick={markAllRead}
+              onClick={() => inbox.data && markAllRead.mutate(inbox.data.asOf)}
               className="text-[13px] text-muted-ink transition-colors hover:text-ink"
             >
               Mark all as read
@@ -174,7 +184,9 @@ function Notifications() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink">{n.title}</p>
                     <p className="mt-0.5 text-[13px] leading-5 text-ink-soft">{n.message}</p>
-                    <p className="mt-1 text-[12px] text-subtle">{n.createdAt}</p>
+                    <p className="mt-1 text-[12px] text-subtle">
+                      {new Date(n.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
                   </div>
                 </div>
               </li>
@@ -185,3 +197,9 @@ function Notifications() {
     </Popover>
   );
 }
+
+type AdminInbox = {
+  unreadCount: number;
+  asOf: string;
+  items: Array<{ id: string; title: string; message: string; createdAt: string; read: boolean }>;
+};

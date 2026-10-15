@@ -1,6 +1,6 @@
 import { useApp } from "@/lib/store";
-import type { Campaign, Org } from "@/lib/mock";
-import { checkDefs, orgFiles, type AuditAction, type CheckKey, type CheckState } from "@/lib/admin";
+import type { Campaign, Org } from "@/lib/domain";
+import { checkDefs, type AuditAction, type CheckKey, type CheckState } from "@/lib/admin";
 
 /** Summary used by lists, panels and the verify button: "2 of 4", and whether verify is allowed. */
 export function useCheckSummary(orgId: string) {
@@ -33,18 +33,6 @@ export const actionText: Record<AuditAction, string> = {
   giving_resumed: "resumed",
   note_added: "added a note to",
 };
-
-/** Things a reviewer should see before deciding, worked out from the file and the checks. */
-export function orgRisks(org: Org, checks?: Record<CheckKey, CheckState>) {
-  const file = orgFiles[org.id];
-  const risks: string[] = [];
-  if (file && file.accountName !== org.name)
-    risks.push(`Payout account is in the name "${file.accountName}", not ${org.name}.`);
-  if (file && file.documents.length === 0) risks.push("No registration documents uploaded.");
-  if (file && file.rcNumber === "Not provided") risks.push("No CAC registration number given.");
-  if (checks?.leadership === "failed") risks.push("We couldn't reach the leaders listed.");
-  return risks;
-}
 
 export type AutoCheck = { label: string; ok: boolean; detail: string; blocking?: boolean };
 

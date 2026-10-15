@@ -11,7 +11,7 @@ import {
   PipelineStage,
   UpdateCard,
 } from "./pieces";
-import { campaignLayers } from "./layers";
+import { useCampaignLayers } from "./layers";
 
 const h2 = "font-display text-[clamp(32px,4.4vw,72px)] leading-[1.04] tracking-[-0.03em] text-ink";
 const scene = "flex flex-col items-center gap-10 px-6 py-24 text-center md:py-32";
@@ -33,6 +33,7 @@ export function StaticStory() {
         </p>
         <Link
           to="/signup"
+          search={{}}
           className="inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast"
         >
           Start giving
@@ -81,7 +82,7 @@ export function StaticStory() {
       <section className={scene}>
         <h2 className={h2}>See exactly what your gift is for.</h2>
         <div className="grid w-full max-w-[860px] gap-4 sm:grid-cols-2 md:grid-cols-3">
-          {campaignLayers(hoverKey, setHoverKey).map((l) => (
+          {useCampaignLayers(hoverKey, setHoverKey).map((l) => (
             <div key={l.id} className="h-[190px] text-left">
               {l.node}
             </div>
