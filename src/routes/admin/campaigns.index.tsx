@@ -47,7 +47,10 @@ export const Route = createFileRoute("/admin/campaigns/")({
   component: AdminCampaigns,
 });
 
-type ApiCampaign = Omit<Campaign, "gallery" | "currency" | "updates" | "comments" | "donations" | "raiser"> & {
+type ApiCampaign = Omit<
+  Campaign,
+  "gallery" | "currency" | "updates" | "comments" | "donations" | "raiser"
+> & {
   raiser: Omit<Campaign["raiser"], "trustScore">;
   organization?: { id: string; name: string } | null;
 };
@@ -74,7 +77,15 @@ function AdminCampaigns() {
   const [bulkApprove, setBulkApprove] = useState<Campaign[] | null>(null);
   const [bulkReject, setBulkReject] = useState<Campaign[] | null>(null);
   const decision = useMutation({
-    mutationFn: async ({ selected, status, reason }: { selected: Campaign[]; status: "VERIFIED" | "UNVERIFIED"; reason?: string }) =>
+    mutationFn: async ({
+      selected,
+      status,
+      reason,
+    }: {
+      selected: Campaign[];
+      status: "VERIFIED" | "UNVERIFIED";
+      reason?: string;
+    }) =>
       Promise.all(
         selected.map((campaign) =>
           apiFetch(`/admin/review/campaigns/${campaign.id}/status`, {
@@ -94,15 +105,12 @@ function AdminCampaigns() {
       ]);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not update the selected campaigns."),
+      toast.error(
+        error instanceof Error ? error.message : "Could not update the selected campaigns.",
+      ),
   });
 
-  if (campaignQuery.isLoading || organizationQuery.isLoading) {
-    return <AdminListSkeleton label="Loading campaigns" />;
-  }
-  if (campaignQuery.error) throw campaignQuery.error;
-  if (organizationQuery.error) throw organizationQuery.error;
-
+  // Keep hook order stable during the initial API fetch.
   const campaigns: Campaign[] = (campaignQuery.data ?? []).map((campaign) => ({
     ...campaign,
     raiser: { ...campaign.raiser, trustScore: 0 },
@@ -117,6 +125,24 @@ function AdminCampaigns() {
       .filter((organization) => organization.verificationStatus === "verified")
       .map((organization) => organization.id),
   );
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return campaigns.filter(
+      (c) =>
+        (view === "all" || c.verificationStatus === view) &&
+        matches(filters, "mode", c.mode) &&
+        matches(filters, "type", c.type) &&
+        matches(filters, "cause", c.faithCategory) &&
+        matches(filters, "urgency", c.urgency) &&
+        (!q || [c.title, c.raiser.name, c.location].some((x) => x.toLowerCase().includes(q))),
+    );
+  }, [campaigns, view, filters, search]);
+
+  if (campaignQuery.isLoading || organizationQuery.isLoading) {
+    return <AdminListSkeleton label="Loading campaigns" />;
+  }
+  if (campaignQuery.error) throw campaignQuery.error;
+  if (organizationQuery.error) throw organizationQuery.error;
 
   const fields: FilterField[] = [
     {
@@ -155,19 +181,6 @@ function AdminCampaigns() {
 
   const count = (v: View) =>
     v === "all" ? campaigns.length : campaigns.filter((c) => c.verificationStatus === v).length;
-
-  const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return campaigns.filter(
-      (c) =>
-        (view === "all" || c.verificationStatus === view) &&
-        matches(filters, "mode", c.mode) &&
-        matches(filters, "type", c.type) &&
-        matches(filters, "cause", c.faithCategory) &&
-        matches(filters, "urgency", c.urgency) &&
-        (!q || [c.title, c.raiser.name, c.location].some((x) => x.toLowerCase().includes(q))),
-    );
-  }, [campaigns, view, filters, search]);
 
   const reviewable = (c: Campaign) =>
     c.verificationStatus === "pending" || c.verificationStatus === "unverified";
@@ -396,7 +409,9 @@ function AdminCampaigns() {
           if (!bulkApprove?.length) return;
           await decision.mutateAsync({ selected: bulkApprove, status: "VERIFIED" });
           setBulkApprove(null);
-          toast.success(`${bulkApprove.length} campaign${bulkApprove.length === 1 ? "" : "s"} approved`);
+          toast.success(
+            `${bulkApprove.length} campaign${bulkApprove.length === 1 ? "" : "s"} approved`,
+          );
         }}
       />
       <AdminRejectDialog
@@ -409,7 +424,9 @@ function AdminCampaigns() {
           if (!bulkReject?.length) return;
           await decision.mutateAsync({ selected: bulkReject, status: "UNVERIFIED", reason });
           setBulkReject(null);
-          toast.success(`${bulkReject.length} campaign${bulkReject.length === 1 ? "" : "s"} rejected`);
+          toast.success(
+            `${bulkReject.length} campaign${bulkReject.length === 1 ? "" : "s"} rejected`,
+          );
         }}
       />
     </AdminPage>

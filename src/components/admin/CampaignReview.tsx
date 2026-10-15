@@ -65,10 +65,17 @@ export function CampaignActions({
   const [rejecting, setRejecting] = useState(false);
   const reviewable =
     campaign.verificationStatus === "pending" || campaign.verificationStatus === "unverified";
-  if (!reviewable) return null;
   const s = size === "sm" ? "sm" : "md";
   const decision = useMutation({
-    mutationFn: (body: { status: "VERIFIED" | "UNVERIFIED"; reviewAction: "APPROVED" | "REJECTED"; reason?: string }) => apiFetch(`/admin/review/campaigns/${campaign.id}/status`, { method: "PATCH", body: JSON.stringify(body) }),
+    mutationFn: (body: {
+      status: "VERIFIED" | "UNVERIFIED";
+      reviewAction: "APPROVED" | "REJECTED";
+      reason?: string;
+    }) =>
+      apiFetch(`/admin/review/campaigns/${campaign.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin", "campaigns"] }),
@@ -76,8 +83,11 @@ export function CampaignActions({
         queryClient.invalidateQueries({ queryKey: ["admin", "campaign", campaign.id] }),
       ]);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update this campaign."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update this campaign."),
   });
+
+  if (!reviewable) return null;
 
   return (
     <>
@@ -105,7 +115,17 @@ export function CampaignActions({
           `${campaign.raiser.name} gets an email to say it's live.`,
         ]}
         confirmLabel="Approve and publish"
-        onConfirm={() => decision.mutate({ status: "VERIFIED", reviewAction: "APPROVED" }, { onSuccess: () => { setApproving(false); toast.success("Campaign approved and live"); } })}
+        onConfirm={() =>
+          decision.mutate(
+            { status: "VERIFIED", reviewAction: "APPROVED" },
+            {
+              onSuccess: () => {
+                setApproving(false);
+                toast.success("Campaign approved and live");
+              },
+            },
+          )
+        }
       />
       <AdminRejectDialog
         open={rejecting}
@@ -113,7 +133,17 @@ export function CampaignActions({
         title="Reject this campaign?"
         description="The organizer can fix it and submit again."
         reasons={rejectReasons.campaign}
-        onReject={(reason, notify) => decision.mutate({ status: "UNVERIFIED", reviewAction: "REJECTED", reason }, { onSuccess: () => { setRejecting(false); toast(`Campaign rejected${notify ? ". We've emailed the organizer" : ""}`); } })}
+        onReject={(reason, notify) =>
+          decision.mutate(
+            { status: "UNVERIFIED", reviewAction: "REJECTED", reason },
+            {
+              onSuccess: () => {
+                setRejecting(false);
+                toast(`Campaign rejected${notify ? ". We've emailed the organizer" : ""}`);
+              },
+            },
+          )
+        }
       />
     </>
   );
@@ -129,7 +159,14 @@ export function CampaignPanel({
 }) {
   const details = useQuery({
     queryKey: ["admin", "campaign", campaign?.id],
-    queryFn: () => apiFetch<{ organization: { id: string; name: string; verificationStatus: Campaign["verificationStatus"] } | null }>(`/admin/review/campaigns/${campaign!.id}`),
+    queryFn: () =>
+      apiFetch<{
+        organization: {
+          id: string;
+          name: string;
+          verificationStatus: Campaign["verificationStatus"];
+        } | null;
+      }>(`/admin/review/campaigns/${campaign!.id}`),
     enabled: Boolean(campaign),
   });
   const org = details.data?.organization;
@@ -176,7 +213,9 @@ export function CampaignPanel({
                 <section className="flex flex-col gap-2.5">
                   <h3 className="text-[13px] font-medium text-subtle">Checks</h3>
                   {details.isLoading ? (
-                    <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">Loading checks...</p>
+                    <p className="rounded-field border border-line-soft px-4 py-5 text-sm text-muted-ink">
+                      Loading checks...
+                    </p>
                   ) : (
                     <ReviewChecklist entityType="campaign" id={campaign.id} />
                   )}
