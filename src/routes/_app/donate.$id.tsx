@@ -3,10 +3,8 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import {
   BadgeCheck,
   BellRing,
-  Building2,
   Check,
   ChevronLeft,
-  CreditCard,
   Download,
   Lock,
   Mail,
@@ -83,7 +81,6 @@ function Checkout() {
   const [email, setEmail] = useState(user?.email ?? "");
   const [anonymous, setAnonymous] = useState(false);
   const [note, setNote] = useState("");
-  const [method, setMethod] = useState<"saved" | "card" | "bank">("card");
   const [mode, setMode] = useState<"auto" | "pledge">("auto");
   const [processing, setProcessing] = useState(false);
 
@@ -110,10 +107,12 @@ function Checkout() {
         method: "POST",
         body: JSON.stringify({
           amount: gift,
-          paymentMethod: method === "bank" ? "BANK_TRANSFER" : "CARD",
+          // Paystack presents the available payment methods. Automatic recurring gifts
+          // deliberately start with a card so a reusable authorization can be created.
+          paymentMethod: recurring && mode === "auto" ? "CARD" : "PAYSTACK_CHECKOUT",
           frequency: recurring ? freq.toUpperCase() : undefined,
-          recurringMode: recurring ? (method === "bank" ? "PLEDGE" : mode.toUpperCase()) : undefined,
-          autoChargeConsent: recurring && method !== "bank" && mode === "auto",
+          recurringMode: recurring ? mode.toUpperCase() : undefined,
+          autoChargeConsent: recurring && mode === "auto",
           donorName: name.trim() || undefined,
           donorEmail: email.trim() || undefined,
           isAnonymous: anonymous,
@@ -142,7 +141,7 @@ function Checkout() {
         </>
       ) : (
         <>
-          <Lock className="h-4 w-4" strokeWidth={2} /> Give {formatMoney(total)}
+          <Lock className="h-4 w-4" strokeWidth={2} /> Continue to secure payment
           {recurring ? ` ${everyLabel[freq as Exclude<Frequency, "once">]}` : ""}
         </>
       )}
@@ -314,49 +313,26 @@ function Checkout() {
             </div>
           </Step>
 
-          <Step n={freqs.length > 1 ? 5 : 4} title="Payment">
+          <Step n={freqs.length > 1 ? 5 : 4} title="Secure payment">
             <div className="flex flex-col gap-2">
-              <Option selected={method === "saved"} onClick={() => setMethod("saved")} row>
-                <CreditCard className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
-                <span className="flex-1">
-                  <span className="block text-[15px] font-medium text-ink">Visa ending 4242</span>
-                  <span className="block text-[13px] text-muted-ink">
-                    Saved card, expires 08/28
-                  </span>
-                </span>
-              </Option>
-              <Option selected={method === "card"} onClick={() => setMethod("card")} row>
-                <CreditCard className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
-                <span className="flex-1 text-[15px] font-medium text-ink">A different card</span>
-              </Option>
-              <Option selected={method === "bank"} onClick={() => setMethod("bank")} row>
-                <Building2 className="h-5 w-5 text-ink-soft" strokeWidth={1.5} />
-                <span className="flex-1">
-                  <span className="block text-[15px] font-medium text-ink">Bank transfer</span>
-                  <span className="block text-[13px] text-muted-ink">
-                    {recurring ? "We remind you each time it's due" : "Pay from your banking app"}
-                  </span>
-                </span>
-              </Option>
-              {method === "card" ? (
-                <p className="rounded-field bg-panel px-4 py-3 text-[13px] text-ink-soft">
-                  Paystack opens a secure window for your card details. AzarFaith never sees or
-                  stores them.
-                </p>
-              ) : null}
-              {recurring && method !== "bank" ? (
+              <div className="rounded-field bg-panel px-4 py-3 text-[13px] leading-5 text-ink-soft">
+                You will complete this gift on Paystack&apos;s secure checkout. Paystack will show the
+                payment methods available for this transaction, such as card or bank transfer.
+                AzarFaith never sees or stores your card details.
+              </div>
+              {recurring ? (
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <Option selected={mode === "auto"} onClick={() => setMode("auto")}>
                     <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                      <Repeat2 className="h-4 w-4" strokeWidth={1.75} /> Charge me automatically
+                      <Repeat2 className="h-4 w-4" strokeWidth={1.75} /> Give automatically
                     </span>
-                    <span className="text-[13px] text-muted-ink">Nothing to remember</span>
+                    <span className="text-[13px] text-muted-ink">Paystack will request a reusable card</span>
                   </Option>
                   <Option selected={mode === "pledge"} onClick={() => setMode("pledge")}>
                     <span className="flex items-center gap-2 text-sm font-medium text-ink">
                       <BellRing className="h-4 w-4" strokeWidth={1.75} /> Remind me each time
                     </span>
-                    <span className="text-[13px] text-muted-ink">You confirm every gift</span>
+                    <span className="text-[13px] text-muted-ink">Choose a method whenever you give</span>
                   </Option>
                 </div>
               ) : null}
@@ -414,7 +390,7 @@ function Checkout() {
           disabled={invalid || processing}
           className={btn("primary")}
         >
-          {processing ? "Processing" : "Give"}
+          {processing ? "Processing" : "Continue"}
         </button>
       </div>
     </div>
@@ -449,12 +425,10 @@ function Step({
 function Option({
   selected,
   onClick,
-  row,
   children,
 }: {
   selected: boolean;
   onClick: () => void;
-  row?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -465,7 +439,7 @@ function Option({
       onClick={onClick}
       className={cn(
         "relative flex rounded-field border px-4 py-3 text-left transition-[border-color,box-shadow] duration-200",
-        row ? "items-center gap-3" : "flex-col gap-0.5",
+        "flex-col gap-0.5",
         selected
           ? "border-ink shadow-[0_0_0_1px_var(--color-ink)]"
           : "border-line-input hover:border-ink/50",
@@ -476,7 +450,6 @@ function Option({
         className={cn(
           "absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full border transition-colors",
           selected ? "border-ink bg-ink text-ink-contrast" : "border-line-input",
-          row && "static ml-auto",
         )}
       >
         {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
