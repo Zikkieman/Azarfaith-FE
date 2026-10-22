@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChoiceCard,
   FieldError,
@@ -15,11 +16,15 @@ import { useApp } from "@/lib/store";
 import { RequireUser } from "@/components/auth/RequireUser";
 import { OnboardingShell } from "@/components/app/OnboardingShell";
 import { toast } from "sonner";
-import { Church, Globe, Baby, GraduationCap, Users, ImagePlus, FileText, Trash2 } from "lucide-react";
+import { Church, Globe, Baby, GraduationCap, Users, ImagePlus, FileText, Trash2, ChevronDown } from "lucide-react";
 import type { Org } from "@/lib/domain";
 import { apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/register-org")({
+  validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
+    draft: typeof search.draft === "string" && search.draft ? search.draft : undefined,
+  }),
   head: () => ({ meta: [{ title: "Register your org — AzarFaith" }] }),
   component: ProtectedRegisterOrg,
 });
@@ -27,6 +32,26 @@ export const Route = createFileRoute("/_app/register-org")({
 function ProtectedRegisterOrg() {
   return <RequireUser><RegisterOrg /></RequireUser>;
 }
+
+const denominationOptions = [
+  "Anglican",
+  "Baptist",
+  "Catholic",
+  "ECWA",
+  "Methodist",
+  "Pentecostal",
+  "Presbyterian",
+  "RCCG",
+  "Seventh-day Adventist",
+  "Non-denominational",
+  "Interdenominational",
+] as const;
+const otherDenominationValue = "__other__";
+type OrganizationDraftDetail = Org & {
+  otherCategoryLabel?: string;
+  links?: string[];
+  registrationDocuments?: string[];
+};
 
 const orgCategories = [
   { v: "church", icon: Church, label: "Church", desc: "Local congregation or church plant" },
@@ -48,16 +73,55 @@ const orgCategories = [
 
 function RegisterOrg() {
   const nav = useNavigate();
+  const search = Route.useSearch();
+  const queryClient = useQueryClient();
   const { orgDraft, setOrgDraft, resetOrgDraft } = useApp();
+  const hydratedDraftId = useRef<string | null>(null);
+  const draftQuery = useQuery({
+    queryKey: ["organization-draft", search.draft],
+    queryFn: () => apiFetch<OrganizationDraftDetail>(`/organizations/drafts/${search.draft}`),
+    enabled: Boolean(search.draft),
+  });
+  useEffect(() => {
+    if (search.draft) return;
+    resetOrgDraft();
+    setDraftId(null);
+    hydratedDraftId.current = null;
+  }, [search.draft, resetOrgDraft]);
+  useEffect(() => {
+    if (!search.draft || !draftQuery.data || hydratedDraftId.current === search.draft) return;
+    const saved = draftQuery.data;
+    resetOrgDraft();
+    setOrgDraft({
+      name: saved.name,
+      tagline: saved.tagline,
+      category: saved.category,
+      otherCategoryLabel: saved.otherCategoryLabel,
+      denomination: saved.denomination,
+      location: saved.location,
+      founded: saved.founded,
+      bio: saved.bio,
+      photos: saved.photos,
+      videos: saved.links ?? [],
+      registrationDocuments: saved.registrationDocuments ?? [],
+    });
+    setDraftId(saved.id);
+    hydratedDraftId.current = saved.id;
+  }, [search.draft, draftQuery.data, resetOrgDraft, setOrgDraft]);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(search.draft ?? null);
   const [uploading, setUploading] = useState(false);
+  const [otherDenominationSelected, setOtherDenominationSelected] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
   const documentInput = useRef<HTMLInputElement>(null);
 
   const steps = ["Details", "Mission", "Media", "Preview"];
+  const denomination = orgDraft.denomination ?? "";
+  const isKnownDenomination = denominationOptions.some((option) => option === denomination);
+  const isOtherDenomination = otherDenominationSelected || Boolean(denomination && !isKnownDenomination);
+  const denominationSelection = isOtherDenomination ? otherDenominationValue : denomination;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -100,49 +164,78 @@ function RegisterOrg() {
   const uploadFiles = async (files: FileList | null, folder: "organization-photo" | "organization-document") => {
     if (!files?.length) return;
     const selected = Array.from(files);
+    const isPhoto = folder === "organization-photo";
+    const current = useApp.getState().orgDraft;
+    const available = isPhoto ? 8 - (current.photos?.length ?? 0) : 5 - (current.registrationDocuments?.length ?? 0);
+    if (selected.length > available) {
+      toast.error(`You can add ${available} more ${isPhoto ? "photo" : "document"}${available === 1 ? "" : "s"}.`);
+      return;
+    }
+    const allowed = isPhoto
+      ? ["image/jpeg", "image/png", "image/webp"]
+      : ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (selected.some((file) => !allowed.includes(file.type))) {
+      toast.error(isPhoto ? "Choose JPEG, PNG or WebP images." : "Choose PDF, JPEG, PNG or WebP files.");
+      return;
+    }
     if (selected.some((file) => file.size > 5 * 1024 * 1024)) {
       toast.error("Each upload must be 5 MB or smaller.");
       return;
     }
     setUploading(true);
     try {
-      const urls = await Promise.all(selected.map(async (file) => {
+      const results = await Promise.allSettled(selected.map(async (file) => {
         const body = new FormData();
         body.append("file", file);
         body.append("folder", folder);
-        const result = await apiFetch<{ url: string }>("/media/upload", { method: "POST", body });
-        return result.url;
+        return apiFetch<{ url: string }>("/media/upload", { method: "POST", body });
       }));
-      if (folder === "organization-photo") {
-        setOrgDraft({ photos: [...(orgDraft.photos ?? []), ...urls].slice(0, 8) });
-      } else {
-        setOrgDraft({ registrationDocuments: [...(orgDraft.registrationDocuments ?? []), ...urls].slice(0, 5) });
+      const urls = results.flatMap((result) => result.status === "fulfilled" ? [result.value.url] : []);
+      if (urls.length) {
+        const latest = useApp.getState().orgDraft;
+        if (isPhoto) setOrgDraft({ photos: [...(latest.photos ?? []), ...urls].slice(0, 8) });
+        else setOrgDraft({ registrationDocuments: [...(latest.registrationDocuments ?? []), ...urls].slice(0, 5) });
+        toast.success(`${urls.length} file${urls.length === 1 ? "" : "s"} uploaded`);
       }
-      toast.success(`${urls.length} file${urls.length === 1 ? "" : "s"} uploaded`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed. Please try again.");
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length) toast.error(`${failed.length} file${failed.length === 1 ? "" : "s"} could not be uploaded. Try again.`);
     } finally {
       setUploading(false);
     }
   };
 
-  const saveDraft = async () => {
+  const saveDraft = async (): Promise<boolean> => {
     const value = payload();
-    if (!Object.values(value).some((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))) return;
-    const saved = await apiFetch<{ id: string }>(draftId ? `/organizations/${draftId}/draft` : "/organizations/drafts", {
-      method: draftId ? "PATCH" : "POST", body: JSON.stringify(value),
-    });
-    setDraftId(saved.id);
+    if (!Object.values(value).some((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))) return true;
+    try {
+      const saved = await apiFetch<{ id: string }>(draftId ? `/organizations/${draftId}/draft` : "/organizations/drafts", {
+        method: draftId ? "PATCH" : "POST", body: JSON.stringify(value),
+      });
+      setDraftId(saved.id);
+      await queryClient.invalidateQueries({ queryKey: ["organization-drafts"], refetchType: "all" });
+      toast.success("Draft saved. Continue it from Manage.");
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save your draft.");
+      return false;
+    }
   };
 
   const submit = async () => {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const org = await apiFetch<Org>(draftId ? `/organizations/${draftId}/submit` : "/organizations", {
-        method: "POST", body: JSON.stringify(payload()),
+      if (draftId) {
+        await apiFetch(`/organizations/${draftId}/draft`, {
+          method: "PATCH", body: JSON.stringify(payload()),
+        });
+      }
+      await apiFetch<Org>(draftId ? `/organizations/${draftId}/submit` : "/organizations", {
+        method: "POST", body: draftId ? undefined : JSON.stringify(payload()),
       });
       resetOrgDraft();
+      void queryClient.invalidateQueries({ queryKey: ["organization-drafts"] });
+      void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] });
       toast("Your organization has been submitted for review.");
       nav({ to: "/dashboard" });
     } catch (error) {
@@ -188,12 +281,17 @@ function RegisterOrg() {
     </div>
   );
 
+  if (draftQuery.error) throw draftQuery.error;
+  if (search.draft && (draftQuery.isLoading || hydratedDraftId.current !== search.draft)) {
+    return <div className="grid min-h-screen place-items-center bg-panel text-sm text-muted-ink" aria-busy="true">Loading organization draft…</div>;
+  }
+
   return (
     <OnboardingShell
       steps={steps}
       current={step}
       exitTo="/dashboard"
-      onExit={() => { void saveDraft().then(() => toast("Draft saved. Pick up from Manage.")); }}
+      onExit={saveDraft}
       previewLabel="Your public profile"
       preview={preview}
       footer={
@@ -261,16 +359,41 @@ function RegisterOrg() {
             ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Denomination or tradition</span>
-                <input
-                  className={inputClass}
-                  placeholder="e.g. ECWA, Baptist, Pentecostal"
-                  value={orgDraft.denomination ?? ""}
-                  onChange={(e) => setOrgDraft({ denomination: e.target.value })}
-                />
+              <div className="flex flex-col gap-1.5">
+                <label className="flex flex-col gap-1.5">
+                  <span className={labelClass}>Denomination or tradition</span>
+                  <span className="relative">
+                    <select
+                      value={denominationSelection}
+                      onChange={(event) => {
+                        const selection = event.target.value;
+                        setOtherDenominationSelected(selection === otherDenominationValue);
+                        setOrgDraft({ denomination: selection === otherDenominationValue ? "" : selection });
+                      }}
+                      className={cn(inputClass, "cursor-pointer appearance-none pr-10", !denominationSelection && "text-subtle")}
+                    >
+                      <option value="">Select a denomination or tradition</option>
+                      {denominationOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                      <option value={otherDenominationValue}>Other — please specify</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-ink" strokeWidth={2} />
+                  </span>
+                </label>
+                {isOtherDenomination ? (
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Specify denomination or tradition</span>
+                    <input
+                      className={inputClass}
+                      placeholder="Enter your denomination or tradition"
+                      value={denomination}
+                      onChange={(event) => setOrgDraft({ denomination: event.target.value })}
+                    />
+                  </label>
+                ) : null}
                 {field("denomination")}
-              </label>
+              </div>
               <label className="flex flex-col gap-1.5">
                 <span className={labelClass}>Year founded</span>
                 <input
@@ -348,11 +471,11 @@ function RegisterOrg() {
               </span>
               <p className="text-base font-semibold text-ink">Upload photos of your work</p>
               <p className="text-sm text-muted-ink">
-                Buildings, team, community, events — real photos, not stock.
+                Buildings, team, community, events — real photos, not stock. Select up to 8 at once (5 MB each).
               </p>
               <input ref={photoInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(event) => { void uploadFiles(event.target.files, "organization-photo"); event.target.value = ""; }} />
-              <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className={`${btnSecondary} mt-2`}>
-                {uploading ? "Uploading…" : "Choose photos"}
+              <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading || (orgDraft.photos?.length ?? 0) >= 8} className={`${btnSecondary} mt-2`}>
+                {uploading ? "Uploading…" : (orgDraft.photos?.length ?? 0) >= 8 ? "8 photos added" : "Choose photos"}
               </button>
             </div>
             {field("photos")}
@@ -364,7 +487,7 @@ function RegisterOrg() {
             <div className="flex flex-col gap-3 rounded-card border border-line-soft p-5">
               <div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-panel text-ink-soft"><FileText className="h-4 w-4" /></span><span><span className="block text-sm font-semibold text-ink">Registration evidence</span><span className="block text-[13px] text-muted-ink">CAC registration document or a recommendation letter from a recognized parent ministry.</span></span></div>
               <input ref={documentInput} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(event) => { void uploadFiles(event.target.files, "organization-document"); event.target.value = ""; }} />
-              <button type="button" onClick={() => documentInput.current?.click()} disabled={uploading} className={`${btnSecondary} self-start`}>{uploading ? "Uploading…" : "Add document"}</button>
+              <button type="button" onClick={() => documentInput.current?.click()} disabled={uploading || (orgDraft.registrationDocuments?.length ?? 0) >= 5} className={`${btnSecondary} self-start`}>{uploading ? "Uploading…" : "Add document"}</button>
               {(orgDraft.registrationDocuments?.length ?? 0) > 0 ? <ul className="flex flex-col gap-2">{orgDraft.registrationDocuments?.map((document) => <li key={document} className="flex items-center gap-2 rounded-field bg-panel px-3 py-2 text-sm text-ink-soft"><FileText className="h-4 w-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{document.split("/").pop()}</span><button type="button" aria-label="Remove document" onClick={() => setOrgDraft({ registrationDocuments: orgDraft.registrationDocuments?.filter((item) => item !== document) })} className="text-danger"><Trash2 className="h-3.5 w-3.5" /></button></li>)}</ul> : null}
             </div>
             {field("documents")}

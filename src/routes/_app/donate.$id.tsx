@@ -9,7 +9,6 @@ import {
   Lock,
   Mail,
   Repeat2,
-  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthLogo } from "@/components/auth/AuthLogo";
@@ -17,17 +16,19 @@ import { btn } from "@/components/app/btn";
 import { FieldError, inputClass, labelClass } from "@/components/app/AppShell";
 import { Switch } from "@/components/ui/switch";
 import { useApp } from "@/lib/store";
-import { formatMoney } from "@/lib/domain";
+import { formatMoney, type Campaign } from "@/lib/domain";
 import { apiFetch } from "@/lib/api";
 import { useCampaign } from "@/lib/catalog";
 import { useAuth } from "@/lib/auth";
 import {
   PLATFORM_FEE,
   everyLabel,
+  formatAmountInput,
+  parseAmountInput,
   frequenciesFor,
   frequencyLabel,
-  hintFor,
   presets,
+  tipPresets,
   shortDate,
   skipDate,
   type Frequency,
@@ -36,14 +37,14 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/donate/$id")({
   head: () => ({ meta: [{ title: "Give — AzarFaith" }] }),
-  validateSearch: (s: Record<string, unknown>): { freq: string; amount?: number } => ({
+  validateSearch: (s: Record<string, unknown>): { freq: string; amount?: number; tip?: number } => ({
     freq: typeof s.freq === "string" ? s.freq : "",
-    amount: Number(s.amount) || undefined,
+    amount: Number.isSafeInteger(Number(s.amount)) && Number(s.amount) > 0 ? Number(s.amount) : undefined,
+    tip: Number.isSafeInteger(Number(s.tip)) && Number(s.tip) > 0 ? Number(s.tip) : undefined,
   }),
   component: Checkout,
 });
 
-const tips = [0, 500, 1000, 2500];
 const freqHint: Record<Frequency, string> = {
   once: "A single gift today",
   weekly: "Every week, cancel any time",
@@ -57,26 +58,33 @@ const freqHint: Record<Frequency, string> = {
  */
 function Checkout() {
   const { id } = Route.useParams();
-  const search = Route.useSearch();
-  const orgs = useApp((s) => s.orgs);
-  const { user } = useAuth();
   const campaignQuery = useCampaign(id);
 
   if (campaignQuery.isLoading) return <div className="min-h-screen bg-paper" aria-busy="true" />;
   if (campaignQuery.error) throw campaignQuery.error;
   const campaign = campaignQuery.data;
   if (!campaign) throw notFound();
+  return <CheckoutContent key={campaign.id} campaign={campaign} />;
+}
+
+function CheckoutContent({ campaign }: { campaign: Campaign }) {
+  const search = Route.useSearch();
+  const orgs = useApp((s) => s.orgs);
+  const { user } = useAuth();
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;
+  const isCreator = Boolean(user?.id && campaign.ownerId === user.id);
   const freqs = frequenciesFor(campaign);
 
   const initialFreq = (freqs as string[]).includes(search.freq)
     ? (search.freq as Frequency)
-    : freqs[0];
+    : "once";
   const [freq, setFreq] = useState<Frequency>(initialFreq);
-  const startAmount = search.amount ?? presets[1];
-  const [amount, setAmount] = useState(presets.includes(startAmount) ? startAmount : presets[1]);
-  const [custom, setCustom] = useState(presets.includes(startAmount) ? "" : String(startAmount));
-  const [tip, setTip] = useState(0);
+  const startAmount = search.amount;
+  const [amount, setAmount] = useState<number | null>(startAmount && presets.includes(startAmount) ? startAmount : null);
+  const [custom, setCustom] = useState(startAmount && !presets.includes(startAmount) ? formatAmountInput(String(startAmount)) : "");
+  const startTip = search.tip ?? 0;
+  const [tip, setTip] = useState(tipPresets.includes(startTip) ? startTip : 0);
+  const [customTip, setCustomTip] = useState(startTip && !tipPresets.includes(startTip) ? formatAmountInput(String(startTip)) : "");
   const [name, setName] = useState(user?.fullName ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [anonymous, setAnonymous] = useState(false);
@@ -84,9 +92,10 @@ function Checkout() {
   const [mode, setMode] = useState<"auto" | "pledge">("auto");
   const [processing, setProcessing] = useState(false);
 
-  const gift = custom ? Number(custom) || 0 : amount;
+  const gift = custom ? parseAmountInput(custom) : amount ?? 0;
+  const selectedTip = customTip ? parseAmountInput(customTip) : tip;
   const fee = Math.round(gift * PLATFORM_FEE);
-  const total = gift + fee + tip;
+  const total = gift + fee + selectedTip;
   const recurring = freq !== "once";
   const nextDate = recurring ? skipDate(new Date().toISOString().slice(0, 10), freq) : "";
   const invalid = gift < 100;
@@ -117,7 +126,7 @@ function Checkout() {
           donorEmail: email.trim() || undefined,
           isAnonymous: anonymous,
           note: note.trim() || undefined,
-          tipAmount: tip,
+          tipAmount: selectedTip,
         }),
       });
       window.location.assign(result.authorizationUrl);
@@ -162,13 +171,15 @@ function Checkout() {
 
         <main className="mx-auto flex w-full max-w-[600px] flex-col gap-10 px-6 pt-4 sm:px-10">
           <div className="flex flex-col gap-3">
-            <Link
-              to="/campaign/$id"
-              params={{ id: campaign.id }}
-              className="inline-flex w-fit items-center gap-1 text-sm text-muted-ink transition-colors hover:text-ink"
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={1.75} /> Back to campaign
-            </Link>
+            {isCreator ? (
+              <Link
+                to="/campaign/$id"
+                params={{ id: campaign.id }}
+                className="inline-flex w-fit items-center gap-1 text-sm text-muted-ink transition-colors hover:text-ink"
+              >
+                <ChevronLeft className="h-4 w-4" strokeWidth={1.75} /> Back to campaign
+              </Link>
+            ) : null}
             <h1 className="font-display text-[clamp(26px,2.6vw,34px)] leading-[1.15] tracking-[-0.02em] text-ink">
               Your gift to {org?.name ?? campaign.raiser.name}
             </h1>
@@ -196,40 +207,37 @@ function Checkout() {
           ) : null}
 
           <Step n={freqs.length > 1 ? 2 : 1} title="Amount">
-            <div className="grid grid-cols-2 gap-2">
-              {presets.map((p) => {
-                const hint = hintFor(campaign, p);
-                return (
-                  <Option
-                    key={p}
-                    selected={!custom && amount === p}
-                    onClick={() => {
-                      setAmount(p);
-                      setCustom("");
-                    }}
-                  >
-                    <span className="font-display text-[19px] leading-tight text-ink">
-                      {formatMoney(p)}
-                    </span>
-                    {hint ? <span className="text-[13px] text-muted-ink">{hint}</span> : null}
-                  </Option>
-                );
-              })}
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Amount">
+              {presets.map((p) => (
+                <Option
+                  key={p}
+                  selected={!custom && amount === p}
+                  onClick={() => {
+                    setAmount(p);
+                    setCustom("");
+                  }}
+                >
+                  <span className="font-display text-[19px] leading-tight text-ink">
+                    {formatMoney(p)}
+                  </span>
+                </Option>
+              ))}
             </div>
-            <label className="relative mt-2 block">
-              <span className="sr-only">Another amount</span>
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
-                ₦
+            <label className="mt-2 flex flex-col gap-1.5">
+              <span className={labelClass}>Custom amount</span>
+              <span className="relative block">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                  ₦
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={custom}
+                  onChange={(e) => { setCustom(formatAmountInput(e.target.value)); setAmount(null); }}
+                  placeholder="Enter an amount"
+                  className={cn(inputClass, "pl-8", custom && "border-ink")}
+                />
               </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={100}
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                placeholder="Another amount"
-                className={cn(inputClass, "pl-8", custom && "border-ink")}
-              />
             </label>
             {custom && invalid ? <FieldError>The smallest gift is ₦100.</FieldError> : null}
           </Step>
@@ -240,15 +248,18 @@ function Checkout() {
                 Tips pay for verifying organizations, so churches and missions never pay to join.
               </p>
               <div className="flex flex-wrap gap-2">
-                {tips.map((t) => (
+                {tipPresets.map((t) => (
                   <button
                     key={t}
                     type="button"
-                    aria-pressed={tip === t}
-                    onClick={() => setTip(t)}
+                    aria-pressed={!customTip && tip === t}
+                    onClick={() => {
+                      setTip(t);
+                      setCustomTip("");
+                    }}
                     className={cn(
                       "h-9 rounded-[10px] border px-3.5 text-sm font-medium transition-colors",
-                      tip === t
+                      !customTip && tip === t
                         ? "border-ink bg-ink text-ink-contrast"
                         : "border-line-input bg-paper text-ink hover:border-ink",
                     )}
@@ -257,6 +268,22 @@ function Checkout() {
                   </button>
                 ))}
               </div>
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>Custom tip</span>
+                <span className="relative block">
+                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+                    ₦
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={customTip}
+                    onChange={(event) => setCustomTip(formatAmountInput(event.target.value))}
+                    placeholder="Enter custom tip"
+                    className={cn(inputClass, "pl-8", customTip && "border-ink")}
+                  />
+                </span>
+              </label>
             </div>
           </Step>
 
@@ -276,9 +303,11 @@ function Checkout() {
                   className="data-[state=checked]:bg-ink data-[state=unchecked]:bg-line-input"
                 />
               </label>
-              {!anonymous ? (
+              {!anonymous || !user ? (
                 <label className="flex flex-col gap-1.5">
-                  <span className={labelClass}>Name on the campaign</span>
+                  <span className={labelClass}>
+                    {anonymous ? "Name for your receipt (not shown publicly)" : "Name on the campaign"}
+                  </span>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
@@ -350,7 +379,7 @@ function Checkout() {
             verified={org?.verificationStatus === "verified"}
             gift={gift}
             fee={fee}
-            tip={tip}
+            tip={selectedTip}
             total={total}
             freq={freq}
             nextDate={nextDate}
@@ -382,7 +411,7 @@ function Checkout() {
             Total{recurring ? ` ${everyLabel[freq as Exclude<Frequency, "once">]}` : ""}, fee
             included
           </p>
-          <p className="font-display text-[20px] leading-tight text-ink">{formatMoney(total)}</p>
+          <p className="font-display text-[20px] leading-tight text-ink">{gift ? formatMoney(total) : "Choose amount"}</p>
         </div>
         <button
           type="button"
@@ -498,18 +527,18 @@ function Summary({
       <dl className="flex flex-col gap-2.5 border-t border-line-soft pt-5 text-sm">
         <Row
           label={`Gift${recurring ? `, ${frequencyLabel[freq].toLowerCase()}` : ""}`}
-          value={formatMoney(gift)}
+          value={gift ? formatMoney(gift) : "Choose an amount"}
         />
-        <Row label="Platform fee (2.5%)" value={formatMoney(fee)} />
+        <Row label="Platform fee (2.5%)" value={gift ? formatMoney(fee) : "—"} />
         {tip ? <Row label="Tip for AzarFaith" value={formatMoney(tip)} /> : null}
       </dl>
       <div className="flex items-baseline justify-between border-t border-line-soft pt-5">
         <span className="text-[15px] font-medium text-ink">{recurring ? "Today" : "Total"}</span>
         <span className="font-display text-[28px] leading-none tracking-[-0.02em] text-ink">
-          {formatMoney(total)}
+          {gift ? formatMoney(total) : "—"}
         </span>
       </div>
-      {recurring ? (
+      {recurring && gift ? (
         <p className="-mt-2 text-[13px] text-muted-ink">
           Then {formatMoney(gift + fee)} {everyLabel[freq as Exclude<Frequency, "once">]}, next on{" "}
           {shortDate(nextDate)}. Tips are one-off.
@@ -531,7 +560,6 @@ function Row({ label, value }: { label: string; value: string }) {
 /** The confirmation is a receipt: everything they'd need if anyone asked. */
 function Done({
   receipt,
-  campaignId,
   title,
   to,
   gift,
@@ -541,7 +569,6 @@ function Done({
   method,
 }: {
   receipt: string;
-  campaignId: string;
   title: string;
   to: string;
   gift: number;
@@ -589,30 +616,17 @@ function Done({
               </p>
             ) : null}
           </div>
-          <div className="flex gap-2 border-t border-line-soft px-6 py-4">
+          <div className="border-t border-line-soft px-6 py-4">
             <button
               type="button"
-              className={cn(btn("secondary", "sm"), "flex-1")}
+              className={cn(btn("secondary", "sm"), "w-full")}
               onClick={() => toast("Receipt downloaded")}
             >
               <Download className="h-4 w-4" strokeWidth={1.75} /> Receipt
             </button>
-            <button
-              type="button"
-              className={cn(btn("secondary", "sm"), "flex-1")}
-              onClick={() => {
-                navigator.clipboard?.writeText(`${window.location.origin}/campaign/${campaignId}`);
-                toast("Campaign link copied. Thanks for sharing");
-              }}
-            >
-              <Share2 className="h-4 w-4" strokeWidth={1.75} /> Share
-            </button>
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link to="/campaign/$id" params={{ id: campaignId }} className={btn("primary")}>
-            Back to campaign
-          </Link>
           <Link to={recurring ? "/my-giving" : "/discover"} className={btn("secondary")}>
             {recurring ? "Manage my giving" : "Find another cause"}
           </Link>

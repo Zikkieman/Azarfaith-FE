@@ -1,63 +1,19 @@
-import type { Campaign, Category } from "./domain";
+import type { Campaign } from "./domain";
 
 /** Preset gift amounts, smallest first. Shared by the campaign give box and the checkout. */
 export const presets = [5000, 10000, 25000, 50000];
 
-/** What a preset buys, by cause, so a number becomes something real. */
-const hints: Record<Category, string[]> = {
-  "Church Building": [
-    "10 bags of cement",
-    "A row of roofing sheets",
-    "A set of pews",
-    "Doors and windows",
-  ],
-  "Missions & Outreach": [
-    "A week of fuel for an outreach team",
-    "Bibles for a village",
-    "A month of a missionary's food",
-    "A motorbike service",
-  ],
-  Orphanage: [
-    "Feeds a child for a week",
-    "School shoes for 3 children",
-    "A bunk bed mattress",
-    "A full bunk bed",
-  ],
-  Education: [
-    "Exercise books for a class",
-    "A school uniform",
-    "A term's textbooks",
-    "A term's fees",
-  ],
-  "Food & Relief": [
-    "Food for a family for 3 days",
-    "A week of food for a family",
-    "A month of food for a family",
-    "Supplies for 10 families",
-  ],
-  "Medical Mission": [
-    "Malaria test and treatment",
-    "A clinic visit for 5 people",
-    "A day of a mobile clinic",
-    "Medicines for a village",
-  ],
-  Emergency: [
-    "Water for a family for a week",
-    "A blanket and mat",
-    "A family relief pack",
-    "Shelter for a family",
-  ],
-  "Community Development": [
-    "A water filter",
-    "A borehole repair part",
-    "Seeds for a farm",
-    "A solar lamp for 10 homes",
-  ],
-};
+/** Optional platform tip choices, shared by campaign pages and checkout. */
+export const tipPresets = [0, 500, 1000, 2500];
 
-export function hintFor(c: Pick<Campaign, "faithCategory">, amount: number) {
-  const i = presets.indexOf(amount);
-  return i >= 0 ? hints[c.faithCategory]?.[i] : undefined;
+/** Show whole-naira amounts with separators while a donor types. */
+export function formatAmountInput(value: string) {
+  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function parseAmountInput(value: string) {
+  return Number(value.replaceAll(",", "")) || 0;
 }
 
 export type Frequency = "once" | "weekly" | "monthly" | "quarterly";

@@ -64,7 +64,7 @@ function Finale() {
     <>
       <img src={logoMark} alt="" className="h-10 w-10 md:h-12 md:w-12" />
       <h2 className="max-w-[1100px] font-display text-[clamp(28px,min(4.4vw,7vh),76px)] leading-[1.04] tracking-[-0.03em] text-[#130E30]">
-        More than ₦35 million is given every week on AzarFaith.*
+        More than ₦35 million is given every week on AzarFaith.
       </h2>
       <CampaignShowcase />
       <Link
@@ -75,7 +75,7 @@ function Finale() {
         Start with AzarFaith
       </Link>
       <p className="font-gsf text-[12px] text-[#4A4660]">
-        *Weekly average across verified organizations.
+        Weekly average across verified organizations.
       </p>
     </>
   );

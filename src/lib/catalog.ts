@@ -13,6 +13,8 @@ type ApiCampaign = Partial<Campaign> & {
   frequencies?: string[];
   needs?: string[];
   raiser?: Partial<Campaign["raiser"]>;
+  isDraft?: boolean;
+  isPublic?: boolean;
 };
 
 type ApiOrg = Partial<Org> & {
@@ -21,6 +23,8 @@ type ApiOrg = Partial<Org> & {
   verificationStatus?: string;
   photos?: string[];
   campaignIds?: string[];
+  isDraft?: boolean;
+  isPublic?: boolean;
 };
 
 type Page<T> = {
@@ -66,6 +70,7 @@ export function mapCampaign(value: ApiCampaign): Campaign {
   const cover = value.cover || value.gallery?.[0] || value.raiser?.avatar || "";
   return {
     id: value.id,
+    ownerId: value.ownerId,
     mode: value.mode === "ongoing" ? "ongoing" : "one-time",
     type: campaignTypes[value.type?.toLowerCase() ?? ""] ?? "money",
     title: value.title ?? "Untitled campaign",
@@ -129,12 +134,22 @@ export function mapOrganization(value: ApiOrg): Org {
 
 export async function getCampaigns(query = "") {
   const response = await apiFetch<Page<ApiCampaign>>(`/campaigns/discover${query}`);
-  return { ...response, items: response.items.map(mapCampaign) };
+  return {
+    ...response,
+    items: response.items
+      .filter((campaign) => !campaign.isDraft && campaign.isPublic !== false)
+      .map(mapCampaign),
+  };
 }
 
 export async function getOrganizations(query = "") {
   const response = await apiFetch<Page<ApiOrg>>(`/organizations/discover${query}`);
-  return { ...response, items: response.items.map(mapOrganization) };
+  return {
+    ...response,
+    items: response.items
+      .filter((organization) => !organization.isDraft && organization.isPublic !== false)
+      .map(mapOrganization),
+  };
 }
 
 export async function getCampaign(id: string) {

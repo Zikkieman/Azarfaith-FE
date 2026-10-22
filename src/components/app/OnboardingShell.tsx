@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { useState, type ReactNode } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { AuthLogo } from "@/components/auth/AuthLogo";
 import { cn } from "@/lib/utils";
@@ -26,25 +26,38 @@ export function OnboardingShell({
   current: number;
   exitTo: string;
   exitLabel?: string;
-  onExit?: () => void;
+  onExit?: () => Promise<boolean> | boolean;
   preview: ReactNode;
   previewLabel?: string;
   footer: ReactNode;
   children: ReactNode;
 }) {
+  const navigate = useNavigate();
+  const [exiting, setExiting] = useState(false);
+  const exit = async () => {
+    if (exiting) return;
+    setExiting(true);
+    try {
+      if ((await onExit?.()) !== false) await navigate({ to: exitTo as "/dashboard" });
+    } finally {
+      setExiting(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-panel font-gsf text-heading">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
         <Link to="/" aria-label="AzarFaith home">
           <AuthLogo />
         </Link>
-        <Link
-          to={exitTo as "/dashboard"}
-          onClick={onExit}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+        <button
+          type="button"
+          onClick={() => { void exit(); }}
+          disabled={exiting}
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-paper hover:text-ink disabled:opacity-60"
         >
-          {exitLabel} <X className="h-4 w-4" strokeWidth={1.75} />
-        </Link>
+          {exiting ? "Saving…" : exitLabel} <X className="h-4 w-4" strokeWidth={1.75} />
+        </button>
       </header>
 
       <main className="flex flex-1 items-start justify-center px-3 pb-6 sm:px-6 lg:items-center lg:pb-10">

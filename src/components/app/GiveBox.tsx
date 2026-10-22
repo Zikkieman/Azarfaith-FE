@@ -4,27 +4,35 @@ import { Lock } from "lucide-react";
 import { formatMoney, type Campaign } from "@/lib/domain";
 import {
   everyLabel,
+  formatAmountInput,
+  parseAmountInput,
   frequenciesFor,
   frequencyLabel,
-  hintFor,
   presets,
+  tipPresets,
   type Frequency,
 } from "@/lib/giving";
 import { btn } from "@/components/app/btn";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 /**
  * Give from the page you're reading (after Buy Me a Coffee's support box): pick how often, pick an
- * amount that says what it buys, then go straight to checkout with everything filled in.
+ * amount, then go straight to checkout with the choice filled in.
  */
 export function GiveBox({ campaign, className }: { campaign: Campaign; className?: string }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const freqs = frequenciesFor(campaign);
-  const [freq, setFreq] = useState<Frequency>(freqs[0]);
-  const [amount, setAmount] = useState(presets[1]);
+  const [freq, setFreq] = useState<Frequency>(user ? freqs[0] : "once");
+  const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState("");
-  const value = custom ? Number(custom) || 0 : amount;
-  const tooSmall = value < 100;
+  const [tip, setTip] = useState(0);
+  const [customTip, setCustomTip] = useState("");
+  const value = custom ? parseAmountInput(custom) : amount ?? 0;
+  const hasAmount = Boolean(custom) || amount !== null;
+  const selectedTip = customTip ? parseAmountInput(customTip) : tip;
+  const tooSmall = hasAmount && value < 100;
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -57,7 +65,6 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Amount">
         {presets.map((p) => {
           const selected = !custom && amount === p;
-          const hint = hintFor(campaign, p);
           return (
             <button
               key={p}
@@ -69,62 +76,104 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
                 setCustom("");
               }}
               className={cn(
-                "flex flex-col items-start gap-0.5 rounded-field border px-3 py-2.5 text-left transition-colors",
+                "rounded-field border px-3 py-2.5 text-left font-display text-[17px] leading-tight transition-colors",
                 selected
                   ? "border-ink bg-ink text-ink-contrast"
                   : "border-line-input hover:border-ink",
               )}
             >
-              <span className="font-display text-[17px] leading-tight">{formatMoney(p)}</span>
-              {hint ? (
-                <span
-                  className={cn(
-                    "line-clamp-2 text-[12px] leading-[1.35]",
-                    selected ? "text-ink-contrast/75" : "text-muted-ink",
-                  )}
-                >
-                  {hint}
-                </span>
-              ) : null}
+              {formatMoney(p)}
             </button>
           );
         })}
       </div>
 
-      <label className="relative block">
-        <span className="sr-only">Another amount</span>
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
-          ₦
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[13px] font-medium text-ink">Custom amount</span>
+        <span className="relative block">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+            ₦
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={custom}
+            onChange={(e) => { setCustom(formatAmountInput(e.target.value)); setAmount(null); }}
+            placeholder="Enter an amount"
+            className={cn(
+              "h-11 w-full rounded-field border bg-paper pl-8 pr-3 font-gsf text-[15px] text-ink placeholder:text-subtle focus:border-ink focus:outline-none",
+              custom ? "border-ink" : "border-line-input",
+            )}
+          />
         </span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={100}
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          placeholder="Another amount"
-          className={cn(
-            "h-11 w-full rounded-field border bg-paper pl-8 pr-3 font-gsf text-[15px] text-ink placeholder:text-subtle focus:border-ink focus:outline-none",
-            custom ? "border-ink" : "border-line-input",
-          )}
-        />
+      </label>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-[13px] font-medium text-ink">A tip for AzarFaith (optional)</span>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tip amount">
+          {tipPresets.map((preset) => {
+            const selected = !customTip && tip === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  setTip(preset);
+                  setCustomTip("");
+                }}
+                className={cn(
+                  "rounded-field border px-3 py-2.5 text-left font-display text-[17px] leading-tight transition-colors",
+                  selected
+                    ? "border-ink bg-ink text-ink-contrast"
+                    : "border-line-input hover:border-ink",
+                )}
+              >
+                {preset ? formatMoney(preset) : "No tip"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[13px] font-medium text-ink">Custom tip</span>
+        <span className="relative block">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
+            ₦
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={customTip}
+            onChange={(event) => setCustomTip(formatAmountInput(event.target.value))}
+            placeholder="Enter custom tip"
+            className={cn(
+              "h-11 w-full rounded-field border bg-paper pl-8 pr-3 font-gsf text-[15px] text-ink placeholder:text-subtle focus:border-ink focus:outline-none",
+              customTip ? "border-ink" : "border-line-input",
+            )}
+          />
+        </span>
       </label>
 
       <button
         type="button"
-        disabled={tooSmall}
+        disabled={!hasAmount || tooSmall}
         onClick={() =>
           navigate({
             to: "/donate/$id",
             params: { id: campaign.id },
-            search: { freq: freq === "once" ? "" : freq, amount: value },
+            search: { freq: freq === "once" ? "" : freq, amount: value, tip: selectedTip || undefined },
           })
         }
         className={cn(btn("primary", "lg"), "w-full")}
       >
-        {tooSmall
-          ? "The smallest gift is ₦100"
-          : `Give ${formatMoney(value)}${freq === "once" ? "" : ` ${everyLabel[freq]}`}`}
+        {!hasAmount
+          ? "Choose an amount"
+          : tooSmall
+            ? "The smallest gift is ₦100"
+            : `Give ${formatMoney(value)}${freq === "once" ? "" : ` ${everyLabel[freq]}`}`}
       </button>
       <p className="flex items-center justify-center gap-1.5 text-[12px] text-muted-ink">
         <Lock className="h-3 w-3" strokeWidth={2} /> Paid securely through Paystack. Cancel regular

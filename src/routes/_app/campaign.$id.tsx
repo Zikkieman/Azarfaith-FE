@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Heart, Link2, MapPin } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { GiveBox } from "@/components/app/GiveBox";
 import { CampaignDetailSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
 import { useCampaign } from "@/lib/catalog";
+import { useAuth } from "@/lib/auth";
 import {
   AppShell,
   BackLink,
@@ -35,7 +36,6 @@ export const Route = createFileRoute("/_app/campaign/$id")({
 const percent = (c: Campaign) =>
   c.goal ? Math.min(100, Math.round((c.raised / c.goal) * 100)) : null;
 
-/** Native share sheet where the device has one (WhatsApp and friends), else copy the link. */
 function share(campaign: Campaign) {
   const url = window.location.href;
   if (navigator.share) {
@@ -48,7 +48,7 @@ function share(campaign: Campaign) {
 
 function CampaignDetail() {
   const { id } = Route.useParams();
-  const router = useRouter();
+  const { user } = useAuth();
   const orgs = useApp((s) => s.orgs);
   const [allUpdates, setAllUpdates] = useState(false);
   const campaignQuery = useCampaign(id);
@@ -60,13 +60,14 @@ function CampaignDetail() {
 
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;
   const updates = allUpdates ? campaign.updates : campaign.updates.slice(0, 2);
+  const isCreator = Boolean(user?.id && campaign.ownerId === user.id);
 
   return (
-    <AppShell bottomBar={<MobileGiveBar campaign={campaign} />}>
+    <AppShell bottomBar={<MobileGiveBar campaign={campaign} canShare={isCreator} />}>
       <Container className="py-8 md:py-12">
-        <BackLink onClick={() => router.history.back()}>Back</BackLink>
+        {isCreator ? <BackLink to="/discover">Back to campaigns</BackLink> : null}
 
-        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
+        <div className={cn("grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14", isCreator && "mt-6")}>
           <div className="flex min-w-0 flex-col gap-12">
             <section className="flex flex-col gap-6">
               <div className="flex flex-col gap-4">
@@ -115,7 +116,7 @@ function CampaignDetail() {
             </section>
 
             <section id="give" className="scroll-mt-20 lg:hidden">
-              <GivePanel campaign={campaign} />
+              <GivePanel campaign={campaign} canShare={isCreator} />
             </section>
 
             {campaign.updates.length > 0 ? (
@@ -193,7 +194,7 @@ function CampaignDetail() {
           </div>
 
           <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
-            <GivePanel campaign={campaign} />
+            <GivePanel campaign={campaign} canShare={isCreator} />
           </aside>
         </div>
       </Container>
@@ -234,7 +235,7 @@ function Gallery({ campaign }: { campaign: Campaign }) {
 }
 
 /** Progress, then give right here (after Buy Me a Coffee), then who has given and what they said. */
-function GivePanel({ campaign }: { campaign: Campaign }) {
+function GivePanel({ campaign, canShare }: { campaign: Campaign; canShare: boolean }) {
   const pct = percent(campaign);
   return (
     <div className="flex flex-col gap-4">
@@ -253,13 +254,15 @@ function GivePanel({ campaign }: { campaign: Campaign }) {
         <div className="border-t border-line-soft pt-5">
           <GiveBox campaign={campaign} />
         </div>
-        <button
-          type="button"
-          onClick={() => share(campaign)}
-          className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-        >
-          <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share this campaign
-        </button>
+        {canShare ? (
+          <button
+            type="button"
+            onClick={() => share(campaign)}
+            className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
+          >
+            <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share this campaign
+          </button>
+        ) : null}
       </div>
       <RecentGivers campaign={campaign} />
     </div>
@@ -313,7 +316,7 @@ function RecentGivers({ campaign }: { campaign: Campaign }) {
   );
 }
 
-function MobileGiveBar({ campaign }: { campaign: Campaign }) {
+function MobileGiveBar({ campaign, canShare }: { campaign: Campaign; canShare: boolean }) {
   const pct = percent(campaign);
   return (
     <div className="flex items-center gap-3">
@@ -324,14 +327,16 @@ function MobileGiveBar({ campaign }: { campaign: Campaign }) {
         </p>
         {pct !== null ? <Segments pct={pct} count={14} /> : null}
       </div>
-      <button
-        type="button"
-        onClick={() => share(campaign)}
-        aria-label="Share campaign"
-        className="press grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line-input text-ink"
-      >
-        <Link2 className="h-4 w-4" strokeWidth={1.75} />
-      </button>
+      {canShare ? (
+        <button
+          type="button"
+          onClick={() => share(campaign)}
+          aria-label="Share campaign"
+          className="press grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line-input text-ink"
+        >
+          <Link2 className="h-4 w-4" strokeWidth={1.75} />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => document.getElementById("give")?.scrollIntoView({ behavior: "smooth" })}

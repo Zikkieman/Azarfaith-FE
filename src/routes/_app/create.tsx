@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
@@ -35,6 +36,9 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/create")({
+  validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
+    draft: typeof search.draft === "string" && search.draft ? search.draft : undefined,
+  }),
   head: () => ({ meta: [{ title: "New campaign — AzarFaith" }] }),
   component: ProtectedCreateCampaign,
 });
@@ -44,6 +48,7 @@ function ProtectedCreateCampaign() {
 }
 
 type Draft = ReturnType<typeof useApp.getState>["draft"];
+type CampaignDraftDetail = Campaign & { coverImageUrl: string | null };
 
 /** Templates (after Gamma's create-from-template): each sets the basics and a story outline. */
 const templates: {
@@ -209,6 +214,8 @@ function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
  */
 function CreateCampaign() {
   const nav = useNavigate();
+  const search = Route.useSearch();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const draft = useApp((s) => s.draft);
   const setDraft = useApp((s) => s.setDraft);
@@ -221,10 +228,16 @@ function CreateCampaign() {
   const [done, setDone] = useState<Campaign | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(search.draft ?? null);
+  const hydratedDraftId = useRef<string | null>(null);
+  const draftQuery = useQuery({
+    queryKey: ["campaign-draft", search.draft],
+    queryFn: () => apiFetch<CampaignDraftDetail>(`/campaigns/drafts/${search.draft}`),
+    enabled: Boolean(search.draft),
+  });
   const [uploading, setUploading] = useState(false);
-  const [uploadTarget, setUploadTarget] = useState<"cover" | "gallery">("cover");
-  const uploadInput = useRef<HTMLInputElement>(null);
+  const coverInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
   const first = useRef(true);
 
   const org = draft.orgId ? orgs.find((o) => o.id === draft.orgId) : undefined;
@@ -232,6 +245,36 @@ function CreateCampaign() {
   const required = checks.filter((c) => c.required);
   const missing = required.filter((c) => !c.ok);
   const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
+
+  useEffect(() => {
+    if (search.draft) return;
+    resetDraft();
+    setDraftId(null);
+    hydratedDraftId.current = null;
+  }, [search.draft, resetDraft]);
+
+  useEffect(() => {
+    if (!search.draft || !draftQuery.data || hydratedDraftId.current === search.draft) return;
+    const saved = draftQuery.data;
+    resetDraft();
+    setDraft({
+      mode: saved.mode,
+      type: saved.type,
+      title: saved.title,
+      story: saved.story,
+      faithCategory: saved.faithCategory,
+      orgId: saved.orgId,
+      location: saved.location,
+      goal: saved.goal,
+      urgency: saved.urgency,
+      cover: saved.coverImageUrl ?? undefined,
+      gallery: saved.gallery ?? [],
+      needs: saved.needs ?? [],
+      frequencies: saved.frequencies ?? [],
+    });
+    setDraftId(saved.id);
+    hydratedDraftId.current = saved.id;
+  }, [search.draft, draftQuery.data, resetDraft, setDraft]);
 
   // "Saving… Saved" as they type, like any document editor.
   useEffect(() => {
@@ -259,9 +302,9 @@ function CreateCampaign() {
     mode: draft.mode?.replace("-", "_").toUpperCase(), type: draft.type?.toUpperCase(),
     title: draft.title?.trim(), story: draft.story?.trim(),
     faithCategory: draft.faithCategory?.toUpperCase().replaceAll(" & ", "_").replaceAll(" ", "_"),
-    organizationId: draft.orgId || undefined, location: draft.location?.trim(),
-    goalAmount: draft.mode === "one-time" && draft.type === "money" ? draft.goal : undefined,
-    urgency: draft.urgency?.toUpperCase(), coverImageUrl: draft.cover || undefined,
+    organizationId: draft.orgId || null, location: draft.location?.trim(),
+    goalAmount: draft.mode === "one-time" && draft.type === "money" ? draft.goal : null,
+    urgency: draft.urgency?.toUpperCase(), coverImageUrl: draft.cover || null,
     galleryImageUrls: draft.gallery?.filter(Boolean), needs: draft.needs?.filter(Boolean),
     frequencies: draft.frequencies?.map((frequency) => frequency.toUpperCase()),
   });
@@ -273,28 +316,56 @@ function CreateCampaign() {
     try {
       const savedDraft = await apiFetch<{ id: string }>(draftId ? `/campaigns/${draftId}/draft` : "/campaigns/drafts", { method: draftId ? "PATCH" : "POST", body: JSON.stringify(value) });
       setDraftId(savedDraft.id);
+      hydratedDraftId.current = savedDraft.id;
+      await queryClient.invalidateQueries({ queryKey: ["campaign-drafts"], refetchType: "all" });
+      if (search.draft !== savedDraft.id) {
+        void nav({ to: "/create", search: { draft: savedDraft.id }, replace: true });
+      }
       setSaved("saved");
-      toast.success("Draft saved");
+      toast.success("Draft saved. Continue it from Manage.");
     } catch (error) {
       setSaved("saved");
       toast.error(error instanceof Error ? error.message : "Could not save your draft.");
     }
   };
 
-  const upload = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return toast.error("Each image must be 5 MB or smaller.");
+  const upload = async (files: FileList | null, target: "cover" | "gallery") => {
+    if (!files?.length) return;
+    const selected = Array.from(files);
+    const available = target === "cover" ? 1 : 8 - (useApp.getState().draft.gallery?.length ?? 0);
+    if (selected.length > available) {
+      toast.error(target === "cover" ? "Choose one cover photo." : `You can add ${available} more gallery photo${available === 1 ? "" : "s"}.`);
+      return;
+    }
+    if (selected.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type))) {
+      toast.error("Choose JPEG, PNG or WebP images.");
+      return;
+    }
+    if (selected.some((file) => file.size > 5 * 1024 * 1024)) {
+      toast.error("Each image must be 5 MB or smaller.");
+      return;
+    }
     setUploading(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("folder", uploadTarget === "cover" ? "campaign-cover" : "campaign-gallery");
-      const uploaded = await apiFetch<{ url: string }>("/media/upload", { method: "POST", body: form });
-      if (uploadTarget === "cover") setDraft({ cover: uploaded.url });
-      else setDraft({ gallery: [...(draft.gallery ?? []), uploaded.url].slice(0, 8) });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not upload this image.");
+      const results = await Promise.allSettled(selected.map(async (file) => {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("folder", target === "cover" ? "campaign-cover" : "campaign-gallery");
+        return apiFetch<{ url: string }>("/media/upload", { method: "POST", body: form });
+      }));
+      const urls = results.flatMap((result) => result.status === "fulfilled" ? [result.value.url] : []);
+      if (urls.length) {
+        if (target === "cover") setDraft({ cover: urls[0] });
+        else setDraft({ gallery: [...(useApp.getState().draft.gallery ?? []), ...urls].slice(0, 8) });
+        if (urls.length > 1) toast.success(`${urls.length} photos uploaded`);
+      }
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length) {
+        const reason = failed[0] as PromiseRejectedResult;
+        toast.error(failed.length === 1 && selected.length === 1 && reason.reason instanceof Error
+          ? reason.reason.message
+          : `${failed.length} photo${failed.length === 1 ? "" : "s"} could not be uploaded. Try again.`);
+      }
     } finally {
       setUploading(false);
     }
@@ -309,15 +380,33 @@ function CreateCampaign() {
     }
     setSubmitting(true);
     try {
-      const campaign = await apiFetch<Campaign>(draftId ? `/campaigns/${draftId}/submit` : "/campaigns", { method: "POST", body: JSON.stringify(draftId ? undefined : payload()) });
+      if (draftId) {
+        await apiFetch(`/campaigns/${draftId}/draft`, { method: "PATCH", body: JSON.stringify(payload()) });
+      }
+      const campaign = await apiFetch<Campaign>(draftId ? `/campaigns/${draftId}/submit` : "/campaigns", { method: "POST", body: draftId ? undefined : JSON.stringify(payload()) });
       setDone(campaign);
       resetDraft();
+      void queryClient.invalidateQueries({ queryKey: ["campaign-drafts"] });
+      void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not submit your campaign.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (search.draft && hydratedDraftId.current !== search.draft) {
+    if (draftQuery.error) {
+      return (
+        <div className="mx-auto max-w-xl px-6 py-16 text-center">
+          <h1 className="font-display text-2xl text-ink">Could not open this campaign draft</h1>
+          <p className="mt-3 text-sm text-danger">{draftQuery.error instanceof Error ? draftQuery.error.message : "Please try again."}</p>
+          <button type="button" className={btn("secondary", "sm") + " mt-5"} onClick={() => { void draftQuery.refetch(); }}>Try again</button>
+        </div>
+      );
+    }
+    return <p className="p-8 text-sm text-muted-ink">Loading campaign draft…</p>;
+  }
 
   if (done)
     return (
@@ -604,12 +693,14 @@ function CreateCampaign() {
               title="Photos"
               note="Real photos of the people and the place. No stock images."
             >
-              <input ref={uploadInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { void upload(event.target.files); event.target.value = ""; }} />
+              <input ref={coverInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { void upload(event.target.files, "cover"); event.target.value = ""; }} />
+              <input ref={galleryInput} type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={(event) => { void upload(event.target.files, "gallery"); event.target.value = ""; }} />
               <PhotoTile
                 label="Cover photo"
                 src={draft.cover}
                 tall
-                onAdd={() => { setUploadTarget("cover"); uploadInput.current?.click(); }}
+                onAdd={() => coverInput.current?.click()}
+                disabled={uploading}
                 onRemove={() => setDraft({ cover: undefined })}
               />
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
@@ -618,19 +709,21 @@ function CreateCampaign() {
                     key={p}
                     src={p}
                     label={`Photo ${i + 1}`}
+                    disabled={uploading}
                     onRemove={() =>
                       setDraft({ gallery: (draft.gallery ?? []).filter((x) => x !== p) })
                     }
                   />
                 ))}
-                {(draft.gallery?.length ?? 0) < 4 ? (
+                {(draft.gallery?.length ?? 0) < 8 ? (
                   <PhotoTile
                     label="Add"
-                    onAdd={() => { setUploadTarget("gallery"); uploadInput.current?.click(); }}
+                    onAdd={() => galleryInput.current?.click()}
+                    disabled={uploading}
                   />
                 ) : null}
               </div>
-              <p className="text-[12px] text-subtle">{uploading ? "Uploading image…" : "JPEG, PNG or WebP. Up to 5 MB each."}</p>
+              <p className="text-[12px] text-subtle" aria-live="polite">{uploading ? "Uploading photos…" : (draft.gallery?.length ?? 0) >= 8 ? "Gallery full (8 photos). Remove one to add another." : `Select up to ${8 - (draft.gallery?.length ?? 0)} gallery photos at once. JPEG, PNG or WebP. Up to 5 MB each.`}</p>
             </Section>
 
             <Section
@@ -862,12 +955,14 @@ function PhotoTile({
   tall,
   onAdd,
   onRemove,
+  disabled = false,
 }: {
   label: string;
   src?: string;
   tall?: boolean;
   onAdd?: () => void;
   onRemove?: () => void;
+  disabled?: boolean;
 }) {
   if (src) {
     return (
@@ -885,6 +980,7 @@ function PhotoTile({
           <button
             type="button"
             onClick={onRemove}
+            disabled={disabled}
             aria-label={`Remove ${label.toLowerCase()}`}
             className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-paper/90 text-ink opacity-0 transition-opacity hover:bg-paper focus:opacity-100 group-hover:opacity-100"
           >
@@ -898,8 +994,9 @@ function PhotoTile({
     <button
       type="button"
       onClick={onAdd}
+      disabled={disabled}
       className={cn(
-        "flex flex-col items-center justify-center gap-1.5 rounded-field border border-dashed border-line-input bg-panel/50 text-[13px] text-muted-ink transition-colors hover:border-ink hover:text-ink",
+        "flex flex-col items-center justify-center gap-1.5 rounded-field border border-dashed border-line-input bg-panel/50 text-[13px] text-muted-ink transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50",
         tall ? "aspect-[16/9]" : "aspect-square",
       )}
     >

@@ -32,7 +32,7 @@ export type Org = {
   totalReceived: number; supporters: number;
 };
 export type Campaign = {
-  id: string; mode: "one-time" | "ongoing"; type: CampaignType; title: string; story: string;
+  id: string; ownerId?: string; mode: "one-time" | "ongoing"; type: CampaignType; title: string; story: string;
   faithCategory: Category; orgId?: string;
   raiser: { name: string; avatar: string; location: string; trustScore: number };
   cover: string; gallery: string[]; goal?: number; raised: number; donors: number; currency: "NGN";

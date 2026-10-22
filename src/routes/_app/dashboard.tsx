@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -18,12 +18,14 @@ import {
   Plus,
   Share2,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/app/Skeletons";
 import { apiFetch, pending, simulateNetwork } from "@/lib/api";
 import { AppShell, Container, Tag } from "@/components/app/AppShell";
 import { btn } from "@/components/app/btn";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Segments } from "@/components/app/Segments";
 import { useApp } from "@/lib/store";
 import { RequireUser } from "@/components/auth/RequireUser";
@@ -41,6 +43,22 @@ export const Route = createFileRoute("/_app/dashboard")({
 function ProtectedManage() {
   return <RequireUser><Manage /></RequireUser>;
 }
+
+type DraftToDelete = { kind: "campaign" | "organization"; id: string; title: string };
+
+type CampaignDraftSummary = {
+  id: string;
+  title: string;
+  organizationName: string | null;
+  draftSavedAt: string;
+};
+
+type OrganizationDraftSummary = {
+  id: string;
+  name: string;
+  category: string;
+  draftSavedAt: string;
+};
 
 type DashboardData = {
   fullName: string;
@@ -62,9 +80,35 @@ function toCampaign(value: DashboardData["campaigns"][number], orgId: string): C
  * afterwards it's the organization's desk: review status, money, campaigns and givers.
  */
 function Manage() {
+  const queryClient = useQueryClient();
+  const [draftToDelete, setDraftToDelete] = useState<DraftToDelete | null>(null);
+  const [deletingDraft, setDeletingDraft] = useState(false);
+  const removeDraft = async () => {
+    if (!draftToDelete || deletingDraft) return;
+    const { kind, id } = draftToDelete;
+    const queryKey = kind === "campaign" ? ["campaign-drafts"] : ["organization-drafts"];
+    setDeletingDraft(true);
+    try {
+      await apiFetch(`/${kind === "campaign" ? "campaigns" : "organizations"}/drafts/${id}`, { method: "DELETE" });
+      if (kind === "campaign") {
+        queryClient.setQueryData<CampaignDraftSummary[]>(queryKey, (current) => current?.filter((draft) => draft.id !== id));
+      } else {
+        queryClient.setQueryData<OrganizationDraftSummary[]>(queryKey, (current) => current?.filter((draft) => draft.id !== id));
+      }
+      setDraftToDelete(null);
+      toast.success(`${kind === "campaign" ? "Campaign" : "Organization"} draft deleted`);
+      void queryClient.invalidateQueries({ queryKey });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete this draft.");
+    } finally {
+      setDeletingDraft(false);
+    }
+  };
   const myOrgId = useApp((s) => s.myOrgId);
   const setMyOrgId = useApp((s) => s.setMyOrgId);
   const dashboard = useQuery({ queryKey: ["my-dashboard"], queryFn: () => apiFetch<DashboardData>("/me/dashboard") });
+  const drafts = useQuery({ queryKey: ["organization-drafts"], queryFn: () => apiFetch<OrganizationDraftSummary[]>("/organizations/mine/drafts", { cache: "no-store" }) });
+  const campaignDrafts = useQuery({ queryKey: ["campaign-drafts"], queryFn: () => apiFetch<CampaignDraftSummary[]>("/campaigns/mine/drafts", { cache: "no-store" }) });
   useEffect(() => {
     if (!dashboard.data?.selectedOrganization) return;
     const org = {
@@ -111,8 +155,122 @@ function Manage() {
         </div>
 
         {org ? <OrgDesk org={org} /> : <QuickStart />}
+        <CampaignDrafts query={campaignDrafts} onDelete={(draft) => setDraftToDelete({ kind: "campaign", id: draft.id, title: draft.title })} />
+        {drafts.isLoading || drafts.error || drafts.data?.length ? <OrganizationDrafts query={drafts} onDelete={(draft) => setDraftToDelete({ kind: "organization", id: draft.id, title: draft.name })} /> : null}
       </Container>
+      <Dialog open={Boolean(draftToDelete)} onOpenChange={(open) => { if (!open && !deletingDraft) setDraftToDelete(null); }}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>Delete {draftToDelete?.kind} draft?</DialogTitle>
+            <DialogDescription>
+              “{draftToDelete?.title}” will be permanently deleted. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button type="button" className={btn("secondary")} disabled={deletingDraft} onClick={() => setDraftToDelete(null)}>Cancel</button>
+            <button type="button" className={btn("danger")} disabled={deletingDraft} onClick={() => { void removeDraft(); }}>
+              {deletingDraft ? "Deleting…" : "Delete draft"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
+  );
+}
+
+function draftDate(value: string) {
+  return new Date(value).toLocaleString("en-NG", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function CampaignDrafts({ query, onDelete }: { query: ReturnType<typeof useQuery<CampaignDraftSummary[]>>; onDelete: (draft: CampaignDraftSummary) => void }) {
+  const refresh = async () => {
+    const result = await query.refetch();
+    if (result.isError) toast.error("Could not refresh campaign drafts.");
+    else toast.success("Campaign drafts refreshed");
+  };
+  return (
+    <section className="rounded-card border border-line-soft bg-paper p-5 sm:p-6" aria-labelledby="campaign-drafts-title">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="campaign-drafts-title" className="font-display text-[22px] text-ink">Campaign drafts</h2>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => { void refresh(); }} disabled={query.isFetching} className="text-sm font-medium text-ink-soft underline disabled:opacity-50">{query.isFetching ? "Refreshing…" : "Refresh"}</button>
+          <Tag>Private</Tag>
+        </div>
+      </div>
+      {query.isLoading ? <p className="mt-3 text-sm text-muted-ink">Loading saved drafts…</p> : null}
+      {query.error ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-danger">
+          <span>Could not load your campaign drafts.</span>
+          <button type="button" onClick={() => { void query.refetch(); }} className="font-medium underline">Try again</button>
+        </div>
+      ) : null}
+      {query.data?.length ? (
+        <ul className="mt-4 divide-y divide-line-soft">
+          {query.data.map((draft) => (
+            <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-medium text-ink">{draft.title}</p>
+                {draft.organizationName ? <p className="text-[13px] text-ink-soft">{draft.organizationName}</p> : null}
+                <p className="text-[13px] text-muted-ink">Saved {draftDate(draft.draftSavedAt)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => onDelete(draft)} aria-label={`Delete campaign draft ${draft.title}`} title="Delete draft" className="grid h-9 w-9 place-items-center rounded-full text-danger transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
+                  <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                </button>
+                <Link to="/create" search={{ draft: draft.id }} className={btn("secondary", "sm")}>Continue draft</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {!query.isLoading && !query.error && !query.data?.length ? (
+        <p className="mt-3 text-sm text-muted-ink">No campaign drafts saved yet.</p>
+      ) : null}
+    </section>
+  );
+}
+
+function OrganizationDrafts({ query, onDelete }: { query: ReturnType<typeof useQuery<OrganizationDraftSummary[]>>; onDelete: (draft: OrganizationDraftSummary) => void }) {
+  const refresh = async () => {
+    const result = await query.refetch();
+    if (result.isError) toast.error("Could not refresh organization drafts.");
+    else toast.success("Organization drafts refreshed");
+  };
+  return (
+    <section className="rounded-card border border-line-soft bg-paper p-5 sm:p-6" aria-labelledby="organization-drafts-title">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="organization-drafts-title" className="font-display text-[22px] text-ink">Organization drafts</h2>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => { void refresh(); }} disabled={query.isFetching} className="text-sm font-medium text-ink-soft underline disabled:opacity-50">{query.isFetching ? "Refreshing…" : "Refresh"}</button>
+          <Tag>Private</Tag>
+        </div>
+      </div>
+      {query.isLoading ? <p className="mt-3 text-sm text-muted-ink">Loading saved drafts…</p> : null}
+      {query.error ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-danger">
+          <span>Could not load your drafts.</span>
+          <button type="button" onClick={() => { void query.refetch(); }} className="font-medium underline">Try again</button>
+        </div>
+      ) : null}
+      {query.data?.length ? (
+        <ul className="mt-4 divide-y divide-line-soft">
+          {query.data.map((draft) => (
+            <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-medium text-ink">{draft.name}</p>
+                <p className="text-[13px] text-muted-ink">Saved {draftDate(draft.draftSavedAt)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => onDelete(draft)} aria-label={`Delete organization draft ${draft.name}`} title="Delete draft" className="grid h-9 w-9 place-items-center rounded-full text-danger transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger">
+                  <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                </button>
+                <Link to="/register-org" search={{ draft: draft.id }} className={btn("secondary", "sm")}>Continue draft</Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
