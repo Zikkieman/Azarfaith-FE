@@ -24,6 +24,7 @@ const columns: {
     heading: "Ways to give",
     links: [
       { label: "One-time", to: "/give-once" },
+      { label: "Support AzarFaith", to: "/support-azarfaith" },
       { label: "Monthly support", to: "/monthly-support" },
       { label: "Emergency appeals", to: "/emergency-appeals" },
       { label: "Recurring", to: "/recurring" },

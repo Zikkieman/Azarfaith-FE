@@ -19,6 +19,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StoryRouteImport } from './routes/story'
+import { Route as SupportAzarfaithRouteImport } from './routes/support-azarfaith'
 import { Route as AppCreateRouteImport } from './routes/_app/create'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppDiscoverRouteImport } from './routes/_app/discover'
@@ -27,6 +28,7 @@ import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppRegisterOrgRouteImport } from './routes/_app/register-org'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminActivityRouteImport } from './routes/admin/activity'
+import { Route as AdminPlatformDonationsRouteImport } from './routes/admin/platform-donations'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AppCampaignIdRouteImport } from './routes/_app/campaign.$id'
 import { Route as AppDonateIdRouteImport } from './routes/_app/donate.$id'
@@ -87,6 +89,11 @@ const StoryRoute = StoryRouteImport.update({
   path: '/story',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportAzarfaithRoute = SupportAzarfaithRouteImport.update({
+  id: '/support-azarfaith',
+  path: '/support-azarfaith',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppCreateRoute = AppCreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -125,6 +132,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminActivityRoute = AdminActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPlatformDonationsRoute = AdminPlatformDonationsRouteImport.update({
+  id: '/platform-donations',
+  path: '/platform-donations',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -188,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/support-azarfaith': typeof SupportAzarfaithRoute
   '/create': typeof AppCreateRoute
   '/dashboard': typeof AppDashboardRoute
   '/discover': typeof AppDiscoverRoute
@@ -195,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/campaign/$id': typeof AppCampaignIdRoute
@@ -216,6 +230,7 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/support-azarfaith': typeof SupportAzarfaithRoute
   '/create': typeof AppCreateRoute
   '/dashboard': typeof AppDashboardRoute
   '/discover': typeof AppDiscoverRoute
@@ -223,6 +238,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/campaign/$id': typeof AppCampaignIdRoute
@@ -247,6 +263,7 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/signup': typeof SignupRoute
   '/story': typeof StoryRoute
+  '/support-azarfaith': typeof SupportAzarfaithRoute
   '/_app/create': typeof AppCreateRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/discover': typeof AppDiscoverRoute
@@ -254,6 +271,7 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/_app/campaign/$id': typeof AppCampaignIdRoute
@@ -278,6 +296,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/signup'
     | '/story'
+    | '/support-azarfaith'
     | '/create'
     | '/dashboard'
     | '/discover'
@@ -285,6 +304,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/admin/activity'
+    | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin/'
     | '/campaign/$id'
@@ -306,6 +326,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/signup'
     | '/story'
+    | '/support-azarfaith'
     | '/create'
     | '/dashboard'
     | '/discover'
@@ -313,6 +334,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/admin/activity'
+    | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin'
     | '/campaign/$id'
@@ -336,6 +358,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/signup'
     | '/story'
+    | '/support-azarfaith'
     | '/_app/create'
     | '/_app/dashboard'
     | '/_app/discover'
@@ -343,6 +366,7 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/register-org'
     | '/admin/activity'
+    | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin/'
     | '/_app/campaign/$id'
@@ -367,6 +391,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   SignupRoute: typeof SignupRoute
   StoryRoute: typeof StoryRoute
+  SupportAzarfaithRoute: typeof SupportAzarfaithRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -441,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support-azarfaith': {
+      id: '/support-azarfaith'
+      path: '/support-azarfaith'
+      fullPath: '/support-azarfaith'
+      preLoaderRoute: typeof SupportAzarfaithRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/create': {
       id: '/_app/create'
       path: '/create'
@@ -495,6 +527,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/admin/activity'
       preLoaderRoute: typeof AdminActivityRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/platform-donations': {
+      id: '/admin/platform-donations'
+      path: '/platform-donations'
+      fullPath: '/admin/platform-donations'
+      preLoaderRoute: typeof AdminPlatformDonationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -598,6 +637,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminRouteChildren {
   AdminActivityRoute: typeof AdminActivityRoute
+  AdminPlatformDonationsRoute: typeof AdminPlatformDonationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminCampaignsIdRoute: typeof AdminCampaignsIdRoute
@@ -610,6 +650,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityRoute: AdminActivityRoute,
+  AdminPlatformDonationsRoute: AdminPlatformDonationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminCampaignsIdRoute: AdminCampaignsIdRoute,
@@ -633,6 +674,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   SignupRoute: SignupRoute,
   StoryRoute: StoryRoute,
+  SupportAzarfaithRoute: SupportAzarfaithRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -14,6 +14,7 @@ import {
 import { btnPrimary, btnSecondary } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { RequireUser } from "@/components/auth/RequireUser";
+import { useAuth } from "@/lib/auth";
 import { OnboardingShell } from "@/components/app/OnboardingShell";
 import { toast } from "sonner";
 import { Church, Globe, Baby, GraduationCap, Users, ImagePlus, FileText, Trash2, ChevronDown } from "lucide-react";
@@ -76,6 +77,12 @@ function RegisterOrg() {
   const search = Route.useSearch();
   const queryClient = useQueryClient();
   const { orgDraft, setOrgDraft, resetOrgDraft } = useApp();
+  const { user, setUser } = useAuth();
+  const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
+  const [savingContactPhone, setSavingContactPhone] = useState(false);
+  useEffect(() => {
+    if (user?.phone) setContactPhone((current) => current || user.phone || "");
+  }, [user?.phone]);
   const hydratedDraftId = useRef<string | null>(null);
   const draftQuery = useQuery({
     queryKey: ["organization-draft", search.draft],
@@ -105,9 +112,10 @@ function RegisterOrg() {
       videos: saved.links ?? [],
       registrationDocuments: saved.registrationDocuments ?? [],
     });
+    setContactPhone(saved.contactPhone || user?.phone || "");
     setDraftId(saved.id);
     hydratedDraftId.current = saved.id;
-  }, [search.draft, draftQuery.data, resetOrgDraft, setOrgDraft]);
+  }, [search.draft, draftQuery.data, resetOrgDraft, setOrgDraft, user?.phone]);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -122,6 +130,8 @@ function RegisterOrg() {
   const isKnownDenomination = denominationOptions.some((option) => option === denomination);
   const isOtherDenomination = otherDenominationSelected || Boolean(denomination && !isKnownDenomination);
   const denominationSelection = isOtherDenomination ? otherDenominationValue : denomination;
+  const normalizedPhone = contactPhone.replace(/\s+/g, "").trim();
+  const savedPhone = user?.phone?.replace(/\s+/g, "").trim() ?? "";
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -131,6 +141,9 @@ function RegisterOrg() {
       if (!orgDraft.denomination?.trim()) e.denomination = "Denomination or tradition is required";
       if (orgDraft.category === "other" && !orgDraft.otherCategoryLabel?.trim()) e.otherCategoryLabel = "Describe the kind of ministry";
       if (!orgDraft.location?.trim()) e.location = "Location is required";
+      if (!normalizedPhone) e.phone = "Enter your contact phone number";
+      else if (normalizedPhone !== savedPhone && !/^\+[1-9]\d{7,14}$/.test(normalizedPhone))
+        e.phone = "Include your country code, for example +2348012345678";
     }
     if (step === 1) {
       if (!orgDraft.tagline?.trim() || orgDraft.tagline.length < 10)
@@ -146,13 +159,30 @@ function RegisterOrg() {
     return Object.keys(e).length === 0;
   };
 
-  const next = () => {
-    if (!validate()) return;
+  const next = async () => {
+    if (!validate() || savingContactPhone) return;
+    if (step === 0 && normalizedPhone !== savedPhone) {
+      setSavingContactPhone(true);
+      try {
+        const profile = await apiFetch<{ phone: string | null }>("/me/profile", {
+          method: "PATCH",
+          body: JSON.stringify({ phone: normalizedPhone }),
+        });
+        if (user) setUser({ ...user, phone: profile.phone });
+        void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      } catch (error) {
+        setErrors((current) => ({ ...current, phone: error instanceof Error ? error.message : "Could not save your phone number." }));
+        return;
+      } finally {
+        setSavingContactPhone(false);
+      }
+    }
     setStep((s) => s + 1);
   };
 
   const payload = () => ({
     name: orgDraft.name?.trim(), tagline: orgDraft.tagline?.trim(), category: orgDraft.category?.toUpperCase(),
+    contactPhone: normalizedPhone || undefined,
     otherCategoryLabel: orgDraft.otherCategoryLabel?.trim() || undefined,
     denomination: orgDraft.denomination?.trim(), location: orgDraft.location?.trim(),
     foundedYear: orgDraft.founded ? Number(orgDraft.founded) : undefined, bio: orgDraft.bio?.trim(),
@@ -206,7 +236,7 @@ function RegisterOrg() {
 
   const saveDraft = async (): Promise<boolean> => {
     const value = payload();
-    if (!Object.values(value).some((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))) return true;
+    if (!Object.entries(value).some(([key, item]) => key !== "contactPhone" && (Array.isArray(item) ? item.length > 0 : Boolean(item)))) return true;
     try {
       const saved = await apiFetch<{ id: string }>(draftId ? `/organizations/${draftId}/draft` : "/organizations/drafts", {
         method: draftId ? "PATCH" : "POST", body: JSON.stringify(value),
@@ -304,8 +334,8 @@ function RegisterOrg() {
             <span />
           )}
           {step < steps.length - 1 ? (
-            <button type="button" onClick={next} className={btnPrimary}>
-              Continue
+            <button type="button" onClick={() => { void next(); }} disabled={savingContactPhone} className={btnPrimary}>
+              {savingContactPhone ? "Saving phone…" : "Continue"}
             </button>
           ) : (
             <button type="button" onClick={submit} disabled={submitting} className={btnPrimary}>
@@ -419,6 +449,26 @@ function RegisterOrg() {
               />
               {field("location")}
             </label>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="organization-contact-phone" className={labelClass}>Your contact phone number</label>
+              <input
+                id="organization-contact-phone"
+                className={inputClass}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                aria-invalid={Boolean(errors.phone)}
+                placeholder="e.g. +2348012345678"
+                value={contactPhone}
+                onChange={(event) => {
+                  setContactPhone(event.target.value);
+                  setErrors((current) => ({ ...current, phone: "" }));
+                }}
+              />
+              <p className="text-[12px] leading-relaxed text-muted-ink">We’ll use this number to contact you about your organization and campaigns.</p>
+              {field("phone")}
+            </div>
           </div>
         ) : null}
 

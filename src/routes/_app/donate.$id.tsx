@@ -242,10 +242,10 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
             {custom && invalid ? <FieldError>The smallest gift is ₦100.</FieldError> : null}
           </Step>
 
-          <Step n={freqs.length > 1 ? 3 : 2} title="A tip for AzarFaith" optional>
+          <Step n={freqs.length > 1 ? 3 : 2} title="Donation to AzarFaith" optional>
             <div className="flex flex-col gap-3 rounded-field bg-panel p-4">
               <p className="text-sm text-ink-soft">
-                Tips pay for verifying organizations, so churches and missions never pay to join.
+                Your optional donation helps AzarFaith verify organizations and keep the platform running. It is added to your campaign gift.
               </p>
               <div className="flex flex-wrap gap-2">
                 {tipPresets.map((t) => (
@@ -264,12 +264,12 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
                         : "border-line-input bg-paper text-ink hover:border-ink",
                     )}
                   >
-                    {t ? formatMoney(t) : "No tip"}
+                    {t ? formatMoney(t) : "No extra donation"}
                   </button>
                 ))}
               </div>
               <label className="flex flex-col gap-1.5">
-                <span className={labelClass}>Custom tip</span>
+                <span className={labelClass}>Custom donation</span>
                 <span className="relative block">
                   <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
                     ₦
@@ -279,7 +279,7 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
                     inputMode="numeric"
                     value={customTip}
                     onChange={(event) => setCustomTip(formatAmountInput(event.target.value))}
-                    placeholder="Enter custom tip"
+                    placeholder="Enter custom donation"
                     className={cn(inputClass, "pl-8", customTip && "border-ink")}
                   />
                 </span>
@@ -530,7 +530,7 @@ function Summary({
           value={gift ? formatMoney(gift) : "Choose an amount"}
         />
         <Row label="Platform fee (2.5%)" value={gift ? formatMoney(fee) : "—"} />
-        {tip ? <Row label="Tip for AzarFaith" value={formatMoney(tip)} /> : null}
+        {tip ? <Row label="Donation to AzarFaith" value={formatMoney(tip)} /> : null}
       </dl>
       <div className="flex items-baseline justify-between border-t border-line-soft pt-5">
         <span className="text-[15px] font-medium text-ink">{recurring ? "Today" : "Total"}</span>
@@ -541,7 +541,7 @@ function Summary({
       {recurring && gift ? (
         <p className="-mt-2 text-[13px] text-muted-ink">
           Then {formatMoney(gift + fee)} {everyLabel[freq as Exclude<Frequency, "once">]}, next on{" "}
-          {shortDate(nextDate)}. Tips are one-off.
+          {shortDate(nextDate)}. The AzarFaith donation is one-time.
         </p>
       ) : null}
     </div>
@@ -601,7 +601,7 @@ function Done({
               <Row label="For" value={title.length > 34 ? `${title.slice(0, 34)}…` : title} />
               <Row label="Gift" value={formatMoney(gift)} />
               <Row label="Platform fee" value={formatMoney(fee)} />
-              {tip ? <Row label="Tip" value={formatMoney(tip)} /> : null}
+              {tip ? <Row label="Donation to AzarFaith" value={formatMoney(tip)} /> : null}
               <Row label="Paid with" value={method} />
             </dl>
             <div className="mt-4 flex items-baseline justify-between border-t border-line-soft pt-4">

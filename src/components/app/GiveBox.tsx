@@ -109,8 +109,9 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
       </label>
 
       <div className="flex flex-col gap-2">
-        <span className="text-[13px] font-medium text-ink">A tip for AzarFaith (optional)</span>
-        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tip amount">
+        <span className="text-[13px] font-medium text-ink">Donation to AzarFaith (optional)</span>
+        <p className="text-[12px] leading-relaxed text-muted-ink">Added to your campaign gift to support verification and platform operations.</p>
+        <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="AzarFaith donation amount">
           {tipPresets.map((preset) => {
             const selected = !customTip && tip === preset;
             return (
@@ -130,7 +131,7 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
                     : "border-line-input hover:border-ink",
                 )}
               >
-                {preset ? formatMoney(preset) : "No tip"}
+                {preset ? formatMoney(preset) : "No extra donation"}
               </button>
             );
           })}
@@ -138,7 +139,7 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-ink">Custom tip</span>
+        <span className="text-[13px] font-medium text-ink">Custom donation</span>
         <span className="relative block">
           <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-muted-ink">
             ₦
@@ -148,7 +149,7 @@ export function GiveBox({ campaign, className }: { campaign: Campaign; className
             inputMode="numeric"
             value={customTip}
             onChange={(event) => setCustomTip(formatAmountInput(event.target.value))}
-            placeholder="Enter custom tip"
+            placeholder="Enter custom donation"
             className={cn(
               "h-11 w-full rounded-field border bg-paper pl-8 pr-3 font-gsf text-[15px] text-ink placeholder:text-subtle focus:border-ink focus:outline-none",
               customTip ? "border-ink" : "border-line-input",

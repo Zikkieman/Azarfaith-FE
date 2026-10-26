@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin/orgs/$id")({
 type Tab = "verification" | "campaigns" | "activity" | "notes";
 type OrganizationCampaign = { id: string; title: string; cover: string; raised: number; donors: number; verificationStatus: Org["verificationStatus"] };
 type OrganizationDetail = {
-  id: string; createdAt: string; submittedAt: string | null; ownerId: string; name: string; tagline: string;
+  id: string; createdAt: string; submittedAt: string | null; ownerId: string; name: string; tagline: string; contactPhone: string;
   category: Org["category"]; otherCategoryLabel: string; location: string; denomination: string; founded: string;
   bio: string; photos: string[]; links: string[]; registrationDocuments: string[];
   verificationStatus: Org["verificationStatus"]; owner: { id: string; fullName: string; email: string; phone: string };
@@ -86,7 +86,7 @@ function AdminOrgDetail() {
           <FieldGroup title="Contact">
             <Field icon={User} label="Name">{detail.owner.fullName}</Field>
             <Field icon={Mail} label="Email" copy={detail.owner.email}>{detail.owner.email}</Field>
-            <Field icon={Phone} label="Phone" copy={detail.owner.phone || undefined}>{detail.owner.phone || "—"}</Field>
+            <Field icon={Phone} label="Organization contact phone" copy={detail.contactPhone || undefined}>{detail.contactPhone || "—"}</Field>
           </FieldGroup>
           <FieldGroup title="Record">
             <Field icon={Fingerprint} label="ID" copy={detail.id}>{detail.id}</Field>

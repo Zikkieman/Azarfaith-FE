@@ -8,6 +8,7 @@ import { FeaturePanel } from "@/components/landing/FeaturePanel";
 import { PhotoCollage } from "@/components/landing/PhotoCollage";
 import { Testimonial } from "@/components/landing/Testimonial";
 import { Campaigns } from "@/components/landing/Campaigns";
+import { SupportAzarfaith } from "@/components/landing/SupportAzarfaith";
 import { Faq } from "@/components/landing/Faq";
 import { Cta } from "@/components/landing/Cta";
 import { Footer } from "@/components/landing/Footer";
@@ -42,6 +43,7 @@ function AzarFaithLanding() {
       <PhotoCollage />
       <Testimonial />
       <Campaigns />
+      <SupportAzarfaith />
       <Faq />
       <Cta />
       <Footer />

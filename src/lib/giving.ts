@@ -3,7 +3,7 @@ import type { Campaign } from "./domain";
 /** Preset gift amounts, smallest first. Shared by the campaign give box and the checkout. */
 export const presets = [5000, 10000, 25000, 50000];
 
-/** Optional platform tip choices, shared by campaign pages and checkout. */
+/** Optional AzarFaith donation choices, shared by campaign pages and checkout. */
 export const tipPresets = [0, 500, 1000, 2500];
 
 /** Show whole-naira amounts with separators while a donor types. */

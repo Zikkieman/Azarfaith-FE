@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronsUpDown,
   History,
+  HeartHandshake,
   Home,
   LogOut,
   Megaphone,
@@ -87,6 +88,7 @@ export function AdminSidebar() {
     {
       label: "Platform",
       items: [
+        { label: "AzarFaith donations", icon: HeartHandshake, to: "/admin/platform-donations" },
         { label: "Activity log", icon: History, to: "/admin/activity" },
         { label: "Settings", icon: Settings2, to: "/admin/settings" },
       ],

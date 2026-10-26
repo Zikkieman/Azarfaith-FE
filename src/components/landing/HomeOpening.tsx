@@ -20,8 +20,9 @@ function HeroCopy() {
     <>
       <h1 className="font-display text-[clamp(40px,6.4vw,104px)] leading-[0.98] tracking-[-0.03em] text-ink">
         <span className="block">You give in faith.</span>
-        <span className="block">
-          See the <FruitCycler />.
+        <span className="block">See the</span>
+        <span className="block h-[0.98em] whitespace-nowrap">
+          <FruitCycler />.
         </span>
       </h1>
       <p className="max-w-[640px] text-pretty font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">

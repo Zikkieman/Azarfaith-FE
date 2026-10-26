@@ -26,7 +26,7 @@ export const campaignCategories: Category[] = [
 
 export type OrgCategory = "church" | "mission" | "orphanage" | "school" | "other";
 export type Org = {
-  id: string; name: string; tagline: string; category: OrgCategory; location: string;
+  id: string; name: string; tagline: string; contactPhone?: string; category: OrgCategory; location: string;
   denomination: string; founded: string; bio: string; photos: string[]; videos: string[];
   campaignIds: string[]; verificationStatus: "unverified" | "pending" | "verified" | "rejected";
   totalReceived: number; supporters: number;
