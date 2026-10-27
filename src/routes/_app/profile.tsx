@@ -18,6 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { RequireUser } from "@/components/auth/RequireUser";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { PayoutAccountForm } from "@/components/app/PayoutAccountForm";
+import { NigerianPhoneField } from "@/components/app/NigerianPhoneField";
 
 export const Route = createFileRoute("/_app/profile")({
   pendingComponent: () => <ProfileSkeleton label="Loading your profile" />,
@@ -33,6 +35,7 @@ function ProtectedProfile() {
 const nav = [
   { id: "profile", label: "Profile" },
   { id: "notifications", label: "Notifications" },
+  { id: "payout", label: "Payout account" },
   { id: "payment", label: "Payment methods" },
   { id: "security", label: "Security" },
   { id: "close", label: "Close account" },
@@ -94,6 +97,7 @@ function Profile() {
           <div className="flex max-w-[720px] flex-col gap-6">
             <ProfileSection profile={user} />
             <NotificationsSection preferences={preferences.data} />
+            <PayoutSection />
             <PaymentSection methods={paymentMethods.data ?? []} />
             <SecuritySection />
             <CloseAccount />
@@ -246,7 +250,14 @@ function ProfileSection({ profile }: { profile: ProfileData }) {
           {field("email", "Email", "email", false, true)}
           <p className="text-[12px] text-subtle">To change your sign-in email, use the email-change flow in Security.</p>
         </div>
-        {field("phone", "Phone", "tel")}
+        <NigerianPhoneField
+          label="Phone"
+          value={d.phone}
+          onChange={(phone) => {
+            setJustSaved(false);
+            setD({ ...d, phone });
+          }}
+        />
         {field("city", "Town or city", "text", true)}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -386,6 +397,18 @@ function PaymentSection({ methods }: { methods: PaymentMethod[] }) {
       >
         <Plus className="h-4 w-4" strokeWidth={2} /> Add a card
       </button>
+    </Section>
+  );
+}
+
+function PayoutSection() {
+  return (
+    <Section
+      id="payout"
+      title="Payout account"
+      description="Where money raised by your personal campaigns is paid. This is separate from cards you use to donate."
+    >
+      <PayoutAccountForm />
     </Section>
   );
 }

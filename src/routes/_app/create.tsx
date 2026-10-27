@@ -34,6 +34,8 @@ import { campaignCategories, formatMoney, type Campaign, type Category } from "@
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { PayoutAccountForm } from "@/components/app/PayoutAccountForm";
+import { isNigerianPhone, NigerianPhoneField } from "@/components/app/NigerianPhoneField";
 
 export const Route = createFileRoute("/_app/create")({
   validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
@@ -48,7 +50,16 @@ function ProtectedCreateCampaign() {
 }
 
 type Draft = ReturnType<typeof useApp.getState>["draft"];
-type CampaignDraftDetail = Campaign & { coverImageUrl: string | null };
+type CampaignDraftDetail = Campaign & {
+  coverImageUrl: string | null;
+  contactPhone?: string;
+};
+type OwnedOrganization = {
+  id: string;
+  name: string;
+  verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+};
+type CampaignOwnerProfile = { ownedOrganizations: OwnedOrganization[] };
 
 /** Templates (after Gamma's create-from-template): each sets the basics and a story outline. */
 const templates: {
@@ -151,7 +162,11 @@ function checksFor(d: Draft, orgVerified: boolean): Requirement[] {
     {
       key: "cause",
       label: "Pick a cause and a place",
-      ok: Boolean(d.faithCategory && d.location?.trim()),
+      ok: Boolean(
+        d.faithCategory &&
+          d.location?.trim() &&
+          (d.faithCategory !== "Other" || d.customFaithCategory?.trim()),
+      ),
       required: true,
       target: "basics",
     },
@@ -221,7 +236,10 @@ function CreateCampaign() {
   const setDraft = useApp((s) => s.setDraft);
   const resetDraft = useApp((s) => s.resetDraft);
   const addCampaign = useApp((s) => s.addCampaign);
-  const orgs = useApp((s) => s.orgs);
+  const ownedOrganizations = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => apiFetch<CampaignOwnerProfile>("/me/profile"),
+  });
   const [template, setTemplate] = useState<string | null>(null);
   const [saved, setSaved] = useState<"saved" | "saving">("saved");
   const [submitting, setSubmitting] = useState(false);
@@ -229,6 +247,9 @@ function CreateCampaign() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(search.draft ?? null);
+  const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
+  const [phoneError, setPhoneError] = useState("");
+  const [payoutReady, setPayoutReady] = useState(false);
   const hydratedDraftId = useRef<string | null>(null);
   const draftQuery = useQuery({
     queryKey: ["campaign-draft", search.draft],
@@ -240,11 +261,18 @@ function CreateCampaign() {
   const galleryInput = useRef<HTMLInputElement>(null);
   const first = useRef(true);
 
-  const org = draft.orgId ? orgs.find((o) => o.id === draft.orgId) : undefined;
+  const org = draft.orgId
+    ? ownedOrganizations.data?.ownedOrganizations.find((item) => item.id === draft.orgId)
+    : undefined;
   const checks = checksFor(draft, org?.verificationStatus === "verified");
   const required = checks.filter((c) => c.required);
   const missing = required.filter((c) => !c.ok);
   const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
+  const normalizedPhone = contactPhone.replace(/\s+/g, "").trim();
+
+  useEffect(() => {
+    if (user?.phone) setContactPhone((current) => current || user.phone || "");
+  }, [user?.phone]);
 
   useEffect(() => {
     if (search.draft) return;
@@ -263,6 +291,7 @@ function CreateCampaign() {
       title: saved.title,
       story: saved.story,
       faithCategory: saved.faithCategory,
+      customFaithCategory: saved.customFaithCategory,
       orgId: saved.orgId,
       location: saved.location,
       goal: saved.goal,
@@ -272,9 +301,10 @@ function CreateCampaign() {
       needs: saved.needs ?? [],
       frequencies: saved.frequencies ?? [],
     });
+    setContactPhone(saved.contactPhone || user?.phone || "");
     setDraftId(saved.id);
     hydratedDraftId.current = saved.id;
-  }, [search.draft, draftQuery.data, resetDraft, setDraft]);
+  }, [search.draft, draftQuery.data, resetDraft, setDraft, user?.phone]);
 
   // "Saving… Saved" as they type, like any document editor.
   useEffect(() => {
@@ -301,7 +331,9 @@ function CreateCampaign() {
   const payload = () => ({
     mode: draft.mode?.replace("-", "_").toUpperCase(), type: draft.type?.toUpperCase(),
     title: draft.title?.trim(), story: draft.story?.trim(),
+    contactPhone: normalizedPhone || undefined,
     faithCategory: draft.faithCategory?.toUpperCase().replaceAll(" & ", "_").replaceAll(" ", "_"),
+    customFaithCategory: draft.faithCategory === "Other" ? draft.customFaithCategory?.trim() : undefined,
     organizationId: draft.orgId || null, location: draft.location?.trim(),
     goalAmount: draft.mode === "one-time" && draft.type === "money" ? draft.goal : null,
     urgency: draft.urgency?.toUpperCase(), coverImageUrl: draft.cover || null,
@@ -376,6 +408,17 @@ function CreateCampaign() {
       setShowErrors(true);
       jump(missing[0].target);
       toast.error(`${missing.length} thing${missing.length > 1 ? "s" : ""} to finish first`);
+      return;
+    }
+    if (!isNigerianPhone(normalizedPhone)) {
+      setPhoneError("Enter a valid Nigerian phone number");
+      jump("org");
+      toast.error("Enter your contact phone number before submitting.");
+      return;
+    }
+    if (!payoutReady) {
+      jump("payout");
+      toast.error("Add and verify the payout account for this campaign before submitting.");
       return;
     }
     setSubmitting(true);
@@ -633,12 +676,33 @@ function CreateCampaign() {
                   label="Cause"
                   value={draft.faithCategory ?? ""}
                   onChange={(v) =>
-                    setDraft({ faithCategory: (v || undefined) as Category | undefined })
+                    setDraft({
+                      faithCategory: (v || undefined) as Category | undefined,
+                      ...(v === "Other" ? {} : { customFaithCategory: undefined }),
+                    })
                   }
                   options={campaignCategories.map((label) => ({ value: label, label }))}
                   placeholder="Choose"
                   error={err("cause") && !draft.faithCategory}
                 />
+                {draft.faithCategory === "Other" ? (
+                  <label className="flex flex-col gap-1.5">
+                    <span className={labelClass}>Specify your cause</span>
+                    <input
+                      value={draft.customFaithCategory ?? ""}
+                      maxLength={80}
+                      onChange={(event) => setDraft({ customFaithCategory: event.target.value })}
+                      placeholder="e.g. Prison ministry"
+                      className={cn(
+                        inputClass,
+                        err("cause") && !draft.customFaithCategory?.trim() && "border-danger",
+                      )}
+                    />
+                    {err("cause") && !draft.customFaithCategory?.trim() ? (
+                      <FieldError>Describe the cause for this campaign.</FieldError>
+                    ) : null}
+                  </label>
+                ) : null}
               </div>
               <label className="flex flex-col gap-1.5">
                 <span className={labelClass}>Town and state</span>
@@ -677,7 +741,7 @@ function CreateCampaign() {
                 <span className="text-[12px] text-muted-ink">
                   {(draft.story ?? "").includes("[")
                     ? "Replace the [bracketed] parts with your own words."
-                    : "Numbers help: “20 bunk beds at ₦60,000 each” beats “beds for the children”."}
+                    : ""}
                 </span>
                 <span className="shrink-0 text-[12px] text-subtle">{(draft.story ?? "").trim().split(/\s+/).filter(Boolean).length} / 100–200 words</span>
               </div>
@@ -779,10 +843,13 @@ function CreateCampaign() {
                           ₦
                         </span>
                         <input
-                          type="number"
+                          type="text"
                           inputMode="numeric"
-                          value={draft.goal ?? ""}
-                          onChange={(e) => setDraft({ goal: Number(e.target.value) || undefined })}
+                          value={draft.goal ? draft.goal.toLocaleString("en-NG") : ""}
+                          onChange={(event) => {
+                            const digits = event.target.value.replace(/\D/g, "");
+                            setDraft({ goal: digits ? Number(digits) : undefined });
+                          }}
                           placeholder="1,200,000"
                           className={cn(inputClass, "pl-8", err("goal") && "border-danger")}
                         />
@@ -832,8 +899,35 @@ function CreateCampaign() {
                 label="Raising for"
                 value={draft.orgId ?? ""}
                 onChange={(v) => setDraft({ orgId: v || undefined })}
-                options={orgs.map((o) => ({ value: o.id, label: o.name }))}
+                options={(ownedOrganizations.data?.ownedOrganizations ?? []).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
                 placeholder="Myself (a personal campaign)"
+              />
+              {ownedOrganizations.error ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-field bg-danger/5 p-3">
+                  <FieldError>Could not load the organizations you own.</FieldError>
+                  <button
+                    type="button"
+                    className={btn("secondary", "sm")}
+                    onClick={() => void ownedOrganizations.refetch()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : null}
+              <NigerianPhoneField
+                id="campaign-contact-phone"
+                label="Your contact phone number"
+                required
+                value={contactPhone}
+                error={phoneError}
+                description="We’ll use this number to contact you about this campaign."
+                onChange={(value) => {
+                  setContactPhone(value);
+                  setPhoneError("");
+                }}
               />
               {org && org.verificationStatus !== "verified" ? (
                 <p className="rounded-field bg-panel px-4 py-3 text-[13px] text-ink-soft">
@@ -841,6 +935,20 @@ function CreateCampaign() {
                   they are.
                 </p>
               ) : null}
+            </Section>
+
+            <Section
+              id="payout"
+              title="Payout account"
+              note={draft.orgId
+                ? `Where gifts raised for ${org?.name || "this organization"} will be paid.`
+                : "Where gifts raised by this campaign will be paid."}
+            >
+              <PayoutAccountForm
+                organizationId={draft.orgId}
+                organizationName={org?.name}
+                onReadyChange={setPayoutReady}
+              />
             </Section>
 
             <div className="flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:justify-end">

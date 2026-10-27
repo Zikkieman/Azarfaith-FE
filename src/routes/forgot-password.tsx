@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { AuthField } from "@/components/auth/AuthField";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { SocialButton } from "@/components/auth/SocialButton";
+import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/forgot-password")({
   head: () => ({ meta: [{ title: "Reset your password — AzarFaith" }] }),
@@ -28,12 +30,19 @@ function ForgotPassword() {
     formState: { errors },
   } = useForm<ResetForm>({ resolver: zodResolver(resetSchema) });
 
-  const submit = handleSubmit(({ email }) => {
+  const submit = handleSubmit(async ({ email }) => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await apiFetch<{ message: string }>("/auth/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      setSentTo(email.trim().toLowerCase());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the reset link.");
+    } finally {
       setLoading(false);
-      setSentTo(email);
-    }, 600);
+    }
   });
 
   return (
@@ -58,8 +67,8 @@ function ForgotPassword() {
         ) : (
           <>
             <AuthHeading title="Reset your password">
-              Enter the email you signed up with and we&rsquo;ll send you a link to choose a new
-              password.
+              Enter your email and we&rsquo;ll send you a link to choose a password. This also works if
+              you originally joined with Google or Facebook.
             </AuthHeading>
             <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
               <AuthField

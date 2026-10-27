@@ -21,6 +21,7 @@ import { Church, Globe, Baby, GraduationCap, Users, ImagePlus, FileText, Trash2,
 import type { Org } from "@/lib/domain";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { isNigerianPhone, NigerianPhoneField } from "@/components/app/NigerianPhoneField";
 
 export const Route = createFileRoute("/_app/register-org")({
   validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
@@ -133,34 +134,34 @@ function RegisterOrg() {
   const normalizedPhone = contactPhone.replace(/\s+/g, "").trim();
   const savedPhone = user?.phone?.replace(/\s+/g, "").trim() ?? "";
 
-  const validate = () => {
+  const validate = (stepsToValidate: number[] = [step]) => {
     const e: Record<string, string> = {};
-    if (step === 0) {
+    if (stepsToValidate.includes(0)) {
       if (!orgDraft.name?.trim()) e.name = "Organization name is required";
       if (!orgDraft.category) e.category = "Select a category";
       if (!orgDraft.denomination?.trim()) e.denomination = "Denomination or tradition is required";
       if (orgDraft.category === "other" && !orgDraft.otherCategoryLabel?.trim()) e.otherCategoryLabel = "Describe the kind of ministry";
       if (!orgDraft.location?.trim()) e.location = "Location is required";
       if (!normalizedPhone) e.phone = "Enter your contact phone number";
-      else if (normalizedPhone !== savedPhone && !/^\+[1-9]\d{7,14}$/.test(normalizedPhone))
-        e.phone = "Include your country code, for example +2348012345678";
+      else if (!isNigerianPhone(normalizedPhone))
+        e.phone = "Enter a valid Nigerian phone number";
     }
-    if (step === 1) {
+    if (stepsToValidate.includes(1)) {
       if (!orgDraft.tagline?.trim() || orgDraft.tagline.length < 10)
         e.tagline = "Add a short tagline (at least 10 characters)";
       const words = orgDraft.bio?.trim().split(/\s+/).filter(Boolean).length ?? 0;
       if (words < 100 || words > 200) e.bio = "Use between 100 and 200 words";
     }
-    if (step === 2) {
+    if (stepsToValidate.includes(2)) {
       if ((orgDraft.photos?.length ?? 0) < 3) e.photos = "Upload at least 3 photos of your organization or work";
       if ((orgDraft.registrationDocuments?.length ?? 0) === 0) e.documents = "Upload a CAC registration document or recommendation letter";
     }
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return e;
   };
 
   const next = async () => {
-    if (!validate() || savingContactPhone) return;
+    if (Object.keys(validate()).length || savingContactPhone) return;
     if (step === 0 && normalizedPhone !== savedPhone) {
       setSavingContactPhone(true);
       try {
@@ -252,7 +253,18 @@ function RegisterOrg() {
   };
 
   const submit = async () => {
-    if (!validate()) return;
+    const validationErrors = validate([0, 1, 2]);
+    if (Object.keys(validationErrors).length) {
+      const firstIncompleteStep =
+        validationErrors.name || validationErrors.category || validationErrors.denomination || validationErrors.otherCategoryLabel || validationErrors.location || validationErrors.phone
+          ? 0
+          : validationErrors.tagline || validationErrors.bio
+            ? 1
+            : 2;
+      setStep(firstIncompleteStep);
+      toast.error("Complete the highlighted required details before publishing.");
+      return;
+    }
     setSubmitting(true);
     try {
       if (draftId) {
@@ -450,25 +462,18 @@ function RegisterOrg() {
               {field("location")}
             </label>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="organization-contact-phone" className={labelClass}>Your contact phone number</label>
-              <input
-                id="organization-contact-phone"
-                className={inputClass}
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                aria-invalid={Boolean(errors.phone)}
-                placeholder="e.g. +2348012345678"
-                value={contactPhone}
-                onChange={(event) => {
-                  setContactPhone(event.target.value);
-                  setErrors((current) => ({ ...current, phone: "" }));
-                }}
-              />
-              <p className="text-[12px] leading-relaxed text-muted-ink">We’ll use this number to contact you about your organization and campaigns.</p>
-              {field("phone")}
-            </div>
+            <NigerianPhoneField
+              id="organization-contact-phone"
+              label="Your contact phone number"
+              required
+              value={contactPhone}
+              error={errors.phone}
+              description="We’ll use this number to contact you about your organization and campaigns."
+              onChange={(value) => {
+                setContactPhone(value);
+                setErrors((current) => ({ ...current, phone: "" }));
+              }}
+            />
           </div>
         ) : null}
 

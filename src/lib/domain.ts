@@ -1,5 +1,15 @@
 export type CampaignType = "money" | "item" | "volunteer" | "professional" | "emergency";
-export type Update = { id: string; date: string; title: string; body: string };
+export type Update = {
+  id: string;
+  date: string;
+  kind?: "progress" | "milestone" | "completion";
+  title: string;
+  body: string;
+  amountSpent?: number;
+  imageUrls?: string[];
+  videoUrls?: string[];
+  receiptUrls?: string[];
+};
 export type Comment = { id: string; author: string; avatar: string; date: string; body: string };
 export type Donation = { id: string; donor: string; amount: number; date: string; note?: string };
 
@@ -11,7 +21,8 @@ export type Category =
   | "Food & Relief"
   | "Medical Mission"
   | "Emergency"
-  | "Community Development";
+  | "Community Development"
+  | "Other";
 
 export const campaignCategories: Category[] = [
   "Church Building",
@@ -22,6 +33,7 @@ export const campaignCategories: Category[] = [
   "Medical Mission",
   "Emergency",
   "Community Development",
+  "Other",
 ];
 
 export type OrgCategory = "church" | "mission" | "orphanage" | "school" | "other";
@@ -33,7 +45,7 @@ export type Org = {
 };
 export type Campaign = {
   id: string; ownerId?: string; mode: "one-time" | "ongoing"; type: CampaignType; title: string; story: string;
-  faithCategory: Category; orgId?: string;
+  faithCategory: Category; customFaithCategory?: string; orgId?: string;
   raiser: { name: string; avatar: string; location: string; trustScore: number };
   cover: string; gallery: string[]; goal?: number; raised: number; donors: number; currency: "NGN";
   location: string; urgency: "low" | "medium" | "high" | "critical"; createdAt: string;

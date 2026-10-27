@@ -42,6 +42,7 @@ const faithCategoryApiValue: Record<Category, string> = {
   "Medical Mission": "MEDICAL_MISSION",
   Emergency: "EMERGENCY",
   "Community Development": "COMMUNITY_DEVELOPMENT",
+  Other: "OTHER",
 };
 
 export const Route = createFileRoute("/_app/discover")({

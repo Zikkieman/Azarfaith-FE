@@ -19,6 +19,9 @@ import {
   Share2,
   ShieldCheck,
   Trash2,
+  UserPlus,
+  Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/app/Skeletons";
@@ -31,6 +34,7 @@ import { useApp } from "@/lib/store";
 import { RequireUser } from "@/components/auth/RequireUser";
 import { formatCompactMoney, formatMoney, type Campaign, type Org } from "@/lib/domain";
 import { cn } from "@/lib/utils";
+import { ImpactUpdateDialog } from "@/components/app/ImpactUpdateDialog";
 
 export const Route = createFileRoute("/_app/dashboard")({
   loader: () => simulateNetwork(),
@@ -67,6 +71,14 @@ type DashboardData = {
   campaigns: Array<{ id: string; title: string; cover: string | null; goal: number | null; mode: string; verificationStatus: Campaign["verificationStatus"]; raised: number; givers: number; galleryCount: number; lastUpdateAt: string | null }>;
 };
 
+type OrganizationAdmins = {
+  owner: { id: string; fullName: string; email: string } | null;
+  admins: Array<{ id: string; fullName: string; email: string }>;
+  invitations: Array<{ id: string; email: string }>;
+  canManageAdmins: boolean;
+};
+type AdminInvitation = { id: string; organization: { id: string; name: string }; invitedBy: { fullName: string } };
+
 function toOrg(value: NonNullable<DashboardData["selectedOrganization"]>): Org {
   return { id: value.id, name: value.name, tagline: "", category: "other", location: value.location, denomination: "", founded: "", bio: "", photos: value.cover ? [value.cover] : [], videos: [], campaignIds: [], verificationStatus: value.verificationStatus, totalReceived: 0, supporters: 0 };
 }
@@ -83,6 +95,7 @@ function Manage() {
   const queryClient = useQueryClient();
   const [draftToDelete, setDraftToDelete] = useState<DraftToDelete | null>(null);
   const [deletingDraft, setDeletingDraft] = useState(false);
+  const [acceptingInvitationId, setAcceptingInvitationId] = useState<string | null>(null);
   const removeDraft = async () => {
     if (!draftToDelete || deletingDraft) return;
     const { kind, id } = draftToDelete;
@@ -109,6 +122,17 @@ function Manage() {
   const dashboard = useQuery({ queryKey: ["my-dashboard"], queryFn: () => apiFetch<DashboardData>("/me/dashboard") });
   const drafts = useQuery({ queryKey: ["organization-drafts"], queryFn: () => apiFetch<OrganizationDraftSummary[]>("/organizations/mine/drafts", { cache: "no-store" }) });
   const campaignDrafts = useQuery({ queryKey: ["campaign-drafts"], queryFn: () => apiFetch<CampaignDraftSummary[]>("/campaigns/mine/drafts", { cache: "no-store" }) });
+  const adminInvitations = useQuery({ queryKey: ["my-organization-admin-invitations"], queryFn: () => apiFetch<AdminInvitation[]>("/organizations/invitations/mine") });
+  const acceptInvitation = async (id: string) => {
+    if (acceptingInvitationId) return;
+    setAcceptingInvitationId(id);
+    try {
+      await apiFetch(`/organizations/invitations/${id}/accept`, { method: "POST" });
+      toast.success("You are now an organization admin.");
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["my-organization-admin-invitations"] }), queryClient.invalidateQueries({ queryKey: ["my-dashboard"] })]);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not accept invitation."); }
+    finally { setAcceptingInvitationId(null); }
+  };
   useEffect(() => {
     if (!dashboard.data?.selectedOrganization) return;
     const org = {
@@ -155,6 +179,7 @@ function Manage() {
         </div>
 
         {org ? <OrgDesk org={org} /> : <QuickStart />}
+        {adminInvitations.data?.length ? <section className="rounded-card border border-line-soft bg-paper p-5 sm:p-6"><div className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-accent" /><h2 className="font-display text-[22px] text-ink">Admin invitations</h2></div><div className="mt-4 space-y-3">{adminInvitations.data.map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-field bg-panel px-4 py-3"><p className="text-sm text-ink">{invitation.invitedBy.fullName} invited you to manage <strong>{invitation.organization.name}</strong>.</p><button disabled={Boolean(acceptingInvitationId)} className={btn("primary", "sm")} onClick={() => { void acceptInvitation(invitation.id); }}>{acceptingInvitationId === invitation.id ? "Accepting…" : "Accept invitation"}</button></div>)}</div></section> : null}
         <CampaignDrafts query={campaignDrafts} onDelete={(draft) => setDraftToDelete({ kind: "campaign", id: draft.id, title: draft.title })} />
         {drafts.isLoading || drafts.error || drafts.data?.length ? <OrganizationDrafts query={drafts} onDelete={(draft) => setDraftToDelete({ kind: "organization", id: draft.id, title: draft.name })} /> : null}
       </Container>
@@ -456,6 +481,8 @@ const monthsSince = (iso: string) => {
 };
 
 function OrgDesk({ org }: { org: Org }) {
+  const queryClient = useQueryClient();
+  const [updatingCampaign, setUpdatingCampaign] = useState<Campaign | null>(null);
   const allCampaigns = useApp((s) => s.campaigns);
   const campaigns = allCampaigns.filter((c) => c.orgId === org.id);
   const verified = org.verificationStatus === "verified";
@@ -518,6 +545,8 @@ function OrgDesk({ org }: { org: Org }) {
         ))}
       </dl>
 
+      <OrganizationAdminPanel organizationId={org.id} />
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel
@@ -538,7 +567,7 @@ function OrgDesk({ org }: { org: Org }) {
             ) : (
               <ul className="divide-y divide-line-soft">
                 {campaigns.map((c) => (
-                  <CampaignRow key={c.id} c={c} />
+                  <CampaignRow key={c.id} c={c} onUpdate={() => setUpdatingCampaign(c)} />
                 ))}
               </ul>
             )}
@@ -637,8 +666,48 @@ function OrgDesk({ org }: { org: Org }) {
           </div>
         </aside>
       </div>
+      {updatingCampaign ? (
+        <ImpactUpdateDialog
+          campaignId={updatingCampaign.id}
+          campaignTitle={updatingCampaign.title}
+          open
+          onOpenChange={(open) => { if (!open) setUpdatingCampaign(null); }}
+          onPublished={() => { void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] }); }}
+        />
+      ) : null}
     </div>
   );
+}
+
+function OrganizationAdminPanel({ organizationId }: { organizationId: string }) {
+  const queryClient = useQueryClient();
+  const admins = useQuery({ queryKey: ["organization-admins", organizationId], queryFn: () => apiFetch<OrganizationAdmins>(`/organizations/${organizationId}/admins`) });
+  const [email, setEmail] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["organization-admins", organizationId] });
+  const invite = async () => {
+    if (isInviting) return;
+    setIsInviting(true);
+    try {
+      await apiFetch(`/organizations/${organizationId}/admin-invitations`, { method: "POST", body: JSON.stringify({ email }) });
+      setEmail(""); toast.success("Admin invitation sent."); void refresh();
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not send invitation."); }
+    finally { setIsInviting(false); }
+  };
+  const remove = async (userId: string) => {
+    try { await apiFetch(`/organizations/${organizationId}/admins/${userId}`, { method: "DELETE" }); toast.success("Admin removed."); void refresh(); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Could not remove admin."); }
+  };
+  if (admins.isLoading || admins.error || !admins.data) return null;
+  const data = admins.data;
+  return <section className="rounded-card border border-line-soft bg-paper p-5 sm:p-6">
+    <div className="flex items-center gap-2"><Users className="h-5 w-5 text-accent" /><div><h2 className="font-display text-[22px] text-ink">Organization admins</h2><p className="text-sm text-ink-soft">Admins can manage this organization and its campaigns.</p></div></div>
+    <div className="mt-4 space-y-2 text-sm">
+      {data.owner ? <div className="flex items-center justify-between rounded-field bg-panel px-4 py-3"><span><strong>{data.owner.fullName}</strong> <span className="text-muted-ink">{data.owner.email}</span></span><Tag>Owner</Tag></div> : null}
+      {data.admins.map((admin) => <div key={admin.id} className="flex items-center justify-between gap-3 rounded-field border border-line-soft px-4 py-3"><span className="min-w-0 truncate"><strong>{admin.fullName}</strong> <span className="text-muted-ink">{admin.email}</span></span>{data.canManageAdmins ? <button type="button" onClick={() => { void remove(admin.id); }} className="text-danger" aria-label={`Remove ${admin.fullName}`}><X className="h-4 w-4" /></button> : <Tag>Admin</Tag>}</div>)}
+    </div>
+    {data.canManageAdmins ? <div className="mt-4 border-t border-line-soft pt-4"><label className="text-sm font-medium text-ink" htmlFor={`invite-${organizationId}`}>Invite an admin</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input id={`invite-${organizationId}`} value={email} disabled={isInviting} onChange={(event) => setEmail(event.target.value)} type="email" placeholder="name@example.com" className="min-w-0 flex-1 rounded-field border border-line-input px-3 py-2.5 text-sm disabled:opacity-60" /><button type="button" disabled={!email.trim() || isInviting} onClick={() => { void invite(); }} className={btn("secondary", "sm")}>{isInviting ? "Sending invitation…" : "Invite admin"}</button></div>{data.invitations.length ? <p className="mt-3 text-[13px] text-muted-ink">Pending: {data.invitations.map((invite) => invite.email).join(", ")}</p> : null}</div> : null}
+  </section>;
 }
 
 function ReviewProgress() {
@@ -677,7 +746,7 @@ function ReviewProgress() {
   );
 }
 
-function CampaignRow({ c }: { c: Campaign }) {
+function CampaignRow({ c, onUpdate }: { c: Campaign; onUpdate: () => void }) {
   const pct = c.goal ? Math.min(100, Math.round((c.raised / c.goal) * 100)) : null;
   const last = c.updates[0]?.date;
   const months = last ? monthsSince(last) : null;
@@ -723,6 +792,9 @@ function CampaignRow({ c }: { c: Campaign }) {
           <p className="text-right text-[12px] text-muted-ink">Regular giving</p>
         )}
       </div>
+      <button type="button" onClick={onUpdate} className={btn("secondary", "sm")}>
+        <Megaphone className="h-3.5 w-3.5" /> Post update
+      </button>
     </li>
   );
 }

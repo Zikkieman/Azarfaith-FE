@@ -22,6 +22,7 @@ type Draft = {
   title?: string;
   story?: string;
   faithCategory?: Campaign["faithCategory"];
+  customFaithCategory?: string;
   orgId?: string;
   location?: string;
   goal?: number;

@@ -55,6 +55,7 @@ const categories: Category[] = [
   "Medical Mission",
   "Emergency",
   "Community Development",
+  "Other",
 ];
 
 const toStatus = (value?: string): Campaign["verificationStatus"] =>
@@ -78,6 +79,7 @@ export function mapCampaign(value: ApiCampaign): Campaign {
     faithCategory: categories.includes(value.faithCategory as Category)
       ? (value.faithCategory as Category)
       : "Community Development",
+    customFaithCategory: value.customFaithCategory,
     orgId: value.orgId,
     raiser: {
       name: value.raiser?.name ?? "AzarFaith organizer",

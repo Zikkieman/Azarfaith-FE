@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, Link2, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Heart, Link2, MapPin, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Photo } from "@/components/app/Photo";
 import { Segments } from "@/components/app/Segments";
@@ -24,6 +24,7 @@ import { btn } from "@/components/app/btn";
 import { useApp } from "@/lib/store";
 import { formatCompactMoney, formatMoney, type Campaign } from "@/lib/domain";
 import { cn } from "@/lib/utils";
+import { ImpactUpdateDialog } from "@/components/app/ImpactUpdateDialog";
 
 export const Route = createFileRoute("/_app/campaign/$id")({
   loader: () => simulateNetwork(),
@@ -51,6 +52,7 @@ function CampaignDetail() {
   const { user } = useAuth();
   const orgs = useApp((s) => s.orgs);
   const [allUpdates, setAllUpdates] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
   const campaignQuery = useCampaign(id);
 
   if (campaignQuery.isLoading) return <CampaignDetailSkeleton />;
@@ -97,11 +99,16 @@ function CampaignDetail() {
                   ) : null}
                 </p>
                 <h1 className={pageTitleClass}>{campaign.title}</h1>
+                {isCreator ? (
+                  <button type="button" onClick={() => setUpdateOpen(true)} className={cn(btn("secondary", "sm"), "self-start")}>
+                    <Megaphone className="h-4 w-4" strokeWidth={1.75} /> Share an impact update
+                  </button>
+                ) : null}
                 <p className="flex flex-wrap items-center gap-3 text-sm text-muted-ink">
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" strokeWidth={1.5} /> {campaign.location}
                   </span>
-                  <Tag>{campaign.faithCategory}</Tag>
+                  <Tag>{campaign.customFaithCategory || campaign.faithCategory}</Tag>
                   {campaign.urgency === "critical" || campaign.type === "emergency" ? (
                     <Tag tone="brand">Urgent</Tag>
                   ) : null}
@@ -131,12 +138,17 @@ function CampaignDetail() {
                     <li key={u.id} className="flex flex-col gap-1.5 border-b border-line-soft py-5">
                       <p className="flex items-center gap-2 text-[13px] text-muted-ink">
                         {u.date}
+                        {u.kind ? <Tag>{u.kind === "completion" ? "Completion report" : u.kind}</Tag> : null}
                         {i === 0 ? <Tag tone="verified">Latest</Tag> : null}
                       </p>
                       <p className={smallHeadingClass}>{u.title}</p>
                       <p className="max-w-[720px] text-[15px] leading-[1.6] text-ink-soft">
                         {u.body}
                       </p>
+                      {u.amountSpent !== undefined ? <p className="text-sm font-medium text-ink">Amount spent: {formatMoney(u.amountSpent)}</p> : null}
+                      {u.imageUrls?.length ? <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{u.imageUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer" aria-label={`Open update photo ${index + 1}`}><img src={url} alt="" className="aspect-[4/3] w-full rounded-field object-cover" /></a>)}</div> : null}
+                      {u.videoUrls?.length ? <div className="mt-2 grid gap-3 sm:grid-cols-2">{u.videoUrls.map((url) => <video key={url} controls preload="metadata" playsInline className="w-full rounded-field border border-line-soft bg-black"><source src={url} /></video>)}</div> : null}
+                      {u.receiptUrls?.length ? <div className="mt-2 flex flex-wrap gap-2">{u.receiptUrls.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer" className={btn("secondary", "sm")}><FileText className="h-4 w-4" /> Receipt {index + 1}</a>)}</div> : null}
                     </li>
                   ))}
                 </ol>
@@ -198,6 +210,14 @@ function CampaignDetail() {
           </aside>
         </div>
       </Container>
+      {isCreator ? (
+        <ImpactUpdateDialog
+          campaignId={campaign.id}
+          campaignTitle={campaign.title}
+          open={updateOpen}
+          onOpenChange={setUpdateOpen}
+        />
+      ) : null}
     </AppShell>
   );
 }
