@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const steps = [
   {
     title: "Choose a verified cause",
-    body: "Browse churches, missions, orphanages and faith schools. Each one is checked before it can receive a single naira.",
+    body: "Browse churches, ministries, orphanages, faith schools and urgent relief causes. Each one is checked before it can receive a single naira.",
   },
   {
     title: "Give once or on a schedule",

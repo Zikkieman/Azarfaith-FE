@@ -31,7 +31,7 @@ const features: Feature[] = [
   },
   {
     title: "Discover",
-    body: "Givers find verified churches, missionaries, orphanages and schools by cause, place or denomination.",
+    body: "Givers find verified churches, ministries, orphanages, schools and urgent relief causes by need, place or denomination.",
     cta: { label: "Browse causes", to: "/discover" },
     photo: (d) => d.orgs[2]?.photos[0] ?? d.campaign.cover,
     card: (d) => (

@@ -15,7 +15,7 @@ export function SupportAzarfaith() {
             Support the work behind every gift.
           </h2>
           <p className="max-w-[620px] text-[16px] leading-relaxed text-ink-soft">
-            Help us keep the platform running, verify organizations, and respond to urgent causes. This donation goes to AzarFaith, separately from any campaign.
+            Help us keep the platform running, verify organizations, and respond to urgent needs affecting vulnerable families and faith communities under pressure. This donation goes to AzarFaith, separately from any campaign.
           </p>
         </div>
         <Link to="/support-azarfaith" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-[15px] font-semibold text-ink-contrast transition-opacity hover:opacity-90">

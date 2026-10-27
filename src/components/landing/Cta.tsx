@@ -11,8 +11,8 @@ export function Cta() {
         </h2>
 
         <p className="max-w-[640px] text-center font-gsf text-lg leading-[27.9px] tracking-[-0.02em] text-ink-soft">
-          Turn your generosity into lasting impact for the church, with full transparency at every
-          step of the way.
+          Turn your generosity into practical hope for faith communities and people in need, with
+          full transparency at every step of the way.
         </p>
 
         <Link

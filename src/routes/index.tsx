@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Support churches, missionaries, orphanages and faith-based schools in Nigeria. Give once or set up a standing order.",
+          "Support trusted Christian causes, local ministries, vulnerable families and communities in need across Nigeria. Give once or set up a standing order.",
       },
     ],
     // Display faces for the hero's cycling word, subset to its letters (homepage only).

@@ -120,15 +120,17 @@ function SupportAzarFaith() {
             </h1>
             <p className="max-w-[620px] text-[17px] leading-[1.65] text-ink-soft">
               Your donation to AzarFaith helps us keep the platform running, check organizations
-              carefully, and respond to urgent causes. We direct this support where it is needed
-              most.
+              carefully, and respond to urgent verified needs affecting vulnerable families,
+              people facing hardship and faith communities under pressure. We direct this support
+              where it is needed most.
             </p>
             <div className="grid w-full gap-3 sm:grid-cols-2">
               <div className="rounded-card border border-line-soft bg-panel p-5">
                 <HeartHandshake className="h-6 w-6 text-brand" strokeWidth={1.75} />
                 <h2 className="mt-4 font-display text-[21px] text-ink">Urgent causes</h2>
                 <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-                  Help us respond when verified communities face an immediate need.
+                  Help us respond when verified communities and vulnerable families face an
+                  immediate need.
                 </p>
               </div>
               <div className="rounded-card border border-line-soft bg-panel p-5">

@@ -7,11 +7,11 @@ import { Reveal } from "@/components/motion/Reveal";
 const questions = [
   {
     q: "What is AzarFaith?",
-    a: "AzarFaith is a giving platform for faith-based work in Nigeria. Churches, missionaries, orphanages and faith schools raise support here, and givers can see exactly where every naira goes.",
+    a: "AzarFaith is a giving platform for faith-rooted work and practical care in Nigeria. Churches, ministries, orphanages, faith schools and verified causes serving vulnerable people raise support here, and givers can see exactly where every naira goes.",
   },
   {
     q: "Which organizations and causes does AzarFaith cover?",
-    a: "Local churches and church plants, mission and outreach teams, orphanages and children's homes, faith-based schools, and relief or medical missions run by Christian ministries across Nigeria.",
+    a: "Local churches and church plants, mission and outreach teams, orphanages and children's homes, faith-based schools, and verified relief or medical causes serving vulnerable families, oppressed people and communities in urgent need across Nigeria.",
   },
   {
     q: "Why choose AzarFaith over another giving platform?",

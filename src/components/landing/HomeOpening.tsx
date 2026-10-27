@@ -26,8 +26,9 @@ function HeroCopy() {
         </span>
       </h1>
       <p className="max-w-[640px] text-pretty font-gsf text-[clamp(16px,1.3vw,19px)] leading-[1.5] text-ink-soft">
-        Give to verified churches, missions and orphanages across Nigeria, and get the receipt, the
-        update and the photos for every gift.
+        Give to verified churches, ministries and community causes supporting vulnerable families,
+        people facing hardship and faith communities across Nigeria. Get the receipt, update and
+        photos for every gift.
       </p>
       <div className="flex flex-wrap justify-center gap-3 pt-1">
         <Link
