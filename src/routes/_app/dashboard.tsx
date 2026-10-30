@@ -511,6 +511,7 @@ function OrgDesk({ org }: { org: Org }) {
             {org.verificationStatus === "pending" ? "In review" : "Not verified"}
           </Tag>
         )}
+        <Link to="/register-org" search={{ edit: org.id }} className={btn("secondary", "sm")}>Edit profile</Link>
       </div>
 
       {!verified ? <ReviewProgress /> : null}
@@ -518,7 +519,7 @@ function OrgDesk({ org }: { org: Org }) {
       <dl className="grid grid-cols-2 overflow-hidden rounded-card border border-line-soft lg:grid-cols-4">
         {[
           {
-            label: "Given this month",
+            label: "Received this month",
             value: formatCompactMoney(Math.round(org.totalReceived * 0.09)),
           },
           { label: "Givers", value: org.supporters.toLocaleString() },

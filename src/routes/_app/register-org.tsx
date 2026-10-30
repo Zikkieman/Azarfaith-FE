@@ -24,8 +24,9 @@ import { cn } from "@/lib/utils";
 import { isNigerianPhone, NigerianPhoneField } from "@/components/app/NigerianPhoneField";
 
 export const Route = createFileRoute("/_app/register-org")({
-  validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { draft?: string; edit?: string } => ({
     draft: typeof search.draft === "string" && search.draft ? search.draft : undefined,
+    edit: typeof search.edit === "string" && search.edit ? search.edit : undefined,
   }),
   head: () => ({ meta: [{ title: "Register your org — AzarFaith" }] }),
   component: ProtectedRegisterOrg,
@@ -78,26 +79,27 @@ function RegisterOrg() {
   const search = Route.useSearch();
   const queryClient = useQueryClient();
   const { orgDraft, setOrgDraft, resetOrgDraft } = useApp();
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
-  const [savingContactPhone, setSavingContactPhone] = useState(false);
+  const editingOrganizationId = search.edit;
+  const sourceId = search.draft ?? editingOrganizationId;
   useEffect(() => {
     if (user?.phone) setContactPhone((current) => current || user.phone || "");
   }, [user?.phone]);
   const hydratedDraftId = useRef<string | null>(null);
   const draftQuery = useQuery({
-    queryKey: ["organization-draft", search.draft],
-    queryFn: () => apiFetch<OrganizationDraftDetail>(`/organizations/drafts/${search.draft}`),
-    enabled: Boolean(search.draft),
+    queryKey: [editingOrganizationId ? "organization-edit" : "organization-draft", sourceId],
+    queryFn: () => apiFetch<OrganizationDraftDetail>(editingOrganizationId ? `/organizations/${editingOrganizationId}` : `/organizations/drafts/${sourceId}`),
+    enabled: Boolean(sourceId),
   });
   useEffect(() => {
-    if (search.draft) return;
+    if (sourceId) return;
     resetOrgDraft();
     setDraftId(null);
     hydratedDraftId.current = null;
-  }, [search.draft, resetOrgDraft]);
+  }, [sourceId, resetOrgDraft]);
   useEffect(() => {
-    if (!search.draft || !draftQuery.data || hydratedDraftId.current === search.draft) return;
+    if (!sourceId || !draftQuery.data || hydratedDraftId.current === sourceId) return;
     const saved = draftQuery.data;
     resetOrgDraft();
     setOrgDraft({
@@ -116,7 +118,7 @@ function RegisterOrg() {
     setContactPhone(saved.contactPhone || user?.phone || "");
     setDraftId(saved.id);
     hydratedDraftId.current = saved.id;
-  }, [search.draft, draftQuery.data, resetOrgDraft, setOrgDraft, user?.phone]);
+  }, [sourceId, draftQuery.data, resetOrgDraft, setOrgDraft, user?.phone]);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -132,7 +134,6 @@ function RegisterOrg() {
   const isOtherDenomination = otherDenominationSelected || Boolean(denomination && !isKnownDenomination);
   const denominationSelection = isOtherDenomination ? otherDenominationValue : denomination;
   const normalizedPhone = contactPhone.replace(/\s+/g, "").trim();
-  const savedPhone = user?.phone?.replace(/\s+/g, "").trim() ?? "";
 
   const validate = (stepsToValidate: number[] = [step]) => {
     const e: Record<string, string> = {};
@@ -160,24 +161,8 @@ function RegisterOrg() {
     return e;
   };
 
-  const next = async () => {
-    if (Object.keys(validate()).length || savingContactPhone) return;
-    if (step === 0 && normalizedPhone !== savedPhone) {
-      setSavingContactPhone(true);
-      try {
-        const profile = await apiFetch<{ phone: string | null }>("/me/profile", {
-          method: "PATCH",
-          body: JSON.stringify({ phone: normalizedPhone }),
-        });
-        if (user) setUser({ ...user, phone: profile.phone });
-        void queryClient.invalidateQueries({ queryKey: ["profile"] });
-      } catch (error) {
-        setErrors((current) => ({ ...current, phone: error instanceof Error ? error.message : "Could not save your phone number." }));
-        return;
-      } finally {
-        setSavingContactPhone(false);
-      }
-    }
+  const next = () => {
+    if (Object.keys(validate()).length) return;
     setStep((s) => s + 1);
   };
 
@@ -188,8 +173,8 @@ function RegisterOrg() {
     denomination: orgDraft.denomination?.trim(), location: orgDraft.location?.trim(),
     foundedYear: orgDraft.founded ? Number(orgDraft.founded) : undefined, bio: orgDraft.bio?.trim(),
     ...(orgDraft.photos?.length ? { photoUrls: orgDraft.photos } : {}),
-    ...(orgDraft.videos?.length ? { externalLinks: orgDraft.videos } : {}),
-    ...(orgDraft.registrationDocuments?.length ? { registrationDocumentUrls: orgDraft.registrationDocuments } : {}),
+    externalLinks: orgDraft.videos ?? [],
+    registrationDocumentUrls: orgDraft.registrationDocuments ?? [],
   });
 
   const uploadFiles = async (files: FileList | null, folder: "organization-photo" | "organization-document") => {
@@ -236,6 +221,18 @@ function RegisterOrg() {
   };
 
   const saveDraft = async (): Promise<boolean> => {
+    if (editingOrganizationId) {
+      try {
+        await apiFetch(`/organizations/${editingOrganizationId}`, { method: "PATCH", body: JSON.stringify(payload()) });
+        toast.success("Organization changes saved.");
+        void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] });
+        void nav({ to: "/dashboard" });
+        return true;
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save organization changes.");
+        return false;
+      }
+    }
     const value = payload();
     if (!Object.entries(value).some(([key, item]) => key !== "contactPhone" && (Array.isArray(item) ? item.length > 0 : Boolean(item)))) return true;
     try {
@@ -267,6 +264,13 @@ function RegisterOrg() {
     }
     setSubmitting(true);
     try {
+      if (editingOrganizationId) {
+        await apiFetch(`/organizations/${editingOrganizationId}`, { method: "PATCH", body: JSON.stringify(payload()) });
+        toast.success("Organization changes saved.");
+        void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] });
+        nav({ to: "/dashboard" });
+        return;
+      }
       if (draftId) {
         await apiFetch(`/organizations/${draftId}/draft`, {
           method: "PATCH", body: JSON.stringify(payload()),
@@ -285,6 +289,21 @@ function RegisterOrg() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const addLink = (value: string) => {
+    const link = value.trim();
+    if (!link) return;
+    const current = useApp.getState().orgDraft.videos ?? [];
+    if (current.length >= 10) {
+      toast.error("You can add up to 10 links.");
+      return;
+    }
+    if (current.includes(link)) {
+      toast.error("That link is already added.");
+      return;
+    }
+    setOrgDraft({ videos: [...current, link] });
   };
 
   const field = (key: keyof typeof errors) =>
@@ -324,8 +343,8 @@ function RegisterOrg() {
   );
 
   if (draftQuery.error) throw draftQuery.error;
-  if (search.draft && (draftQuery.isLoading || hydratedDraftId.current !== search.draft)) {
-    return <div className="grid min-h-screen place-items-center bg-panel text-sm text-muted-ink" aria-busy="true">Loading organization draft…</div>;
+  if (sourceId && (draftQuery.isLoading || hydratedDraftId.current !== sourceId)) {
+    return <LoadingOrganizationEditor label={editingOrganizationId ? "Loading organization details…" : "Loading organization draft…"} />;
   }
 
   return (
@@ -346,12 +365,12 @@ function RegisterOrg() {
             <span />
           )}
           {step < steps.length - 1 ? (
-            <button type="button" onClick={() => { void next(); }} disabled={savingContactPhone} className={btnPrimary}>
-              {savingContactPhone ? "Saving phone…" : "Continue"}
+            <button type="button" onClick={next} className={btnPrimary}>
+              Continue
             </button>
           ) : (
             <button type="button" onClick={submit} disabled={submitting} className={btnPrimary}>
-              {submitting ? "Publishing…" : "Publish profile"}
+              {submitting ? "Saving…" : editingOrganizationId ? "Save changes" : "Publish profile"}
             </button>
           )}
         </>
@@ -560,24 +579,32 @@ function RegisterOrg() {
                   }
                 }}
                 onBlur={(e) => {
-                  if (e.target.value.trim()) {
-                    setOrgDraft({
-                      videos: [...(orgDraft.videos ?? []), e.target.value.trim()],
-                    });
-                    e.target.value = "";
-                  }
+                  addLink(e.target.value);
+                  e.target.value = "";
                 }}
               />
-              <span className="text-[13px] text-muted-ink">Press Enter to add each complete https:// or www. link.</span>
+              <span className="text-[13px] text-muted-ink">Press Enter to add each complete https:// or www. link (up to 10).</span>
             </label>
             {(orgDraft.videos ?? []).length > 0 ? (
               <ul className="flex flex-col gap-2">
                 {(orgDraft.videos ?? []).map((v, i) => (
                   <li
                     key={i}
-                    className="truncate rounded-field bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
+                    className="flex items-center gap-2 rounded-field bg-panel px-3.5 py-2.5 text-sm text-ink-soft"
                   >
-                    {v}
+                    <span className="min-w-0 flex-1 truncate">{v}</span>
+                    <button
+                      type="button"
+                      aria-label="Remove link"
+                      onClick={() =>
+                        setOrgDraft({
+                          videos: orgDraft.videos?.filter((item) => item !== v),
+                        })
+                      }
+                      className="shrink-0 text-danger"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -588,18 +615,38 @@ function RegisterOrg() {
         {step === 3 ? (
           <div className="flex flex-col gap-6">
             <StepTitle
-              title="Review before publishing"
-              sub="Your profile goes live straight away. You can edit everything later."
+              title={editingOrganizationId ? "Review your changes" : "Review before publishing"}
+              sub={
+                editingOrganizationId
+                  ? "Check everything looks right, then save."
+                  : "Your profile goes live straight away. You can edit everything later."
+              }
             />
-            <Notice>
-              Your profile starts with an <strong>unverified</strong> badge. Our team will contact
-              you within 5 business days to verify your organization.
-            </Notice>
+            {editingOrganizationId ? (
+              <Notice>
+                Changing your organization <strong>name</strong>, <strong>category</strong> or{" "}
+                <strong>registration evidence</strong> sends a verified profile back for review.
+              </Notice>
+            ) : (
+              <Notice>
+                Your profile starts with an <strong>unverified</strong> badge. Our team will contact
+                you within 5 business days to verify your organization.
+              </Notice>
+            )}
           </div>
         ) : null}
       </div>
     </OnboardingShell>
   );
+}
+
+function LoadingOrganizationEditor({ label }: { label: string }) {
+  return <div className="grid min-h-screen place-items-center bg-paper" role="status" aria-live="polite" aria-busy="true">
+    <div className="flex flex-col items-center gap-3 text-sm text-muted-ink">
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-orange/25 border-t-orange" aria-hidden="true" />
+      <span>{label}</span>
+    </div>
+  </div>;
 }
 
 function StepTitle({ title, sub }: { title: string; sub: string }) {

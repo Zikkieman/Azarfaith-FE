@@ -35,6 +35,15 @@ type Donation = {
   id: string; campaignId: string; campaignTitle: string; amount: number; status: string;
   frequency: Frequency | null; reference: string; paidAt: string | null; createdAt: string;
 };
+type DonationReceipt = {
+  donorName: string;
+  amount: number;
+  campaignName: string;
+  organization: string | null;
+  date: string;
+  transactionReference: string;
+  feeBreakdown: { platformFee: number; tipAmount: number; totalCharged: number };
+};
 
 const frequencyLabel: Record<Frequency, string> = { once: "One time", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly" };
 const everyLabel: Record<Exclude<Frequency, "once">, string> = { weekly: "every week", monthly: "every month", quarterly: "every quarter" };
@@ -138,15 +147,35 @@ function Stopped({ gifts }: { gifts: RecurringGift[] }) {
 }
 
 function History({ donations }: { donations: Donation[] }) {
-  const download = async (donation: Donation) => {
-    try {
-      const detail = await apiFetch<{ receipt: { donorName: string; amount: number; campaignName: string; organization: string | null; date: string; transactionReference: string } }>(`/me/donations/${donation.id}`);
-      const receipt = detail.receipt;
-      const text = ["AzarFaith giving receipt", "", `Gift to: ${receipt.campaignName}`, `Organization: ${receipt.organization ?? "Independent campaign"}`, `Amount: ${formatMoney(receipt.amount)}`, `Date: ${shortDate(receipt.date)}`, `Reference: ${receipt.transactionReference}`, "", "Thank you for giving in faith."].join("\n");
-      const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-      const link = document.createElement("a"); link.href = url; link.download = `azarfaith-receipt-${donation.reference}.txt`; link.click(); URL.revokeObjectURL(url);
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not download this receipt."); }
-  };
+  const [selectedDonation, setSelectedDonation] = useState<Donation | null>(null);
   const paid = donations.filter((donation) => donation.status === "succeeded");
-  return <div className="flex flex-col gap-4"><div className="flex items-center justify-between gap-4"><p className="text-sm text-ink-soft">Receipts are accepted for church and charity giving records.</p><span className="text-[13px] text-muted-ink">{paid.length} completed gifts</span></div>{paid.length === 0 ? <EmptyState icon={<CalendarClock className="h-5 w-5" strokeWidth={1.5} />} title="No completed gifts yet" body="When a payment is confirmed, its receipt will appear here." /> : <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-line-soft text-[13px] text-muted-ink"><th className="pb-2.5 font-medium">Date</th><th className="pb-2.5 font-medium">Gift to</th><th className="pb-2.5 font-medium">Type</th><th className="pb-2.5 text-right font-medium">Amount</th><th className="w-24 pb-2.5" aria-label="Receipt" /></tr></thead><tbody>{paid.map((donation, index) => <tr key={donation.id} className="admin-row border-b border-line-soft" style={{ animationDelay: `${index * 25}ms` }}><td className="whitespace-nowrap py-3.5 text-ink-soft">{shortDate(donation.paidAt ?? donation.createdAt)}</td><td className="max-w-[320px] py-3.5"><Link to="/campaign/$id" params={{ id: donation.campaignId }} className="line-clamp-1 font-medium text-ink hover:underline">{donation.campaignTitle}</Link></td><td className="py-3.5 text-ink-soft"><span className="inline-flex items-center gap-1.5">{donation.frequency && donation.frequency !== "once" ? <Repeat2 className="h-3.5 w-3.5 text-muted-ink" strokeWidth={1.75} /> : <CalendarClock className="h-3.5 w-3.5 text-muted-ink" strokeWidth={1.75} />}{frequencyLabel[donation.frequency ?? "once"]}</span></td><td className="py-3.5 text-right tabular-nums text-ink">{formatMoney(donation.amount)}</td><td className="py-3.5 text-right"><button type="button" onClick={() => void download(donation)} className="inline-flex items-center gap-1 text-[13px] text-ink-soft hover:text-ink"><Download className="h-3.5 w-3.5" strokeWidth={1.75} /> Receipt</button></td></tr>)}</tbody></table></div>}</div>;
+  return <div className="flex flex-col gap-4"><div className="flex items-center justify-between gap-4"><p className="text-sm text-ink-soft">View or download a receipt for every completed gift.</p><span className="text-[13px] text-muted-ink">{paid.length} completed gifts</span></div>{paid.length === 0 ? <EmptyState icon={<CalendarClock className="h-5 w-5" strokeWidth={1.5} />} title="No completed gifts yet" body="When a payment is confirmed, its receipt will appear here." /> : <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead><tr className="border-b border-line-soft text-[13px] text-muted-ink"><th className="pb-2.5 font-medium">Date</th><th className="pb-2.5 font-medium">Gift to</th><th className="pb-2.5 font-medium">Type</th><th className="pb-2.5 text-right font-medium">Amount</th><th className="w-28 pb-2.5" aria-label="Receipt" /></tr></thead><tbody>{paid.map((donation, index) => <tr key={donation.id} className="admin-row border-b border-line-soft" style={{ animationDelay: `${index * 25}ms` }}><td className="whitespace-nowrap py-3.5 text-ink-soft">{shortDate(donation.paidAt ?? donation.createdAt)}</td><td className="max-w-[320px] py-3.5"><Link to="/campaign/$id" params={{ id: donation.campaignId }} className="line-clamp-1 font-medium text-ink hover:underline">{donation.campaignTitle}</Link></td><td className="py-3.5 text-ink-soft"><span className="inline-flex items-center gap-1.5">{donation.frequency && donation.frequency !== "once" ? <Repeat2 className="h-3.5 w-3.5 text-muted-ink" strokeWidth={1.75} /> : <CalendarClock className="h-3.5 w-3.5 text-muted-ink" strokeWidth={1.75} />}{frequencyLabel[donation.frequency ?? "once"]}</span></td><td className="py-3.5 text-right tabular-nums text-ink">{formatMoney(donation.amount)}</td><td className="py-3.5 text-right"><button type="button" onClick={() => setSelectedDonation(donation)} className="inline-flex items-center gap-1 text-[13px] text-ink-soft hover:text-ink"><Download className="h-3.5 w-3.5" strokeWidth={1.75} /> Receipt</button></td></tr>)}</tbody></table></div>}<DonationReceiptDialog donation={selectedDonation} onOpenChange={(open) => { if (!open) setSelectedDonation(null); }} /></div>;
+}
+
+function DonationReceiptDialog({ donation, onOpenChange }: { donation: Donation | null; onOpenChange: (open: boolean) => void }) {
+  const receiptQuery = useQuery({
+    queryKey: ["donation-receipt", donation?.id],
+    queryFn: () => apiFetch<{ receipt: DonationReceipt }>(`/me/donations/${donation?.id}`),
+    enabled: Boolean(donation),
+  });
+  const receipt = receiptQuery.data?.receipt;
+  const download = () => {
+    if (!receipt) return;
+    const popup = window.open("", "_blank", "noopener,noreferrer");
+    if (!popup) { toast.error("Allow pop-ups to download your receipt."); return; }
+    const safe = (value: string) => value.replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" })[character] ?? character);
+    const rows = [
+      ["Gift to", receipt.campaignName],
+      ["Organization", receipt.organization ?? "Independent campaign"],
+      ["Donation", formatMoney(receipt.amount)],
+      ...(receipt.feeBreakdown.platformFee > 0 ? [["Platform fee", formatMoney(receipt.feeBreakdown.platformFee)]] : []),
+      ...(receipt.feeBreakdown.tipAmount > 0 ? [["Donation to AzarFaith", formatMoney(receipt.feeBreakdown.tipAmount)]] : []),
+      ["Total charged", formatMoney(receipt.feeBreakdown.totalCharged)],
+      ["Date", shortDate(receipt.date)],
+      ["Reference", receipt.transactionReference],
+    ];
+    popup.document.write(`<!doctype html><html><head><title>AzarFaith receipt</title><style>body{font-family:Arial,sans-serif;color:#17123b;padding:42px;max-width:680px;margin:auto}.brand{font-size:27px;font-weight:700}.mark{color:#ff5a00}.eyebrow{color:#b54512;font-weight:700;letter-spacing:.12em;font-size:12px;margin-top:44px}.card{border:1px solid #e5e7eb;border-radius:16px;padding:28px;margin-top:18px}.row{display:flex;justify-content:space-between;gap:20px;padding:14px 0;border-bottom:1px solid #edf0f3}.row:last-child{border-bottom:0;font-weight:700;font-size:18px}.label{color:#667085}.footer{color:#667085;font-size:13px;margin-top:30px;line-height:1.6}@media print{body{padding:20px}}</style></head><body><div class="brand"><span class="mark">✳</span> azarfaith</div><div class="eyebrow">DONATION RECEIPT</div><h1>Thank you for giving</h1><p>This receipt confirms a successful donation from ${safe(receipt.donorName)}.</p><div class="card">${rows.map(([label, value]) => `<div class="row"><span class="label">${safe(label)}</span><span>${safe(value)}</span></div>`).join("")}</div><p class="footer">This receipt was generated after Paystack confirmed the payment. Thank you for supporting faith communities and vulnerable people through AzarFaith.</p><script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.close();
+  };
+  return <Dialog open={Boolean(donation)} onOpenChange={onOpenChange}><DialogContent className="sm:max-w-[520px]"><DialogHeader><DialogTitle>Donation receipt</DialogTitle><DialogDescription>Your confirmed giving record.</DialogDescription></DialogHeader>{receiptQuery.isLoading ? <p className="py-8 text-center text-sm text-muted-ink">Loading receipt…</p> : receiptQuery.error || !receipt ? <p className="py-8 text-center text-sm text-danger">Could not load this receipt. Please try again.</p> : <div className="rounded-card border border-line-soft"><div className="border-b border-line-soft bg-panel/50 px-5 py-4"><p className="font-display text-lg text-ink">{receipt.campaignName}</p><p className="mt-1 text-sm text-muted-ink">{receipt.organization ?? "Independent campaign"}</p></div><dl className="divide-y divide-line-soft px-5">{[["Donation", formatMoney(receipt.amount)], ["Date", shortDate(receipt.date)], ["Reference", receipt.transactionReference], ["Total charged", formatMoney(receipt.feeBreakdown.totalCharged)]].map(([label, value]) => <div key={label} className="flex justify-between gap-4 py-3 text-sm"><dt className="text-muted-ink">{label}</dt><dd className="break-all text-right font-medium text-ink">{value}</dd></div>)}</dl></div>}<DialogFooter><button type="button" className={btn("secondary")} onClick={() => onOpenChange(false)}>Close</button><button type="button" className={btn("primary")} disabled={!receipt} onClick={download}><Download className="h-4 w-4" /> Download PDF</button></DialogFooter></DialogContent></Dialog>;
 }

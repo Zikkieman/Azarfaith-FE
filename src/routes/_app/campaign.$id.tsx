@@ -47,6 +47,12 @@ function share(campaign: Campaign) {
   toast("Campaign link copied");
 }
 
+function copyCampaignLink(campaign: Campaign) {
+  const url = new URL(`/campaign/${campaign.id}`, window.location.origin).toString();
+  navigator.clipboard?.writeText(url);
+  toast("Campaign link copied");
+}
+
 function CampaignDetail() {
   const { id } = Route.useParams();
   const { user } = useAuth();
@@ -62,7 +68,7 @@ function CampaignDetail() {
 
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;
   const updates = allUpdates ? campaign.updates : campaign.updates.slice(0, 2);
-  const isCreator = Boolean(user?.id && campaign.ownerId === user.id);
+  const isCreator = campaign.viewerCanManage ?? Boolean(user?.id && campaign.ownerId === user.id);
 
   return (
     <AppShell bottomBar={<MobileGiveBar campaign={campaign} canShare={isCreator} />}>
@@ -99,11 +105,7 @@ function CampaignDetail() {
                   ) : null}
                 </p>
                 <h1 className={pageTitleClass}>{campaign.title}</h1>
-                {isCreator ? (
-                  <button type="button" onClick={() => setUpdateOpen(true)} className={cn(btn("secondary", "sm"), "self-start")}>
-                    <Megaphone className="h-4 w-4" strokeWidth={1.75} /> Share an impact update
-                  </button>
-                ) : null}
+                {isCreator ? <div className="flex flex-wrap gap-2"><Link to="/create" search={{ edit: campaign.id }} className={btn("secondary", "sm")}>Edit campaign</Link><button type="button" onClick={() => setUpdateOpen(true)} className={btn("secondary", "sm")}><Megaphone className="h-4 w-4" strokeWidth={1.75} /> Share an impact update</button></div> : null}
                 <p className="flex flex-wrap items-center gap-3 text-sm text-muted-ink">
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="h-4 w-4" strokeWidth={1.5} /> {campaign.location}
@@ -178,13 +180,6 @@ function CampaignDetail() {
                     <p className="text-sm text-muted-ink">{campaign.raiser.location}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toast("Messaging is coming soon")}
-                  className={btn("secondary", "sm")}
-                >
-                  Message
-                </button>
               </div>
             </section>
 
@@ -271,18 +266,24 @@ function GivePanel({ campaign, canShare }: { campaign: Campaign; canShare: boole
           </p>
           {pct !== null ? <Segments pct={pct} /> : null}
         </div>
-        <div className="border-t border-line-soft pt-5">
-          <GiveBox campaign={campaign} />
-        </div>
         {canShare ? (
-          <button
-            type="button"
-            onClick={() => share(campaign)}
-            className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink"
-          >
-            <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share this campaign
-          </button>
-        ) : null}
+          <div className="flex flex-col gap-3 border-t border-line-soft pt-5">
+            <div>
+              <p className="text-sm font-semibold text-ink">You manage this campaign</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-ink">Share its link with others to invite their support.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => share(campaign)} className={btn("primary", "sm")}>
+                <Link2 className="h-4 w-4" strokeWidth={1.75} /> Share campaign
+              </button>
+              <button type="button" onClick={() => copyCampaignLink(campaign)} className={btn("secondary", "sm")}>
+                Copy link
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-line-soft pt-5"><GiveBox campaign={campaign} /></div>
+        )}
       </div>
       <RecentGivers campaign={campaign} />
     </div>
@@ -338,6 +339,9 @@ function RecentGivers({ campaign }: { campaign: Campaign }) {
 
 function MobileGiveBar({ campaign, canShare }: { campaign: Campaign; canShare: boolean }) {
   const pct = percent(campaign);
+  if (canShare) {
+    return <div className="flex items-center gap-2"><button type="button" onClick={() => share(campaign)} className={cn(btn("primary", "sm"), "flex-1")}><Link2 className="h-4 w-4" strokeWidth={1.75} /> Share campaign</button><button type="button" onClick={() => copyCampaignLink(campaign)} className={btn("secondary", "sm")}>Copy link</button></div>;
+  }
   return (
     <div className="flex items-center gap-3">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -347,16 +351,6 @@ function MobileGiveBar({ campaign, canShare }: { campaign: Campaign; canShare: b
         </p>
         {pct !== null ? <Segments pct={pct} count={14} /> : null}
       </div>
-      {canShare ? (
-        <button
-          type="button"
-          onClick={() => share(campaign)}
-          aria-label="Share campaign"
-          className="press grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line-input text-ink"
-        >
-          <Link2 className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      ) : null}
       <button
         type="button"
         onClick={() => document.getElementById("give")?.scrollIntoView({ behavior: "smooth" })}

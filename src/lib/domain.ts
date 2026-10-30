@@ -50,6 +50,7 @@ export type Campaign = {
   cover: string; gallery: string[]; goal?: number; raised: number; donors: number; currency: "NGN";
   location: string; urgency: "low" | "medium" | "high" | "critical"; createdAt: string;
   verificationStatus: "unverified" | "pending" | "verified" | "rejected";
+  viewerCanManage?: boolean;
   updates: Update[]; comments: Comment[]; donations: Donation[]; needs?: string[];
   frequencies?: Array<"weekly" | "monthly" | "quarterly">;
 };

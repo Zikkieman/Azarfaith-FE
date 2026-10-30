@@ -38,8 +38,9 @@ import { PayoutAccountForm } from "@/components/app/PayoutAccountForm";
 import { isNigerianPhone, NigerianPhoneField } from "@/components/app/NigerianPhoneField";
 
 export const Route = createFileRoute("/_app/create")({
-  validateSearch: (search: Record<string, unknown>): { draft?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { draft?: string; edit?: string } => ({
     draft: typeof search.draft === "string" && search.draft ? search.draft : undefined,
+    edit: typeof search.edit === "string" && search.edit ? search.edit : undefined,
   }),
   head: () => ({ meta: [{ title: "New campaign — AzarFaith" }] }),
   component: ProtectedCreateCampaign,
@@ -250,11 +251,13 @@ function CreateCampaign() {
   const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
   const [phoneError, setPhoneError] = useState("");
   const [payoutReady, setPayoutReady] = useState(false);
+  const editingCampaignId = search.edit;
+  const sourceId = search.draft ?? editingCampaignId;
   const hydratedDraftId = useRef<string | null>(null);
   const draftQuery = useQuery({
-    queryKey: ["campaign-draft", search.draft],
-    queryFn: () => apiFetch<CampaignDraftDetail>(`/campaigns/drafts/${search.draft}`),
-    enabled: Boolean(search.draft),
+    queryKey: [editingCampaignId ? "campaign-edit" : "campaign-draft", sourceId],
+    queryFn: () => apiFetch<CampaignDraftDetail>(editingCampaignId ? `/campaigns/${editingCampaignId}` : `/campaigns/drafts/${sourceId}`),
+    enabled: Boolean(sourceId),
   });
   const [uploading, setUploading] = useState(false);
   const coverInput = useRef<HTMLInputElement>(null);
@@ -275,14 +278,14 @@ function CreateCampaign() {
   }, [user?.phone]);
 
   useEffect(() => {
-    if (search.draft) return;
+    if (sourceId) return;
     resetDraft();
     setDraftId(null);
     hydratedDraftId.current = null;
-  }, [search.draft, resetDraft]);
+  }, [sourceId, resetDraft]);
 
   useEffect(() => {
-    if (!search.draft || !draftQuery.data || hydratedDraftId.current === search.draft) return;
+    if (!sourceId || !draftQuery.data || hydratedDraftId.current === sourceId) return;
     const saved = draftQuery.data;
     resetDraft();
     setDraft({
@@ -304,7 +307,7 @@ function CreateCampaign() {
     setContactPhone(saved.contactPhone || user?.phone || "");
     setDraftId(saved.id);
     hydratedDraftId.current = saved.id;
-  }, [search.draft, draftQuery.data, resetDraft, setDraft, user?.phone]);
+  }, [sourceId, draftQuery.data, resetDraft, setDraft, user?.phone]);
 
   // "Saving… Saved" as they type, like any document editor.
   useEffect(() => {
@@ -341,7 +344,29 @@ function CreateCampaign() {
     frequencies: draft.frequencies?.map((frequency) => frequency.toUpperCase()),
   });
 
+  // Mode and type are fixed once a campaign has been created. The update API
+  // deliberately rejects them, as well as null values for optional fields.
+  const updatePayload = () => {
+    const { mode: _mode, type: _type, ...value } = payload();
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        ([key, item]) => key === "organizationId" || (item !== null && item !== undefined),
+      ),
+    );
+  };
+
   const saveDraft = async () => {
+    if (editingCampaignId) {
+      try {
+        await apiFetch(`/campaigns/${editingCampaignId}`, { method: "PATCH", body: JSON.stringify(updatePayload()) });
+        toast.success("Campaign changes saved.");
+        void queryClient.invalidateQueries({ queryKey: ["campaign", editingCampaignId] });
+        void nav({ to: "/campaign/$id", params: { id: editingCampaignId } });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save campaign changes.");
+      }
+      return;
+    }
     const value = payload();
     if (!Object.values(value).some((item) => Array.isArray(item) ? item.length > 0 : Boolean(item))) return;
     setSaved("saving");
@@ -416,13 +441,20 @@ function CreateCampaign() {
       toast.error("Enter your contact phone number before submitting.");
       return;
     }
-    if (!payoutReady) {
+    if (!editingCampaignId && !payoutReady) {
       jump("payout");
       toast.error("Add and verify the payout account for this campaign before submitting.");
       return;
     }
     setSubmitting(true);
     try {
+      if (editingCampaignId) {
+        await apiFetch(`/campaigns/${editingCampaignId}`, { method: "PATCH", body: JSON.stringify(updatePayload()) });
+        toast.success("Campaign changes saved.");
+        void queryClient.invalidateQueries({ queryKey: ["campaign", editingCampaignId] });
+        void nav({ to: "/campaign/$id", params: { id: editingCampaignId } });
+        return;
+      }
       if (draftId) {
         await apiFetch(`/campaigns/${draftId}/draft`, { method: "PATCH", body: JSON.stringify(payload()) });
       }
@@ -438,7 +470,7 @@ function CreateCampaign() {
     }
   };
 
-  if (search.draft && hydratedDraftId.current !== search.draft) {
+  if (sourceId && hydratedDraftId.current !== sourceId) {
     if (draftQuery.error) {
       return (
         <div className="mx-auto max-w-xl px-6 py-16 text-center">
@@ -448,7 +480,7 @@ function CreateCampaign() {
         </div>
       );
     }
-    return <p className="p-8 text-sm text-muted-ink">Loading campaign draft…</p>;
+    return <LoadingEditor label={editingCampaignId ? "Loading campaign details…" : "Loading campaign draft…"} />;
   }
 
   if (done)
@@ -478,9 +510,9 @@ function CreateCampaign() {
           </span>
           <span className="hidden h-5 w-px bg-line-soft sm:block" />
           <p className="hidden min-w-0 truncate text-sm font-medium text-ink sm:block">
-            {draft.title?.trim() || "New campaign"}
+            {draft.title?.trim() || (editingCampaignId ? "Edit campaign" : "New campaign")}
           </p>
-          <Tag>Draft</Tag>
+          <Tag>{editingCampaignId ? "Editing" : "Draft"}</Tag>
           <span className="hidden text-[13px] text-muted-ink md:inline">
             {saved === "saving" ? "Saving…" : "Saved"}
           </span>
@@ -507,7 +539,7 @@ function CreateCampaign() {
               "Submitting…"
             ) : (
               <>
-                Submit<span className="hidden sm:inline"> for review</span>
+                {editingCampaignId ? "Save changes" : <><span>Submit</span><span className="hidden sm:inline"> for review</span></>}
               </>
             )}
           </button>
@@ -572,7 +604,7 @@ function CreateCampaign() {
               </ul>
             </details>
 
-            <Section
+            {!editingCampaignId ? <Section
               id="template"
               title="Start from a template"
               note="It fills in the basics and an outline for your story. You can change anything."
@@ -599,7 +631,7 @@ function CreateCampaign() {
                   </button>
                 ))}
               </div>
-            </Section>
+            </Section> : null}
 
             <Section id="basics" title="Basics">
               <div className="flex flex-col gap-1.5">
@@ -937,7 +969,7 @@ function CreateCampaign() {
               ) : null}
             </Section>
 
-            <Section
+            {!editingCampaignId ? <Section
               id="payout"
               title="Payout account"
               note={draft.orgId
@@ -949,7 +981,7 @@ function CreateCampaign() {
                 organizationName={org?.name}
                 onReadyChange={setPayoutReady}
               />
-            </Section>
+            </Section> : null}
 
             <div className="flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:justify-end">
               <button
@@ -957,7 +989,7 @@ function CreateCampaign() {
                 onClick={() => { void saveDraft(); }}
                 className={btn("secondary")}
               >
-                Save draft
+                {editingCampaignId ? "Save changes" : "Save draft"}
               </button>
               <button
                 type="button"
@@ -965,7 +997,7 @@ function CreateCampaign() {
                 disabled={submitting}
                 className={btn("primary")}
               >
-                {submitting ? "Submitting…" : "Submit for review"}
+                {submitting ? "Saving…" : editingCampaignId ? "Save changes" : "Submit for review"}
               </button>
             </div>
           </div>
@@ -986,6 +1018,15 @@ function CreateCampaign() {
       </Sheet>
     </div>
   );
+}
+
+function LoadingEditor({ label }: { label: string }) {
+  return <div className="grid min-h-screen place-items-center bg-paper" role="status" aria-live="polite" aria-busy="true">
+    <div className="flex flex-col items-center gap-3 text-sm text-muted-ink">
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-orange/25 border-t-orange" aria-hidden="true" />
+      <span>{label}</span>
+    </div>
+  </div>;
 }
 
 function Section({

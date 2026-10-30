@@ -15,6 +15,7 @@ type ApiCampaign = Partial<Campaign> & {
   raiser?: Partial<Campaign["raiser"]>;
   isDraft?: boolean;
   isPublic?: boolean;
+  viewerCanManage?: boolean;
 };
 
 type ApiOrg = Partial<Org> & {
@@ -72,6 +73,7 @@ export function mapCampaign(value: ApiCampaign): Campaign {
   return {
     id: value.id,
     ownerId: value.ownerId,
+    viewerCanManage: value.viewerCanManage,
     mode: value.mode === "ongoing" ? "ongoing" : "one-time",
     type: campaignTypes[value.type?.toLowerCase() ?? ""] ?? "money",
     title: value.title ?? "Untitled campaign",

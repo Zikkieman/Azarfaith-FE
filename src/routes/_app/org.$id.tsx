@@ -5,6 +5,7 @@ import { Photo } from "@/components/app/Photo";
 import { ProfileSkeleton } from "@/components/app/Skeletons";
 import { pending, simulateNetwork } from "@/lib/api";
 import { useOrganization } from "@/lib/catalog";
+import { useAuth } from "@/lib/auth";
 import {
   AppShell,
   Container,
@@ -50,6 +51,7 @@ const tiers = [
 function OrgProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const organizationQuery = useOrganization(id);
 
   if (organizationQuery.isLoading) return <ProfileSkeleton label="Loading organization" />;
@@ -59,6 +61,7 @@ function OrgProfile() {
 
   const campaigns = organizationQuery.data?.campaigns ?? [];
   const main: Campaign | undefined = campaigns.find((c) => c.mode === "ongoing") ?? campaigns[0];
+  const managesMainCampaign = Boolean(main?.viewerCanManage ?? (user?.id && main?.ownerId === user.id));
   const ongoing = campaigns.find((c) => c.mode === "ongoing");
   const givers = campaigns
     .flatMap((c) => c.donations.map((d) => ({ ...d, campaign: c.title })))
@@ -248,7 +251,11 @@ function OrgProfile() {
                     </Link>
                   </p>
                 </div>
-                <GiveBox campaign={main} />
+                {managesMainCampaign ? (
+                  <div className="rounded-field bg-panel px-4 py-3 text-sm text-ink-soft">
+                    You manage this campaign. <Link to="/campaign/$id" params={{ id: main.id }} className="font-medium text-ink underline underline-offset-2">Share its link with supporters</Link> instead.
+                  </div>
+                ) : <GiveBox campaign={main} />}
               </div>
             ) : null}
 

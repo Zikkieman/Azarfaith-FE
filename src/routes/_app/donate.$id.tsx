@@ -72,7 +72,7 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
   const orgs = useApp((s) => s.orgs);
   const { user } = useAuth();
   const org = campaign.orgId ? orgs.find((o) => o.id === campaign.orgId) : undefined;
-  const isCreator = Boolean(user?.id && campaign.ownerId === user.id);
+  const isCreator = campaign.viewerCanManage ?? Boolean(user?.id && campaign.ownerId === user.id);
   const freqs = frequenciesFor(campaign);
 
   const initialFreq = (freqs as string[]).includes(search.freq)
@@ -156,6 +156,22 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
       )}
     </button>
   );
+
+  if (isCreator) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-paper px-6 font-gsf text-heading">
+        <div className="w-full max-w-lg rounded-card border border-line-soft bg-paper p-6 text-center shadow-sm sm:p-8">
+          <p className="font-display text-[28px] leading-tight text-ink">You manage this campaign</p>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
+            Campaign organizers cannot donate to a campaign they manage. Return to the campaign to share its link with supporters.
+          </p>
+          <Link to="/campaign/$id" params={{ id: campaign.id }} className={cn(btn("primary"), "mt-6")}>
+            Back to campaign
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper font-gsf text-heading lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]">
