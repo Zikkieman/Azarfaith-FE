@@ -322,9 +322,13 @@ function CreateCampaign() {
 
   const pick = (key: string) => {
     const t = templates.find((x) => x.key === key)!;
-    const hasStory = (draft.story ?? "").trim().length > 0;
+    const currentStory = (draft.story ?? "").trim();
+    const isUneditedTemplate = templates.some((item) => item.outline && item.outline.trim() === currentStory);
+    const hasStory = currentStory.length > 0 && !isUneditedTemplate;
     setTemplate(key);
-    setDraft({ ...t.set, story: hasStory ? draft.story : t.outline });
+    // Template prompts belong in the placeholder so they guide the organizer
+    // without being mistaken for submitted story copy or counted as words.
+    setDraft({ ...t.set, story: hasStory ? draft.story : "" });
     if (hasStory && t.outline) toast("Template applied. Your story was kept as it is");
   };
 
@@ -762,7 +766,7 @@ function CreateCampaign() {
                 rows={12}
                 value={draft.story ?? ""}
                 onChange={(e) => setDraft({ story: e.target.value })}
-                placeholder="Who you serve, what you need and what it costs, why now, and how you'll report back."
+                placeholder={templates.find((item) => item.key === template)?.outline || "Who you serve, what you need and what it costs, why now, and how you'll report back."}
                 className={cn(
                   inputClass,
                   "resize-y leading-[1.65]",
@@ -771,9 +775,11 @@ function CreateCampaign() {
               />
               <div className="flex items-start justify-between gap-4">
                 <span className="text-[12px] text-muted-ink">
-                  {(draft.story ?? "").includes("[")
-                    ? "Replace the [bracketed] parts with your own words."
-                    : ""}
+                  {!draft.story?.trim() && template
+                    ? "The prompts are guidance only and do not count toward your story."
+                    : (draft.story ?? "").includes("[")
+                      ? "Replace the [bracketed] parts with your own words."
+                      : ""}
                 </span>
                 <span className="shrink-0 text-[12px] text-subtle">{(draft.story ?? "").trim().split(/\s+/).filter(Boolean).length} / 100–200 words</span>
               </div>
