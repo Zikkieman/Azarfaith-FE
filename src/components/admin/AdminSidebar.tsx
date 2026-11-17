@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
   BadgeCheck,
+  BanknoteArrowUp,
   Building2,
   ChevronsUpDown,
   History,
@@ -88,6 +89,7 @@ export function AdminSidebar() {
     {
       label: "Platform",
       items: [
+        { label: "Payout requests", icon: BanknoteArrowUp, to: "/admin/payouts" },
         { label: "AzarFaith donations", icon: HeartHandshake, to: "/admin/platform-donations" },
         { label: "Activity log", icon: History, to: "/admin/activity" },
         { label: "Settings", icon: Settings2, to: "/admin/settings" },

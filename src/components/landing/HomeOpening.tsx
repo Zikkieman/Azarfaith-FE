@@ -32,7 +32,7 @@ function HeroCopy() {
       </p>
       <div className="flex flex-wrap justify-center gap-3 pt-1">
         <Link
-          to="/signup"
+          to="/discover"
           search={{}}
           className="press inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast hover:opacity-90"
         >
@@ -70,7 +70,7 @@ function Finale() {
       </h2>
       <CampaignShowcase />
       <Link
-        to="/signup"
+        to="/discover"
         search={{}}
         className="press inline-flex items-center rounded-full border-2 border-[#130E30] bg-[#130E30] px-6 py-3 font-gsf text-base font-medium text-[#EFF2E5] hover:opacity-90"
       >

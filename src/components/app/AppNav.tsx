@@ -28,10 +28,11 @@ export function AppNav({ active }: { active?: string }) {
   const hideOnScroll = useScrollDirection();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const visibleNavLinks = user ? navLinks : navLinks.slice(0, 1);
 
   const fromPath = navLinks.find((l) => path === l.to || path.startsWith(`${l.to}/`))?.label;
-  const current = active ?? fromPath ?? (path === "/" ? "Discover" : "");
+  const current = active ?? fromPath ?? (!user ? "Discover" : path === "/" ? "Discover" : "");
 
   const signOut = () => {
     void logout().finally(() => {
@@ -53,7 +54,7 @@ export function AppNav({ active }: { active?: string }) {
           </Link>
 
           <nav className="hidden items-center gap-3 lg:flex">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.to}
@@ -68,13 +69,15 @@ export function AppNav({ active }: { active?: string }) {
         </div>
 
         <div className="flex items-center gap-1 lg:gap-4">
-          <Link
-            to="/create"
-            className="press hidden h-9 items-center gap-1.5 rounded-full bg-paper px-4 font-gsf text-sm font-semibold text-ink transition-colors hover:bg-ink-contrast lg:inline-flex"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} /> Start a campaign
-          </Link>
-          <>
+          {user ? (
+            <Link
+              to="/create"
+              className="press hidden h-9 items-center gap-1.5 rounded-full bg-paper px-4 font-gsf text-sm font-semibold text-ink transition-colors hover:bg-ink-contrast lg:inline-flex"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} /> Start a campaign
+            </Link>
+          ) : null}
+          {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="hidden cursor-pointer items-center gap-2.5 px-2.5 py-2.5 text-left outline-none lg:flex">
                 <span className="font-gsf text-base font-bold leading-[35px] text-white">
@@ -119,7 +122,15 @@ export function AppNav({ active }: { active?: string }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
+          ) : !loading ? (
+            <Link
+              to="/login"
+              search={{ redirect: path }}
+              className="hidden rounded-full border border-white/40 px-4 py-2 font-gsf text-sm font-semibold text-white transition-colors hover:border-white lg:inline-flex"
+            >
+              Sign in
+            </Link>
+          ) : null}
 
           <button
             type="button"
@@ -139,7 +150,7 @@ export function AppNav({ active }: { active?: string }) {
 
       {menuOpen ? (
         <nav className="flex flex-col border-t border-white/10 px-6 pb-6 pt-2 md:px-12 lg:hidden">
-          {navLinks.map((link) => (
+          {visibleNavLinks.map((link) => (
             <Link
               key={link.label}
               to={link.to}
@@ -154,7 +165,7 @@ export function AppNav({ active }: { active?: string }) {
               ) : null}
             </Link>
           ))}
-          <>
+          {user ? (
             <>
               <Link
                 to="/create"
@@ -178,7 +189,16 @@ export function AppNav({ active }: { active?: string }) {
                 Log out
               </button>
             </>
-          </>
+          ) : !loading ? (
+            <Link
+              to="/login"
+              search={{ redirect: path }}
+              onClick={() => setMenuOpen(false)}
+              className="py-3.5 font-gsf text-base font-semibold text-white"
+            >
+              Sign in
+            </Link>
+          ) : null}
         </nav>
       ) : null}
     </header>

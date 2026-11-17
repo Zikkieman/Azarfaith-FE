@@ -13,6 +13,7 @@ import {
   HandHeart,
   Landmark,
   Lock,
+  LoaderCircle,
   Megaphone,
   MessageSquareHeart,
   Plus,
@@ -35,6 +36,7 @@ import { RequireUser } from "@/components/auth/RequireUser";
 import { formatCompactMoney, formatMoney, type Campaign, type Org } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { ImpactUpdateDialog } from "@/components/app/ImpactUpdateDialog";
+import { formatAmountInput, parseAmountInput } from "@/lib/giving";
 
 export const Route = createFileRoute("/_app/dashboard")({
   loader: () => simulateNetwork(),
@@ -67,8 +69,36 @@ type OrganizationDraftSummary = {
 type DashboardData = {
   fullName: string;
   selectedOrganization: { id: string; name: string; location: string; cover: string | null; verificationStatus: Org["verificationStatus"] } | null;
-  overview: { totalReceived: number; givers: number };
+  overview: {
+    totalReceived: number;
+    thisMonthReceived: number;
+    giftsReceived: number;
+    givers: number;
+    recurringSupporters: number;
+    liveCampaigns: number;
+    pendingCampaigns: number;
+  };
   campaigns: Array<{ id: string; title: string; cover: string | null; goal: number | null; mode: string; verificationStatus: Campaign["verificationStatus"]; raised: number; givers: number; galleryCount: number; lastUpdateAt: string | null }>;
+  payout: {
+    canRequest: boolean;
+    availableBalance: number;
+    totalPlatformFees: number;
+    totalReleased: number;
+    account: { status: string; bankName: string; accountNumberLast4: string } | null;
+  };
+};
+
+type PayoutRequest = {
+  id: string;
+  ownerType: "USER" | "ORGANIZATION";
+  ownerId: string;
+  ownerName: string;
+  amount: number;
+  note: string | null;
+  status: "OPEN" | "PROCESSING" | "DECLINED";
+  decisionReason: string | null;
+  createdAt: string;
+  transfer: { id: string; status: string } | null;
 };
 
 type OrganizationAdmins = {
@@ -83,7 +113,7 @@ function toOrg(value: NonNullable<DashboardData["selectedOrganization"]>): Org {
   return { id: value.id, name: value.name, tagline: "", category: "other", location: value.location, denomination: "", founded: "", bio: "", photos: value.cover ? [value.cover] : [], videos: [], campaignIds: [], verificationStatus: value.verificationStatus, totalReceived: 0, supporters: 0 };
 }
 
-function toCampaign(value: DashboardData["campaigns"][number], orgId: string): Campaign {
+function toCampaign(value: DashboardData["campaigns"][number], orgId?: string): Campaign {
   return { id: value.id, orgId, mode: value.mode === "ongoing" ? "ongoing" : "one-time", type: "money", title: value.title, story: "", faithCategory: "Community Development", raiser: { name: "", avatar: value.cover ?? "", location: "Nigeria", trustScore: 0 }, cover: value.cover ?? "", gallery: Array.from({ length: value.galleryCount }, () => value.cover ?? ""), goal: value.goal ?? undefined, raised: value.raised, donors: value.givers, currency: "NGN", location: "", urgency: "low", createdAt: "", verificationStatus: value.verificationStatus, updates: value.lastUpdateAt ? [{ id: "latest", date: value.lastUpdateAt, title: "", body: "" }] : [], comments: [], donations: [] };
 }
 
@@ -134,7 +164,12 @@ function Manage() {
     finally { setAcceptingInvitationId(null); }
   };
   useEffect(() => {
-    if (!dashboard.data?.selectedOrganization) return;
+    if (!dashboard.data) return;
+    if (!dashboard.data.selectedOrganization) {
+      useApp.setState({ orgs: [], campaigns: dashboard.data.campaigns.map((campaign) => toCampaign(campaign)) });
+      setMyOrgId(null);
+      return;
+    }
     const org = {
       ...toOrg(dashboard.data.selectedOrganization),
       totalReceived: dashboard.data.overview.totalReceived,
@@ -151,6 +186,7 @@ function Manage() {
   if (dashboard.error) throw dashboard.error;
   const data = dashboard.data;
   if (!data) return <DashboardSkeleton />;
+  const hasPersonalCampaigns = !org && data.campaigns.length > 0;
 
   return (
     <AppShell>
@@ -163,6 +199,8 @@ function Manage() {
             <p className="mt-1 text-[15px] text-ink-soft">
               {org
                 ? `Here's how ${org.name} is doing.`
+                : hasPersonalCampaigns
+                  ? "Here's how your campaigns are doing."
                 : "Get your church or ministry ready to receive gifts on AzarFaith."}
             </p>
           </div>
@@ -175,10 +213,12 @@ function Manage() {
                 <Plus className="h-4 w-4" strokeWidth={2} /> New campaign
               </Link>
             </div>
+          ) : hasPersonalCampaigns ? (
+            <Link to="/create" className={btn("primary")}><Plus className="h-4 w-4" strokeWidth={2} /> New campaign</Link>
           ) : null}
         </div>
 
-        {org ? <OrgDesk org={org} /> : <QuickStart />}
+        {org ? <OrgDesk org={org} payout={data.payout} /> : hasPersonalCampaigns ? <PersonalCampaignDesk data={data} /> : <QuickStart />}
         {adminInvitations.data?.length ? <section className="rounded-card border border-line-soft bg-paper p-5 sm:p-6"><div className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-accent" /><h2 className="font-display text-[22px] text-ink">Admin invitations</h2></div><div className="mt-4 space-y-3">{adminInvitations.data.map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-field bg-panel px-4 py-3"><p className="text-sm text-ink">{invitation.invitedBy.fullName} invited you to manage <strong>{invitation.organization.name}</strong>.</p><button disabled={Boolean(acceptingInvitationId)} className={btn("primary", "sm")} onClick={() => { void acceptInvitation(invitation.id); }}>{acceptingInvitationId === invitation.id ? "Accepting…" : "Accept invitation"}</button></div>)}</div></section> : null}
         <CampaignDrafts query={campaignDrafts} onDelete={(draft) => setDraftToDelete({ kind: "campaign", id: draft.id, title: draft.title })} />
         {drafts.isLoading || drafts.error || drafts.data?.length ? <OrganizationDrafts query={drafts} onDelete={(draft) => setDraftToDelete({ kind: "organization", id: draft.id, title: draft.name })} /> : null}
@@ -480,7 +520,41 @@ const monthsSince = (iso: string) => {
   return (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
 };
 
-function OrgDesk({ org }: { org: Org }) {
+function PersonalCampaignDesk({ data }: { data: DashboardData }) {
+  const queryClient = useQueryClient();
+  const [updatingCampaign, setUpdatingCampaign] = useState<Campaign | null>(null);
+  const campaigns = data.campaigns.map((campaign) => toCampaign(campaign));
+  return (
+    <div className="flex flex-col gap-6">
+      <dl className="grid grid-cols-2 overflow-hidden rounded-card border border-line-soft lg:grid-cols-4">
+        {[
+          { label: "Received this month", value: formatCompactMoney(data.overview.thisMonthReceived) },
+          { label: "Givers", value: data.overview.givers.toLocaleString() },
+          { label: "Regular givers", value: data.overview.recurringSupporters.toLocaleString() },
+          { label: "Live campaigns", value: data.overview.liveCampaigns.toLocaleString() },
+        ].map((item, index) => (
+          <div key={item.label} className={cn("flex flex-col gap-1.5 p-5", index % 2 === 1 && "border-l border-line-soft", index >= 2 && "border-t border-line-soft lg:border-t-0", index === 2 && "lg:border-l")}>
+            <dt className="text-[13px] text-muted-ink">{item.label}</dt>
+            <dd className="font-display text-[24px] leading-none tracking-[-0.02em] text-ink">{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Panel title="Your campaigns" action={<Link to="/create" className="inline-flex items-center gap-1 text-sm font-medium text-ink-soft hover:text-ink"><Plus className="h-3.5 w-3.5" /> New</Link>}>
+          <ul className="divide-y divide-line-soft">
+            {campaigns.map((campaign) => <CampaignRow key={campaign.id} c={campaign} onUpdate={() => setUpdatingCampaign(campaign)} />)}
+          </ul>
+        </Panel>
+        <aside>
+          <PayoutCard organizationVerified payout={data.payout} />
+        </aside>
+      </div>
+      {updatingCampaign ? <ImpactUpdateDialog campaignId={updatingCampaign.id} campaignTitle={updatingCampaign.title} open onOpenChange={(next) => { if (!next) setUpdatingCampaign(null); }} onPublished={() => { void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] }); }} /> : null}
+    </div>
+  );
+}
+
+function OrgDesk({ org, payout }: { org: Org; payout: DashboardData["payout"] }) {
   const queryClient = useQueryClient();
   const [updatingCampaign, setUpdatingCampaign] = useState<Campaign | null>(null);
   const allCampaigns = useApp((s) => s.campaigns);
@@ -490,7 +564,6 @@ function OrgDesk({ org }: { org: Org }) {
     .flatMap((c) => c.donations.map((d) => ({ ...d, campaign: c })))
     .slice(0, 6);
   const regular = Math.round(org.supporters * 0.18);
-  const available = verified ? Math.round(org.totalReceived * 0.031) : 0;
   const stale = campaigns.filter((c) => !c.updates[0] || monthsSince(c.updates[0].date) >= 1);
 
   return (
@@ -616,33 +689,7 @@ function OrgDesk({ org }: { org: Org }) {
         </div>
 
         <aside className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-card border border-line-soft p-5">
-            <p className="text-[13px] font-medium text-subtle">Available to pay out</p>
-            <p className="font-display text-[30px] leading-none tracking-[-0.02em] text-ink">
-              {formatMoney(available)}
-            </p>
-            {verified ? (
-              <>
-                <p className="text-sm text-ink-soft">
-                  Paid automatically every Friday to your account ending 4821.
-                </p>
-                <button
-                  type="button"
-                  disabled={available < 5000}
-                  title={available < 5000 ? "Payouts start at ₦5,000." : undefined}
-                  onClick={() => toast("Payout requested. It lands within 1 working day")}
-                  className={cn(btn("secondary", "sm"), "self-start")}
-                >
-                  Pay out now
-                </button>
-              </>
-            ) : (
-              <p className="flex gap-2 rounded-field bg-panel px-3 py-2.5 text-[13px] text-ink-soft">
-                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                Payouts open as soon as you're verified. Gifts are held safely until then.
-              </p>
-            )}
-          </div>
+          <PayoutCard organizationId={org.id} organizationVerified={verified} payout={payout} />
 
           <div className="flex flex-col gap-1 rounded-card border border-line-soft p-5">
             <p className="pb-2 text-[13px] font-medium text-subtle">To do</p>
@@ -676,6 +723,152 @@ function OrgDesk({ org }: { org: Org }) {
           onPublished={() => { void queryClient.invalidateQueries({ queryKey: ["my-dashboard"] }); }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function PayoutCard({
+  organizationId,
+  organizationVerified,
+  payout,
+}: {
+  organizationId?: string;
+  organizationVerified: boolean;
+  payout: DashboardData["payout"];
+}) {
+  const queryClient = useQueryClient();
+  const requests = useQuery({
+    queryKey: ["my-payout-requests"],
+    queryFn: () => apiFetch<PayoutRequest[]>("/me/payout-requests", { cache: "no-store" }),
+  });
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(formatAmountInput(String(payout.availableBalance)));
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const relevant = requests.data?.filter((request) =>
+    organizationId
+      ? request.ownerType === "ORGANIZATION" && request.ownerId === organizationId
+      : request.ownerType === "USER",
+  ) ?? [];
+  const current = relevant.find(
+    (request) => request.status === "OPEN" || (request.status === "PROCESSING" && (!request.transfer || ["pending", "otp"].includes(request.transfer.status))),
+  );
+  const latest = relevant[0];
+  const amountValue = parseAmountInput(amount);
+  const accountReady = payout.account?.status === "verified";
+
+  const begin = () => {
+    setAmount(formatAmountInput(String(payout.availableBalance)));
+    setNote("");
+    setOpen(true);
+  };
+  const submit = async () => {
+    if (submitting || amountValue < 1 || amountValue > payout.availableBalance) return;
+    setSubmitting(true);
+    try {
+      await apiFetch("/me/payout-requests", {
+        method: "POST",
+        body: JSON.stringify({
+          requestId: crypto.randomUUID(),
+          organizationId: organizationId || undefined,
+          amount: amountValue,
+          note: note.trim() || undefined,
+        }),
+      });
+      setOpen(false);
+      toast.success("Payout request sent for admin review.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["my-payout-requests"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-dashboard"] }),
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not request this payout.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const displayedRequest = current ?? latest;
+  const displayStatus = displayedRequest?.transfer?.status ?? displayedRequest?.status.toLowerCase();
+  const disabledReason = !organizationVerified
+    ? "Payouts open after the organization is verified."
+    : !payout.canRequest
+      ? "Only the organization owner can request a payout."
+      : !accountReady
+        ? "Add and verify a payout account first."
+        : payout.availableBalance < 1
+          ? "There is no available balance to pay out yet."
+          : current
+            ? "A payout request is already being reviewed."
+            : null;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-card border border-line-soft p-5">
+      <p className="text-[13px] font-medium text-subtle">Available to pay out</p>
+      <p className="font-display text-[30px] leading-none tracking-[-0.02em] text-ink">
+        {formatMoney(payout.availableBalance)}
+      </p>
+      {accountReady ? (
+        <p className="text-sm text-ink-soft">
+          {payout.account?.bankName} account ending {payout.account?.accountNumberLast4}
+        </p>
+      ) : null}
+      {latest?.status === "DECLINED" && !current ? (
+        <p className="rounded-field bg-danger/5 px-3 py-2.5 text-[13px] text-danger">
+          Last request declined{latest.decisionReason ? `: ${latest.decisionReason}` : "."}
+        </p>
+      ) : displayStatus ? (
+        <p className="rounded-field bg-panel px-3 py-2.5 text-[13px] text-ink-soft">
+          Request for {formatMoney(displayedRequest?.amount ?? 0)}: <strong className="capitalize text-ink">{displayStatus}</strong>
+        </p>
+      ) : null}
+      {disabledReason ? (
+        <p className="flex gap-2 rounded-field bg-panel px-3 py-2.5 text-[13px] text-ink-soft">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {disabledReason}
+        </p>
+      ) : null}
+      {!accountReady && organizationVerified && payout.canRequest ? (
+        <Link to="/profile" hash="payout" className={cn(btn("secondary", "sm"), "self-start")}>Add payout account</Link>
+      ) : (
+        <button type="button" disabled={Boolean(disabledReason) || requests.isLoading} onClick={begin} className={cn(btn("secondary", "sm"), "self-start")}>
+          {requests.isLoading ? "Checking requests…" : "Request payout"}
+        </button>
+      )}
+
+      <Dialog open={open} onOpenChange={(next) => { if (!submitting) setOpen(next); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request a payout</DialogTitle>
+            <DialogDescription>
+              The AzarFaith team will review this request and send approved funds only to the verified account shown below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-field bg-panel p-4 text-sm text-ink-soft">
+            <span className="block font-medium text-ink">{payout.account?.bankName}</span>
+            Account ending {payout.account?.accountNumberLast4}
+          </div>
+          <label className="flex flex-col gap-2 text-sm font-medium text-ink">
+            Amount
+            <span className="flex h-12 items-center rounded-field border border-line-input bg-paper px-4 focus-within:ring-2 focus-within:ring-ink">
+              <span className="mr-2 text-muted-ink">₦</span>
+              <input className="min-w-0 flex-1 bg-transparent outline-none" inputMode="numeric" value={amount} onChange={(event) => setAmount(formatAmountInput(event.target.value))} />
+            </span>
+            <span className="text-[12px] font-normal text-muted-ink">Up to {formatMoney(payout.availableBalance)} is available.</span>
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-ink">
+            <span className="flex items-baseline gap-1">
+              Note <span className="font-normal text-muted-ink">(optional)</span>
+            </span>
+            <textarea maxLength={240} rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="What will this payout support?" className="resize-none rounded-field border border-line-input bg-paper px-4 py-3 font-normal outline-none focus:ring-2 focus:ring-ink" />
+          </label>
+          {amountValue > payout.availableBalance ? <p role="alert" className="text-sm text-danger">The amount cannot exceed your available balance.</p> : null}
+          <DialogFooter>
+            <button type="button" className={btn("secondary")} disabled={submitting} onClick={() => setOpen(false)}>Cancel</button>
+            <button type="button" className={btn("primary")} disabled={submitting || amountValue < 1 || amountValue > payout.availableBalance} onClick={() => { void submit(); }}>
+              {submitting ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Sending…</> : "Send request"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

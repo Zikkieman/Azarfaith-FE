@@ -32,7 +32,7 @@ export function StaticStory() {
           shows you what every gift becomes.
         </p>
         <Link
-          to="/signup"
+          to="/discover"
           search={{}}
           className="inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast"
         >

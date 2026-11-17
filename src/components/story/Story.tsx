@@ -22,7 +22,7 @@ export function Story() {
             Let AzarFaith help you find them, trust them, and see what your giving does.
           </p>
           <Link
-            to="/signup"
+            to="/discover"
             search={{}}
             className="press inline-flex items-center rounded-full border-2 border-ink bg-ink px-6 py-3 font-gsf text-base font-medium text-ink-contrast hover:opacity-90"
           >

@@ -52,7 +52,7 @@ export function StoryNav() {
             Log in
           </Link>
           <Link
-            to="/signup"
+            to="/discover"
             search={{}}
             className="press rounded-full border-2 border-ink bg-ink px-4 py-1.5 font-gsf text-[14px] font-semibold text-ink-contrast hover:opacity-90"
           >

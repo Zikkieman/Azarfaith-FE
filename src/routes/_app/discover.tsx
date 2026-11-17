@@ -28,6 +28,7 @@ import { btn } from "@/components/app/btn";
 import { CampaignCard } from "@/components/CampaignCard";
 import { campaignCategories, formatCompactMoney, type Campaign, type Category, type Org } from "@/lib/domain";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 const views = ["all", "urgent", "nearly", "regular", "new", "orgs"] as const;
 type View = (typeof views)[number];
@@ -77,6 +78,7 @@ const quick: { value: View; label: string; icon: LucideIcon }[] = [
  * carousel and shelves while browsing; a sortable grid once you search or filter.
  */
 function Discover() {
+  const { user } = useAuth();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [sort, setSort] = useState<Sort>("urgent");
@@ -150,10 +152,12 @@ function Discover() {
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <h1 className="font-display text-[clamp(30px,3vw,44px)] leading-[1.08] tracking-[-0.03em] text-ink">
-              Discover
+              {user ? "Discover" : "Choose a campaign to support"}
             </h1>
             <p className="text-[15px] text-ink-soft">
-              Verified churches, missions, orphanages and schools across Nigeria.
+              {user
+                ? "Verified churches, missions, orphanages and schools across Nigeria."
+                : "Browse verified campaigns and give once without creating an account."}
             </p>
           </div>
           <SearchBox value={search.q ?? ""} onChange={(v) => set({ q: v || undefined })} />

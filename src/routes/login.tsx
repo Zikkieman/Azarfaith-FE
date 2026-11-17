@@ -30,6 +30,8 @@ type LoginForm = z.infer<typeof schema>;
 
 const message = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
+const destinationFor = (redirect: string | undefined, user: AuthUser) =>
+  safeRedirect(redirect, user.role === "platform_admin" ? "/admin" : "/dashboard");
 
 function Login() {
   const navigate = useNavigate();
@@ -37,15 +39,13 @@ function Login() {
   const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const form = useForm<LoginForm>({ resolver: zodResolver(schema) });
-  const destination = safeRedirect(redirect);
-
   useEffect(() => {
-    if (user) void navigate({ href: destination, replace: true });
-  }, [destination, navigate, user]);
+    if (user) void navigate({ href: destinationFor(redirect, user), replace: true });
+  }, [navigate, redirect, user]);
 
   const complete = (next: AuthUser) => {
     setUser(next);
-    void navigate({ href: destination, replace: true });
+    void navigate({ href: destinationFor(redirect, next), replace: true });
   };
 
   const google = async (idToken: string) => {

@@ -18,7 +18,7 @@ function ClosingCta({ page }: { page: PageDoc }) {
     ({
       heading: "Ready to give with confidence?",
       text: "Turn your generosity into lasting impact for the church, with full transparency at every step of the way.",
-      primary: { label: "Start giving", to: "/signup" },
+      primary: { label: "Start giving", to: "/discover" },
       secondary: { label: "Browse causes", to: "/discover" },
     } satisfies NonNullable<PageDoc["cta"]>);
 

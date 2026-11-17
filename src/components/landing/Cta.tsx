@@ -16,7 +16,7 @@ export function Cta() {
         </p>
 
         <Link
-          to="/signup"
+          to="/discover"
           search={{}}
           className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-[22px] py-3 font-gsf text-base leading-5 tracking-[-0.02em] text-ink-contrast transition-opacity hover:opacity-90"
         >
@@ -31,7 +31,7 @@ export function Cta() {
             to="/discover"
             className="inline-flex items-center gap-2 rounded-full border border-ink px-[22px] py-3 font-gsf text-base leading-6 tracking-[-0.02em] text-ink transition-colors hover:bg-ink/5"
           >
-            Read donor stories
+            Browse verified campaigns
             <img src={iconCtaArrow} alt="" className="h-[15px] w-[15px]" />
           </Link>
         </div>

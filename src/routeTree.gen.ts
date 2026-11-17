@@ -28,6 +28,7 @@ import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppRegisterOrgRouteImport } from './routes/_app/register-org'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminActivityRouteImport } from './routes/admin/activity'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminPlatformDonationsRouteImport } from './routes/admin/platform-donations'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AppCampaignIdRouteImport } from './routes/_app/campaign.$id'
@@ -134,6 +135,11 @@ const AdminActivityRoute = AdminActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPlatformDonationsRoute = AdminPlatformDonationsRouteImport.update({
   id: '/platform-donations',
   path: '/platform-donations',
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin': typeof AdminIndexRoute
@@ -271,6 +279,7 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRoute
   '/_app/register-org': typeof AppRegisterOrgRoute
   '/admin/activity': typeof AdminActivityRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/platform-donations': typeof AdminPlatformDonationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -304,6 +313,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/admin/activity'
+    | '/admin/payouts'
     | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin/'
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/register-org'
     | '/admin/activity'
+    | '/admin/payouts'
     | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin'
@@ -366,6 +377,7 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/register-org'
     | '/admin/activity'
+    | '/admin/payouts'
     | '/admin/platform-donations'
     | '/admin/settings'
     | '/admin/'
@@ -529,6 +541,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminActivityRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/platform-donations': {
       id: '/admin/platform-donations'
       path: '/platform-donations'
@@ -637,6 +656,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AdminRouteChildren {
   AdminActivityRoute: typeof AdminActivityRoute
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminPlatformDonationsRoute: typeof AdminPlatformDonationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -650,6 +670,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityRoute: AdminActivityRoute,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   AdminPlatformDonationsRoute: AdminPlatformDonationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,

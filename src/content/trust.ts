@@ -506,7 +506,7 @@ export const trustPages: PageDoc[] = [
     cta: {
       heading: "Give the full amount you intended",
       text: "Add the fee at checkout so your church, ministry or orphanage receives 100% of your gift.",
-      primary: { label: "Start giving", to: "/explore" },
+      primary: { label: "Start giving", to: "/discover" },
       secondary: { label: "Refund policy", to: "/refunds" },
     },
   },
