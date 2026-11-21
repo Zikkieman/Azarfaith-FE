@@ -218,7 +218,9 @@ function CampaignDetail() {
 }
 
 function Gallery({ campaign }: { campaign: Campaign }) {
-  const photos = campaign.gallery.length > 0 ? campaign.gallery : [campaign.cover];
+  // The designated cover must remain the campaign's lead image on every surface.
+  // Gallery responses can omit it or contain it again, so prepend and de-duplicate it.
+  const photos = Array.from(new Set([campaign.cover, ...campaign.gallery].filter(Boolean)));
   const [index, setIndex] = useState(0);
   const step = (d: number) => setIndex((i) => (i + d + photos.length) % photos.length);
   return (

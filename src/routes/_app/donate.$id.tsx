@@ -322,7 +322,7 @@ function CheckoutContent({ campaign }: { campaign: Campaign }) {
               {!anonymous || !user ? (
                 <label className="flex flex-col gap-1.5">
                   <span className={labelClass}>
-                    {anonymous ? "Name for your receipt (not shown publicly)" : "Name on the campaign"}
+                    {anonymous ? "Full name for your receipt (not shown publicly)" : "Full name"}
                   </span>
                   <input
                     value={name}
